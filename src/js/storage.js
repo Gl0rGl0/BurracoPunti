@@ -24,7 +24,7 @@ const BurracoStorage = {
         }
       },
       roundsCount: defaultRounds,
-      settings: { showBulkPaste: false, showLottery: false, showPodium: true },
+      settings: { showBulkPaste: false, showLottery: false, showPodium: false },
       currentTab: 'initial', // 'initial' | 'round' | 'master' | 'podium'
       activeRoundIndex: 0,
       searchFilter: '',
@@ -56,7 +56,7 @@ const BurracoStorage = {
       }
     } catch (e) {}
 
-    const defaultSettings = { showBulkPaste: false, showLottery: false, showPodium: true };
+    const defaultSettings = { showBulkPaste: false, showLottery: false, showPodium: false };
     const settings = {
       ...defaultSettings,
       ...(savedSettings || {}),

@@ -76,6 +76,7 @@ class BurracoApp {
     this.searchInput = document.getElementById('search-input');
     this.statTotalPairs = document.getElementById('stat-total-pairs');
     this.statCurrentRound = document.getElementById('stat-current-round');
+    this.badgeGiornata = document.getElementById('badge-giornata');
 
     // Modals
     this.modalSettings = document.getElementById('modal-settings');
@@ -426,6 +427,10 @@ class BurracoApp {
     if (this.printDate) {
       this.printDate.textContent = `Data: ${new Date().toLocaleDateString('it-IT')}`;
     }
+    if (this.badgeGiornata) {
+      const dateText = BurracoUtils.formatGiornataLabel(this.state.currentGiornataKey);
+      this.badgeGiornata.textContent = dateText || new Date().toLocaleDateString('it-IT');
+    }
 
     // Show Nuova Serata only on Tabellone Iniziale
     if (this.btnOpenNewTournament) {
@@ -453,10 +458,9 @@ class BurracoApp {
   // TAB 1: INITIAL PAIR REGISTRATION VIEW
   // ==========================================
   addNewPairRow() {
-    const maxLot = this.state.pairs.reduce((max, p) => Math.max(max, p.lotNumber || 0), 0);
     const newPair = {
       id: 'p_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-      lotNumber: maxLot + 1,
+      lotNumber: null,
       name: '',
       scores: Array.from({ length: this.state.roundsCount }, () => ({ mp: null, vp: null }))
     };
@@ -567,6 +571,22 @@ class BurracoApp {
           const val = e.target.value.trim();
           pair.lotNumber = val === '' ? null : parseInt(val, 10);
           this.saveState();
+        }
+      });
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const rowIdx = parseInt(e.target.dataset.rowIdx, 10);
+          if (rowIdx === this.state.pairs.length - 1) {
+            this.addNewPairRow();
+          } else {
+            const nextInput = this.initialTableBody.querySelectorAll('.initial-name-input')[rowIdx + 1];
+            if (nextInput) {
+              nextInput.focus();
+              nextInput.select();
+            }
+          }
         }
       });
     });
