@@ -1,0 +1,83 @@
+/* ==========================================================================
+   PRINT STYLES (CLEAN A4 PAPER PRINTING)
+   Layout di stampa A4 pulito per la classifica ufficiale
+   ========================================================================== */
+
+.print-container {
+  display: none;
+}
+
+@media print {
+  /* Hide interactive chrome */
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+  }
+
+  .app-header, .tabs-nav, .toolbar-section, .modal-backdrop, .card-header button, .quick-filter-wrap {
+    display: none !important;
+  }
+
+  .app-main {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .table-card {
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .table-container {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .data-table {
+    border-collapse: collapse !important;
+    font-size: 11.5pt !important;
+  }
+
+  .data-table th, .data-table td {
+    border: 1px solid #000000 !important;
+    padding: 6px 8px !important;
+  }
+
+  .data-table thead th {
+    background-color: #E2E8F0 !important;
+    color: #000000 !important;
+  }
+
+  .print-container {
+    display: block !important;
+    margin-bottom: 20px;
+  }
+
+  .print-header {
+    border-bottom: 2px solid #000000;
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+
+  .print-header h1 {
+    font-size: 20pt;
+    font-weight: bold;
+  }
+
+  .print-meta {
+    font-size: 10.5pt;
+    text-align: right;
+  }
+
+  /* Force print leaderboard */
+  #view-leaderboard {
+    display: block !important;
+  }
+
+  #view-master, #view-round, #view-podium {
+    display: none !important;
+  }
+}

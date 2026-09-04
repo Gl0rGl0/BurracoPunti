@@ -1,0 +1,203 @@
+/* ==========================================================================
+   DATA TABLES (EXCEL FEEL & KEYBOARD NAVIGATION)
+   Tabelle iscrizioni, tabelle punteggi turni, classifica master e badge
+   ========================================================================== */
+
+.table-container {
+  overflow-x: auto;
+  max-height: calc(100vh - 280px);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 15.5px;
+  text-align: left;
+}
+
+.data-table thead th {
+  background-color: #F8FAFC;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  padding: 12px 14px;
+  border-bottom: 2px solid var(--border-color);
+  border-right: 1px solid var(--border-light);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.data-table tbody td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-light);
+  border-right: 1px solid var(--border-light);
+  vertical-align: middle;
+}
+
+.data-table tbody tr:nth-child(even) {
+  background-color: #FAFAFC;
+}
+
+.data-table tbody tr:hover {
+  background-color: #F1F5F9;
+}
+
+/* Fixed columns for master table */
+.col-rank {
+  width: 55px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 15.5px;
+}
+
+.col-lot {
+  width: 65px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 15.5px;
+  background-color: #F1F5F9;
+}
+
+.col-name {
+  min-width: 230px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.col-tot-vp {
+  width: 110px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--primary);
+  background-color: #F0F7FF;
+}
+
+.col-tot-mp {
+  width: 120px;
+  text-align: center;
+  font-size: 15.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background-color: #F8FAFC;
+}
+
+.col-actions {
+  width: 80px;
+  text-align: center;
+}
+
+.round-col-header {
+  text-align: center !important;
+  background-color: #EFF6FF !important;
+  color: var(--primary) !important;
+  border-bottom: 2px solid var(--primary-border) !important;
+}
+
+.sub-header-mp, .sub-header-vp {
+  text-align: center !important;
+  font-size: 12.5px !important;
+}
+
+/* Inputs inside grid */
+.grid-score-input {
+  width: 100%;
+  max-width: 95px;
+  padding: 6px 8px;
+  font-size: 15.5px;
+  text-align: center;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: #FFFFFF;
+  transition: all 0.1s ease;
+}
+
+.grid-score-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: #FFFFFF;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+  z-index: 2;
+  position: relative;
+}
+
+.grid-score-input.input-vp {
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* ==========================================================================
+   LEADERBOARD VIEW
+   ========================================================================== */
+.leaderboard-table th, .leaderboard-table td {
+  padding: 12px 14px;
+}
+
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.rank-1 {
+  background: #FEF3C7;
+  color: #92400E;
+  border: 2px solid #F59E0B;
+}
+
+.rank-2 {
+  background: #F1F5F9;
+  color: #334155;
+  border: 2px solid #94A3B8;
+}
+
+.rank-3 {
+  background: #FFEDD5;
+  color: #9A3412;
+  border: 2px solid #EA580C;
+}
+
+.badge-table {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  color: var(--primary);
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+}
+
+.highlight-col {
+  background-color: #EFF6FF !important;
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  color: var(--primary) !important;
+}
+
+.round-chips {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.round-chip {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  padding: 3px 7px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: var(--font-mono);
+}

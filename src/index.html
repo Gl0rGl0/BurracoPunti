@@ -19,10 +19,6 @@
     </div>
 
     <div class="header-right">
-      <div class="status-indicator" id="save-status">
-        <span class="status-dot"></span>
-        <span class="status-text">Salvataggio attivo</span>
-      </div>
       <div class="header-actions">
         <button id="btn-print" class="btn btn-secondary" title="Salva in PDF la classifica">
           <span class="btn-icon">🖨️</span> PDF
@@ -48,7 +44,14 @@
         <span class="tab-icon">🏆</span> Classifica
       </button>
       <button class="tab-btn" data-tab="podium" id="tab-btn-podium">
-        <span class="tab-icon">🥇</span> Podio & Cerimonia
+        <span class="tab-icon">🥇</span> Podio
+      </button>
+    </div>
+
+    <!-- Action on the far right, visible only in Tabellone Iniziale -->
+    <div class="tabs-nav-right" id="tabs-nav-right">
+      <button id="btn-open-new-tournament" class="btn btn-secondary btn-sm" title="Avvia una Nuova Serata o un nuovo torneo">
+        <span class="btn-icon">✨</span> Nuova Serata
       </button>
     </div>
   </nav>
@@ -60,8 +63,9 @@
     <section id="view-initial" class="view-panel active">
       <div class="table-card">
         <div class="card-header">
-          <div>
+          <div style="display: flex; align-items: center; gap: 10px;">
             <h2>Tabellone Iniziale</h2>
+            <span class="badge" id="badge-giornata" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); padding: 2px 8px; border-radius: 6px; font-size: 13px; font-weight: 600;">Giornata 1</span>
           </div>
           <div class="card-header-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <input type="text" id="initial-search-input" class="search-input" placeholder="🔍 Cerca coppia per nome o n°...">
@@ -162,9 +166,9 @@
     <section id="view-podium" class="view-panel">
       <div class="podium-card">
         <div class="podium-header">
-          <span class="podium-eyebrow">Cerimonia di Premiazione</span>
+          <!-- <span class="podium-eyebrow">Cerimonia di Premiazione</span> -->
           <h2 class="podium-title" id="podium-tournament-title">Torneo di Burraco</h2>
-          <p class="subtitle">I vincitori e i primi classificati del torneo</p>
+          <!-- <p class="subtitle">I vincitori e i primi classificati del torneo</p> -->
         </div>
 
         <!-- 3-tier podium visualization -->
@@ -344,6 +348,14 @@
               <span class="toggle-slider"></span>
             </label>
           </div>
+
+          <div class="setting-toggle-item">
+            <span class="toggle-text">Scheda "Podio"</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="setting-toggle-podium" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
         </div>
 
         <div class="settings-group" style="margin-top: 20px; border-top: 1px solid var(--border-light); padding-top: 16px;">
@@ -408,6 +420,30 @@
     </div>
   </div>
 
+  <!-- Modal 6: Nuova Serata -->
+  <div class="modal-backdrop" id="modal-new-tournament">
+    <div class="modal-dialog modal-sm">
+      <div class="modal-header">
+        <h3>✨ Nuova Serata</h3>
+        <button class="modal-close" id="close-new-tournament-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 15px; color: var(--text-main); margin-bottom: 8px;">
+          Vuoi iniziare una nuova serata di gioco (<strong id="modal-new-date-label">04/09/26</strong>)?
+        </p>
+        <p class="form-hint">
+          Il tabellone verrà azzerato per inserire le coppie della nuova serata.
+        </p>
+      </div>
+      <div class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button type="button" class="btn btn-secondary" id="btn-cancel-new-tournament">Annulla</button>
+        <button type="button" class="btn btn-primary" id="btn-confirm-new-evening">
+          <span class="btn-icon">✨</span> Inizia Serata
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Printable Container (Target for Clean A4 Printing) -->
   <div id="print-container" class="print-container">
     <div class="print-header">
@@ -420,6 +456,11 @@
     <div id="print-body"></div>
   </div>
 
+  <!-- Modular JavaScript Engine & Utilities -->
+  <script src="js/utils.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/excel.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

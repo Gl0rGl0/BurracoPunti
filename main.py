@@ -83,7 +83,7 @@ def main():
         html_path = get_resource_path("index.html")
 
     window = webview.create_window(
-        title="Burraco Pezzo - Gestione Torneo",
+        title="Burraco - Gestione Torneo",
         url=html_path,
         js_api=api,
         width=1280,

@@ -1,23 +1,46 @@
 /**
- * Unit & Logic Verification Test for Burraco Tournament Engine
+ * Unit & Logic Verification Test for Burraco Tournament Engine (Modular Architecture)
  */
 const fs = require('fs');
 const path = require('path');
 
-console.log('--- TEST 1: Verifica sintassi e integrità file ---');
+console.log('--- TEST 1: Verifica sintassi e integrità moduli ---');
 const html = fs.readFileSync(path.join(__dirname, 'src', 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(__dirname, 'src', 'styles.css'), 'utf8');
 const js = fs.readFileSync(path.join(__dirname, 'src', 'app.js'), 'utf8');
 const xlsxExists = fs.existsSync(path.join(__dirname, 'src', 'xlsx.full.min.js'));
 
+// Verify modular CSS files
+const cssModules = ['base.css', 'tables.css', 'podium.css', 'modals.css', 'print.css'];
+cssModules.forEach(mod => {
+  const p = path.join(__dirname, 'src', 'css', mod);
+  if (!fs.existsSync(p)) throw new Error(`Modulo CSS mancante: src/css/${mod}`);
+  const content = fs.readFileSync(p, 'utf8');
+  console.log(`- src/css/${mod}: ${content.length} bytes (OK)`);
+});
+
+// Verify modular JS files
+const jsModules = ['utils.js', 'engine.js', 'storage.js', 'excel.js'];
+jsModules.forEach(mod => {
+  const p = path.join(__dirname, 'src', 'js', mod);
+  if (!fs.existsSync(p)) throw new Error(`Modulo JS mancante: src/js/${mod}`);
+  const content = fs.readFileSync(p, 'utf8');
+  console.log(`- src/js/${mod}: ${content.length} bytes (OK)`);
+});
+
 console.log(`- index.html: ${html.length} bytes`);
-console.log(`- styles.css: ${css.length} bytes`);
-console.log(`- app.js: ${js.length} bytes`);
+console.log(`- styles.css (master entry): ${css.length} bytes`);
+console.log(`- app.js (controller): ${js.length} bytes`);
 console.log(`- xlsx.full.min.js presente: ${xlsxExists ? 'OK' : 'MANCANTE'}`);
 
-console.log('\n--- TEST 2: Verifica logica di calcolo e spareggio (VP / MP) ---');
+// Import the actual engine modules
+const BurracoUtils = require('./src/js/utils.js');
+const BurracoEngine = require('./src/js/engine.js');
+const BurracoStorage = require('./src/js/storage.js');
+const BurracoExcel = require('./src/js/excel.js');
 
-// Mock data
+console.log('\n--- TEST 2: Verifica logica di calcolo e spareggio (BurracoEngine) ---');
+
 const testPairs = [
   {
     id: 'p1',
@@ -65,26 +88,8 @@ const testPairs = [
   }
 ];
 
-function calculateTotalsAndRank(pairs) {
-  const withTotals = pairs.map(p => {
-    let totVP = 0;
-    let totMP = 0;
-    p.scores.forEach(s => {
-      if (s.vp !== null && !isNaN(s.vp)) totVP += Number(s.vp);
-      if (s.mp !== null && !isNaN(s.mp)) totMP += Number(s.mp);
-    });
-    return { ...p, totVP, totMP };
-  });
-
-  return withTotals.sort((a, b) => {
-    if (b.totVP !== a.totVP) return b.totVP - a.totVP;
-    if (b.totMP !== a.totMP) return b.totMP - a.totMP;
-    return (a.lotNumber || 999) - (b.lotNumber || 999);
-  });
-}
-
-const ranked = calculateTotalsAndRank(testPairs);
-console.log('Classifica risultante:');
+const ranked = BurracoEngine.getRankedPairs(testPairs, 4);
+console.log('Classifica risultante da BurracoEngine:');
 ranked.forEach((p, idx) => {
   console.log(`  ${idx + 1}° Posto: ${p.name} -> ${p.totVP} VP | ${p.totMP} MP`);
 });
@@ -99,9 +104,9 @@ if (ranked[1].name !== 'Coppia Beta (Pari VP con Alfa, ma più MP)') {
 if (ranked[2].name !== 'Coppia Alfa') {
   throw new Error('Test Fallito: Alfa doveva essere 3°');
 }
-console.log('>>> TEST 2 SUPERATO CON SUCCESSO! Spareggio MP e somme VP perfette.');
+console.log('>>> TEST 2 SUPERATO CON SUCCESSO! Spareggio MP e somme VP verificate.');
 
-console.log('\n--- TEST 3: Verifica Parser Incolla Rapido da Excel/Testo ---');
+console.log('\n--- TEST 3: Verifica Parser Incolla Rapido da Excel/Testo (BurracoExcel) ---');
 const sampleRawPaste = `
 Tavolo 1: Mario Rossi + Luigi Bianchi
 2. Anna Verdi - Carla Neri
@@ -110,39 +115,21 @@ Elena e Sofia
 15 - Paolo Bruni + Roberto Fabbri
 `;
 
-function parseBulkText(text) {
-  const lines = text.split(/\r?\n/);
-  const parsed = [];
-  lines.forEach(rawLine => {
-    let line = rawLine.trim();
-    if (!line) return;
-    line = line.replace(/^(?:Tavolo\s*\d+[\s:\-]+|\d+[\s\.\)\-:]+)/i, '').trim();
-    if (line) parsed.push(line);
-  });
-  return parsed;
+const parsedPairs = BurracoExcel.parseBulkPaste(sampleRawPaste, true, 1, 4);
+console.log('Nomi estratti puliti:', parsedPairs.map(p => p.name));
+if (parsedPairs.length !== 5) {
+  throw new Error(`Test Fallito: Attese 5 coppie, estratte ${parsedPairs.length}`);
 }
-
-const parsedNames = parseBulkText(sampleRawPaste);
-console.log('Nomi estratti puliti:', parsedNames);
-if (parsedNames.length !== 5) {
-  throw new Error(`Test Fallito: Attesi 5 nomi, estratti ${parsedNames.length}`);
-}
-if (parsedNames[0] !== 'Mario Rossi + Luigi Bianchi' || parsedNames[1] !== 'Anna Verdi - Carla Neri') {
+if (parsedPairs[0].name !== 'Mario Rossi + Luigi Bianchi' || parsedPairs[1].name !== 'Anna Verdi - Carla Neri') {
   throw new Error('Test Fallito: Pulizia prefisso errata');
 }
-console.log('>>> TEST 3 SUPERATO CON SUCCESSO! Pulizia e importazione Excel verificate.');
-
-console.log('\n--- TEST 4: Verifica Sorteggio Casuale (1..N senza duplicati) ---');
-function runLottery(count) {
-  const numbers = Array.from({ length: count }, (_, i) => i + 1);
-  for (let i = numbers.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
-  }
-  return numbers;
+if (parsedPairs[0].lotNumber !== 1 || parsedPairs[4].lotNumber !== 5) {
+  throw new Error('Test Fallito: Assegnazione automatica numeri sorteggio errata');
 }
+console.log('>>> TEST 3 SUPERATO CON SUCCESSO! Parser Excel e numerazione automatica verificati.');
 
-const draw = runLottery(20);
+console.log('\n--- TEST 4: Verifica Sorteggio Casuale (BurracoEngine.generateRandomLots) ---');
+const draw = BurracoEngine.generateRandomLots(20);
 const uniqueSet = new Set(draw);
 if (draw.length !== 20 || uniqueSet.size !== 20 || Math.min(...draw) !== 1 || Math.max(...draw) !== 20) {
   throw new Error('Test Fallito: Sorteggio non valido!');
@@ -150,6 +137,27 @@ if (draw.length !== 20 || uniqueSet.size !== 20 || Math.min(...draw) !== 1 || Ma
 console.log(`Sorteggio 20 coppie generato: [${draw.slice(0, 8).join(', ')} ...]: Tutti numeri unici da 1 a 20.`);
 console.log('>>> TEST 4 SUPERATO CON SUCCESSO!');
 
+console.log('\n--- TEST 5: Verifica Struttura Multi-Giornata con Formato Data GGMMAA (BurracoStorage) ---');
+const diskJsonRaw = fs.readFileSync(path.join(__dirname, 'torneo_data.json'), 'utf8');
+const diskJson = JSON.parse(diskJsonRaw);
+
+if (!diskJson.title) {
+  throw new Error('Test Fallito: titolo mancante alla radice del JSON!');
+}
+if (!diskJson.giornata_040926 || !Array.isArray(diskJson.giornata_040926.pairs)) {
+  throw new Error('Test Fallito: blocco giornata_040926 mancante o senza pairs!');
+}
+
+console.log(`- File torneo_data.json letto con successo. Titolo: "${diskJson.title}"`);
+console.log(`- Giornate presenti: ${Object.keys(diskJson).filter(k => k.startsWith('giornata_')).join(', ')}`);
+console.log(`- Coppie in giornata_040926: ${diskJson.giornata_040926.pairs.length}`);
+
+const parsedState = BurracoStorage.parseLoadedData(diskJson);
+if (!parsedState || parsedState.pairs.length !== 4) {
+  throw new Error('Test Fallito: parseLoadedData non ha estratto correttamente le coppie attive');
+}
+console.log('>>> TEST 5 SUPERATO CON SUCCESSO! Schema data GGMMAA (es. giornata_040926) e storage perfettamente conformi.');
+
 console.log('\n=============================================');
-console.log('TUTTI I TEST LOGICI SONO PASSATI AL 100%!');
+console.log('TUTTI I TEST MODULARI SONO PASSATI AL 100%!');
 console.log('=============================================');

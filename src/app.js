@@ -1,76 +1,41 @@
 /**
  * BURRACO - TOURNAMENT MANAGER
- * Application Engine & Reactive State Controller
+ * UI Controller & Reactive View Manager
  */
-
-// Initial State Template
-const DEFAULT_ROUNDS = 4;
-const STORAGE_KEY = 'burraco_master_tournament_v1';
-
-const defaultState = {
-  title: 'Torneo di Burraco',
-  roundsCount: DEFAULT_ROUNDS,
-  settings: { showBulkPaste: false, showLottery: false },
-  currentTab: 'initial', // 'initial' | 'round' | 'master' | 'podium'
-  activeRoundIndex: 0,
-  searchFilter: '',
-  initialSearchFilter: '',
-  pairs: [
-    { id: 'p1', lotNumber: 1, name: 'Pietro - Paolo', scores: [{ mp: 1540, vp: 14 }, { mp: 980, vp: 11 }, { mp: 1200, vp: 13 }, { mp: null, vp: null }] },
-    { id: 'p2', lotNumber: 2, name: 'Anna - Marco', scores: [{ mp: 620, vp: 6 }, { mp: 1420, vp: 16 }, { mp: 850, vp: 9 }, { mp: null, vp: null }] },
-    { id: 'p3', lotNumber: 3, name: 'Giovanni - Luca', scores: [{ mp: 1810, vp: 17 }, { mp: 750, vp: 8 }, { mp: 1650, vp: 15 }, { mp: null, vp: null }] },
-    { id: 'p4', lotNumber: 4, name: 'Maria - Elena', scores: [{ mp: 890, vp: 9 }, { mp: 1310, vp: 14 }, { mp: 1100, vp: 12 }, { mp: null, vp: null }] }
-  ]
-};
 
 class BurracoApp {
   constructor() {
-    this.state = this.loadState();
+    this.state = BurracoStorage.loadState();
     this.initDOMElements();
     this.bindEvents();
     this.render();
-  }
 
-  // ==========================================
-  // STATE MANAGEMENT & PERSISTENCE
-  // ==========================================
-  loadState() {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('burraco_Pezzo_tournament_v1');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Ensure data consistency
-        if (parsed.pairs && Array.isArray(parsed.pairs)) {
-          if (!parsed.settings) parsed.settings = { showBulkPaste: false, showLottery: false };
-          return parsed;
-        }
+    // If PyWebView native API is ready, check and load disk tournament data
+    window.addEventListener('pywebviewready', () => {
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.load_tournament_data) {
+        window.pywebview.api.load_tournament_data().then(diskData => {
+          if (diskData) {
+            const parsedState = BurracoStorage.parseLoadedData(diskData);
+            if (parsedState) {
+              this.state = parsedState;
+              this.syncSettingsUI();
+              this.render();
+            }
+          }
+        }).catch(err => console.error('Errore lettura torneo_data.json da Python:', err));
       }
-    } catch (e) {
-      console.warn('Errore lettura localStorage:', e);
-    }
-    return JSON.parse(JSON.stringify(defaultState));
+    });
   }
 
+  // ==========================================
+  // STATE PERSISTENCE HELPERS
+  // ==========================================
   saveState() {
-    try {
-      const json = JSON.stringify(this.state);
-      localStorage.setItem(STORAGE_KEY, json);
+    BurracoStorage.saveState(this.state);
+  }
 
-      // Indicate save
-      const statusEl = document.getElementById('save-status');
-      if (statusEl) {
-        statusEl.classList.add('saving');
-        const textEl = statusEl.querySelector('.status-text');
-        if (textEl) textEl.textContent = 'Salvato ' + new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      }
-
-      // If PyWebView API is present, persist to file
-      if (window.pywebview && window.pywebview.api && window.pywebview.api.save_tournament_data) {
-        window.pywebview.api.save_tournament_data(json).catch(err => console.error('Python save error:', err));
-      }
-    } catch (e) {
-      console.error('Errore salvataggio stato:', e);
-    }
+  getRankedPairs() {
+    return BurracoEngine.getRankedPairs(this.state.pairs, this.state.roundsCount);
   }
 
   // ==========================================
@@ -102,168 +67,237 @@ class BurracoApp {
     this.masterTableBody = document.getElementById('master-table-body');
     this.roundTable = document.getElementById('round-table');
     this.roundTableBody = document.getElementById('round-table-body');
-
-    // Round View Controls
     this.roundViewTitle = document.getElementById('round-view-title');
     this.currentRoundBadge = document.getElementById('current-round-badge');
     this.btnPrevRound = document.getElementById('btn-prev-round');
     this.btnNextRound = document.getElementById('btn-next-round');
 
+    // Toolbar / Stats
+    this.searchInput = document.getElementById('search-input');
+    this.statTotalPairs = document.getElementById('stat-total-pairs');
+    this.statCurrentRound = document.getElementById('stat-current-round');
+
     // Modals
+    this.modalSettings = document.getElementById('modal-settings');
     this.modalAddPair = document.getElementById('modal-add-pair');
     this.modalEditPair = document.getElementById('modal-edit-pair');
     this.modalBulkPaste = document.getElementById('modal-bulk-paste');
     this.modalLottery = document.getElementById('modal-lottery');
-    this.modalSettings = document.getElementById('modal-settings');
     this.modalConfirmDelete = document.getElementById('modal-confirm-delete');
-    this.confirmDeleteDetail = document.getElementById('confirm-delete-detail');
+    this.modalNewTournament = document.getElementById('modal-new-tournament');
+
+    // Form inputs in modals
+    this.inputPairName = document.getElementById('input-pair-name');
+    this.inputLotNumber = document.getElementById('input-lot-number');
+    this.inputEditPairName = document.getElementById('edit-pair-name');
+    this.inputEditLotNumber = document.getElementById('edit-lot-number');
+    this.editPairId = document.getElementById('edit-pair-id');
     this.btnConfirmDelete = document.getElementById('btn-confirm-delete');
     this.pendingDeletePairId = null;
 
-    // Inputs & Forms
-    this.masterSearchInput = document.getElementById('master-search-input');
-    this.formAddPair = document.getElementById('form-add-pair');
-    this.formEditPair = document.getElementById('form-edit-pair');
-    this.inputPairName = document.getElementById('input-pair-name');
-    this.inputLotNumber = document.getElementById('input-lot-number');
-    this.inputEditPairName = document.getElementById('input-edit-pair-name');
-    this.inputEditLotNumber = document.getElementById('input-edit-lot-number');
-    this.editPairId = document.getElementById('edit-pair-id');
-    this.bulkTextarea = document.getElementById('bulk-paste-textarea');
-    this.bulkAutoNumber = document.getElementById('bulk-auto-number');
-
-    // Settings & Tool Visibility
-    this.settingToggleBulk = document.getElementById('setting-toggle-bulk');
-    this.settingToggleLottery = document.getElementById('setting-toggle-lottery');
+    // Settings elements
+    this.toggleBulkPaste = document.getElementById('setting-bulk-paste');
+    this.toggleLottery = document.getElementById('setting-lottery');
+    this.togglePodium = document.getElementById('setting-podium');
     this.settingRoundsCount = document.getElementById('setting-rounds-count');
-    this.btnOpenBulkPaste = document.getElementById('btn-open-bulk-paste');
-    this.btnOpenLottery = document.getElementById('btn-open-lottery');
+    this.btnBulkPasteToolbar = document.getElementById('btn-open-bulk-paste');
+    this.btnLotteryToolbar = document.getElementById('btn-open-lottery');
+    this.tabBtnPodium = document.getElementById('tab-btn-podium');
+    this.btnOpenNewTournament = document.getElementById('btn-open-new-tournament');
+
+    // Header action buttons
+    this.btnPrint = document.getElementById('btn-print');
+    this.btnOpenSettings = document.getElementById('btn-open-settings');
+
+    // Initialize inputs with current state values
+    if (this.titleInput) this.titleInput.value = this.state.title;
+    this.syncSettingsUI();
+  }
+
+  syncSettingsUI() {
+    if (this.titleInput) this.titleInput.value = this.state.title;
+    if (this.toggleBulkPaste) this.toggleBulkPaste.checked = !!this.state.settings.showBulkPaste;
+    if (this.toggleLottery) this.toggleLottery.checked = !!this.state.settings.showLottery;
+    if (this.togglePodium) this.togglePodium.checked = !!this.state.settings.showPodium;
+    if (this.settingRoundsCount) this.settingRoundsCount.value = this.state.roundsCount;
+
+    this.applySettingsVisibility();
+  }
+
+  applySettingsVisibility() {
+    if (this.btnBulkPasteToolbar) {
+      this.btnBulkPasteToolbar.style.display = this.state.settings.showBulkPaste ? 'inline-flex' : 'none';
+    }
+    if (this.btnLotteryToolbar) {
+      this.btnLotteryToolbar.style.display = this.state.settings.showLottery ? 'inline-flex' : 'none';
+    }
+    if (this.tabBtnPodium) {
+      this.tabBtnPodium.style.display = this.state.settings.showPodium ? 'flex' : 'none';
+      if (this.tabsNav) {
+        if (!this.state.settings.showPodium) {
+          this.tabsNav.classList.add('podium-hidden');
+        } else {
+          this.tabsNav.classList.remove('podium-hidden');
+        }
+      }
+    }
   }
 
   // ==========================================
   // EVENT BINDINGS
   // ==========================================
   bindEvents() {
-    // Title edit (optional if present in HTML)
-    if (this.titleInput) {
-      this.titleInput.addEventListener('input', (e) => {
-        this.state.title = e.target.value.trim() || 'Torneo di Burraco';
-        this.saveState();
-        this.updateTitles();
-      });
-    }
+    // Title changes
+    this.titleInput?.addEventListener('input', (e) => {
+      this.state.title = e.target.value.trim() || 'Torneo di Burraco';
+      if (this.podiumTitle) this.podiumTitle.textContent = this.state.title;
+      if (this.printTitle) this.printTitle.textContent = this.state.title;
+      this.saveState();
+    });
 
-    // Main tabs click
-    if (this.tabsNav) {
-      this.tabsNav.addEventListener('click', (e) => {
-        const tabBtn = e.target.closest('.tab-btn');
-        if (!tabBtn) return;
-        const tab = tabBtn.dataset.tab;
-        if (tab.startsWith('round-')) {
-          const roundIdx = parseInt(tab.replace('round-', ''), 10);
-          this.switchTab('round', roundIdx);
-        } else {
-          this.switchTab(tab);
-        }
-      });
-    }
-
-    // Round add / remove buttons (optional if present)
-    document.getElementById('btn-add-round')?.addEventListener('click', () => this.addRound());
-    document.getElementById('btn-remove-round')?.addEventListener('click', () => this.removeRound());
-
-    // Settings round count numeric input
-    this.settingRoundsCount?.addEventListener('change', (e) => {
-      const val = parseInt(e.target.value, 10);
-      if (isNaN(val) || val < 1) {
-        e.target.value = this.state.roundsCount;
-        return;
+    // Navigation Tabs
+    this.tabsNav?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.tab-btn');
+      if (!btn) return;
+      const targetTab = btn.dataset.tab;
+      if (targetTab) {
+        this.switchTab(targetTab);
       }
-      this.setRoundsCount(val);
     });
 
     // Round navigation buttons
     this.btnPrevRound?.addEventListener('click', () => {
       if (this.state.activeRoundIndex > 0) {
-        this.switchTab('round', this.state.activeRoundIndex - 1);
+        this.state.activeRoundIndex--;
+        this.saveState();
+        this.renderTabs();
+        this.renderRoundView();
       }
     });
+
     this.btnNextRound?.addEventListener('click', () => {
       if (this.state.activeRoundIndex < this.state.roundsCount - 1) {
-        this.switchTab('round', this.state.activeRoundIndex + 1);
+        this.state.activeRoundIndex++;
+        this.saveState();
+        this.renderTabs();
+        this.renderRoundView();
       }
     });
 
-    // Modal open buttons
-    document.getElementById('btn-open-add-pair')?.addEventListener('click', () => this.openModal('modalAddPair'));
-    document.getElementById('btn-open-bulk-paste')?.addEventListener('click', () => this.openModal('modalBulkPaste'));
-    document.getElementById('btn-open-lottery')?.addEventListener('click', () => {
-      const countEl = document.getElementById('lottery-total-count');
-      if (countEl) countEl.textContent = this.state.pairs.length;
-      this.openModal('modalLottery');
+    // Global Action Buttons
+    this.btnPrint?.addEventListener('click', () => this.triggerPrint());
+    this.btnOpenSettings?.addEventListener('click', () => this.openModal('modalSettings'));
+
+    // Search filters
+    this.searchInput?.addEventListener('input', (e) => {
+      this.state.searchFilter = e.target.value.trim().toLowerCase();
+      this.renderMasterTable();
     });
 
-    // Settings modal open/close
-    document.getElementById('btn-open-settings')?.addEventListener('click', () => {
-      this.syncSettingsUI();
-      this.openModal('modalSettings');
+    this.initialSearchInput?.addEventListener('input', (e) => {
+      this.state.initialSearchFilter = e.target.value.trim().toLowerCase();
+      this.renderInitialTable();
     });
+
+    // Toolbar and Quick Action Buttons
+    document.getElementById('btn-add-pair')?.addEventListener('click', () => this.addNewPairRow());
+    this.btnBulkPasteToolbar?.addEventListener('click', () => this.openModal('modalBulkPaste'));
+    this.btnLotteryToolbar?.addEventListener('click', () => this.openModal('modalLottery'));
+
+    // Export Buttons
+    document.getElementById('btn-export-excel')?.addEventListener('click', () => this.exportExcel());
+    document.getElementById('btn-export-excel-round')?.addEventListener('click', () => this.exportExcel());
+    document.getElementById('btn-export-json')?.addEventListener('click', () => BurracoExcel.exportBackupJSON(this.state));
+
+    // Import JSON File
+    const fileInput = document.getElementById('input-import-json');
+    document.getElementById('btn-trigger-import-json')?.addEventListener('click', () => fileInput?.click());
+    fileInput?.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const parsed = JSON.parse(ev.target.result);
+            const importedState = BurracoStorage.parseLoadedData(parsed);
+            if (importedState) {
+              this.state = importedState;
+              this.saveState();
+              this.syncSettingsUI();
+              this.render();
+              this.closeModal('modalSettings');
+              alert('Backup caricato con successo! Dati ripristinati.');
+            } else {
+              alert('File JSON non valido per un torneo di Burraco.');
+            }
+          } catch (err) {
+            console.error('Errore lettura JSON:', err);
+            alert('Formato JSON non valido.');
+          }
+        };
+        reader.readAsText(file);
+      }
+    });
+
+    // Lottery Actions
+    document.getElementById('btn-draw-random-lottery')?.addEventListener('click', () => this.runRandomLottery());
+    document.getElementById('btn-draw-sequential-lottery')?.addEventListener('click', () => this.runSequentialLottery());
+
+    // Bulk Paste Actions
+    document.getElementById('btn-confirm-bulk-paste')?.addEventListener('click', () => this.processBulkPaste());
+
+    // Settings Toggle Listeners
+    this.toggleBulkPaste?.addEventListener('change', (e) => {
+      this.state.settings.showBulkPaste = e.target.checked;
+      this.applySettingsVisibility();
+      this.saveState();
+    });
+
+    this.toggleLottery?.addEventListener('change', (e) => {
+      this.state.settings.showLottery = e.target.checked;
+      this.applySettingsVisibility();
+      this.saveState();
+    });
+
+    this.togglePodium?.addEventListener('change', (e) => {
+      this.state.settings.showPodium = e.target.checked;
+      this.applySettingsVisibility();
+      this.saveState();
+    });
+
+    this.settingRoundsCount?.addEventListener('change', (e) => {
+      const val = parseInt(e.target.value, 10);
+      this.setRoundsCount(val);
+    });
+
+    // New Tournament Modal
+    this.btnOpenNewTournament?.addEventListener('click', () => {
+      this.openModal('modalNewTournament');
+    });
+    document.getElementById('close-new-tournament-modal')?.addEventListener('click', () => {
+      this.closeModal('modalNewTournament');
+    });
+    document.getElementById('btn-cancel-new-tournament')?.addEventListener('click', () => {
+      this.closeModal('modalNewTournament');
+    });
+    document.getElementById('btn-confirm-new-evening')?.addEventListener('click', () => {
+      this.startNewEvening();
+    });
+
+    // Close buttons on all modals
     document.getElementById('close-settings-modal')?.addEventListener('click', () => this.closeModal('modalSettings'));
     document.getElementById('btn-close-settings')?.addEventListener('click', () => this.closeModal('modalSettings'));
-
-    // Settings actions inside modal
-    document.getElementById('btn-modal-export-excel')?.addEventListener('click', () => {
-      this.exportExcel();
-    });
-    document.getElementById('btn-modal-export-json')?.addEventListener('click', () => {
-      this.exportBackupJSON();
-    });
-    document.getElementById('btn-modal-import-json')?.addEventListener('click', () => {
-      document.getElementById('input-import-json')?.click();
-    });
-    document.getElementById('input-import-json')?.addEventListener('change', (e) => {
-      const file = e.target.files && e.target.files[0];
-      if (file) {
-        this.importBackupJSON(file);
-      }
-      e.target.value = '';
-    });
-    document.getElementById('btn-modal-clear-data')?.addEventListener('click', () => {
-      this.closeModal('modalSettings');
-      this.confirmNewTournament();
-    });
-
-    // Settings toggle switches
-    this.settingToggleBulk?.addEventListener('change', (e) => {
-      this.state.settings.showBulkPaste = e.target.checked;
-      this.saveState();
-      this.applySettingsVisibility();
-    });
-    this.settingToggleLottery?.addEventListener('change', (e) => {
-      this.state.settings.showLottery = e.target.checked;
-      this.saveState();
-      this.applySettingsVisibility();
-    });
-
-    // Modal Add Pair close buttons
     document.getElementById('close-add-pair-modal')?.addEventListener('click', () => this.closeModal('modalAddPair'));
     document.getElementById('btn-cancel-add-pair')?.addEventListener('click', () => this.closeModal('modalAddPair'));
-
-    // Modal Edit Pair close buttons
     document.getElementById('close-edit-pair-modal')?.addEventListener('click', () => this.closeModal('modalEditPair'));
     document.getElementById('btn-cancel-edit-pair')?.addEventListener('click', () => this.closeModal('modalEditPair'));
-
-    // Modal Bulk Paste close buttons
     document.getElementById('close-bulk-paste-modal')?.addEventListener('click', () => this.closeModal('modalBulkPaste'));
     document.getElementById('btn-cancel-bulk')?.addEventListener('click', () => this.closeModal('modalBulkPaste'));
-
-    // Modal Lottery close buttons
     document.getElementById('close-lottery-modal')?.addEventListener('click', () => this.closeModal('modalLottery'));
     document.getElementById('btn-close-lottery')?.addEventListener('click', () => this.closeModal('modalLottery'));
-
-    // Modal Confirm Delete buttons
     document.getElementById('close-confirm-delete-modal')?.addEventListener('click', () => this.closeModal('modalConfirmDelete'));
     document.getElementById('btn-cancel-delete')?.addEventListener('click', () => this.closeModal('modalConfirmDelete'));
+
     this.btnConfirmDelete?.addEventListener('click', () => {
       if (this.pendingDeletePairId) {
         this.state.pairs = this.state.pairs.filter(p => p.id !== this.pendingDeletePairId);
@@ -275,81 +309,50 @@ class BurracoApp {
     });
 
     // Close modals on backdrop click
-    document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
-      backdrop.addEventListener('click', (e) => {
-        if (e.target === backdrop) {
-          backdrop.classList.remove('active');
+    document.querySelectorAll('.modal-backdrop').forEach(modal => {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.classList.remove('active');
         }
       });
     });
 
-    // Form Add Pair
-    this.formAddPair?.addEventListener('submit', (e) => {
-      e.preventDefault();
-      this.addSinglePair();
-    });
-
-    // Form Edit Pair
-    this.formEditPair?.addEventListener('submit', (e) => {
-      e.preventDefault();
-      this.saveEditPair();
-    });
-
-    // Bulk Paste confirm
-    document.getElementById('btn-confirm-bulk')?.addEventListener('click', () => this.processBulkPaste());
-
-    // Lottery actions
-    document.getElementById('btn-run-random-lottery')?.addEventListener('click', () => this.runRandomLottery());
-    document.getElementById('btn-run-sequential-lottery')?.addEventListener('click', () => this.runSequentialLottery());
-
-    // Initial search filter
-    this.initialSearchInput?.addEventListener('input', (e) => {
-      this.state.initialSearchFilter = e.target.value.toLowerCase().trim();
-      this.renderInitialTable();
-    });
-
-    // Master search filter
-    this.masterSearchInput?.addEventListener('input', (e) => {
-      this.state.searchFilter = e.target.value.toLowerCase().trim();
-      this.renderMasterTable();
-    });
-
-    // Header actions (safe with optional chaining)
-    document.getElementById('btn-export-excel')?.addEventListener('click', () => this.exportExcel());
-    document.getElementById('btn-print')?.addEventListener('click', () => this.triggerPrint());
-    document.getElementById('btn-new-tournament')?.addEventListener('click', () => this.confirmNewTournament());
-
-    // Keyboard navigation in round view score table
+    // Keyboard navigation in Round Table
     this.roundTable?.addEventListener('keydown', (e) => this.handleRoundTableKeyboard(e));
-
-    // Button to add pair row under initial table
-    document.getElementById('btn-add-pair-row')?.addEventListener('click', () => this.addNewPairRow());
   }
 
   // ==========================================
-  // NAVIGATION & TAB SWITCHING
+  // TAB NAVIGATION CONTROLLER
   // ==========================================
-  switchTab(tabName, roundIndex = null) {
-    this.state.currentTab = tabName;
-    if (roundIndex !== null) {
-      this.state.activeRoundIndex = roundIndex;
+  switchTab(tabKey) {
+    if (tabKey.startsWith('round-')) {
+      const rIdx = parseInt(tabKey.replace('round-', ''), 10);
+      this.state.activeRoundIndex = rIdx;
+      this.state.currentTab = 'round';
+    } else {
+      this.state.currentTab = tabKey;
     }
 
-    // Update tab buttons active state
-    const allTabBtns = this.tabsNav.querySelectorAll('.tab-btn');
-    allTabBtns.forEach(btn => {
-      btn.classList.remove('active');
-      if (tabName === 'round' && btn.dataset.tab === `round-${this.state.activeRoundIndex}`) {
+    this.saveState();
+
+    // Toggle button active classes
+    this.tabsNav?.querySelectorAll('.tab-btn').forEach(btn => {
+      const isInitial = btn.dataset.tab === 'initial' && this.state.currentTab === 'initial';
+      const isMaster = btn.dataset.tab === 'master' && this.state.currentTab === 'master';
+      const isPodium = btn.dataset.tab === 'podium' && this.state.currentTab === 'podium';
+      const isRound = btn.dataset.tab === `round-${this.state.activeRoundIndex}` && this.state.currentTab === 'round';
+
+      if (isInitial || isMaster || isPodium || isRound) {
         btn.classList.add('active');
-      } else if (btn.dataset.tab === tabName) {
-        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
       }
     });
 
-    // Show active panel
+    // Toggle view panels
     Object.keys(this.viewPanels).forEach(key => {
       if (this.viewPanels[key]) {
-        if (key === tabName) {
+        if (key === this.state.currentTab) {
           this.viewPanels[key].classList.add('active');
         } else {
           this.viewPanels[key].classList.remove('active');
@@ -357,137 +360,82 @@ class BurracoApp {
       }
     });
 
-    // Re-render corresponding views
-    if (tabName === 'initial') {
-      this.renderInitialTable();
-    } else if (tabName === 'round') {
-      this.renderRoundView();
-    } else if (tabName === 'master') {
-      this.renderMasterTable();
-    } else if (tabName === 'podium') {
-      this.renderPodium();
+    // Show "Nuova Serata" button only in Tabellone Iniziale
+    if (this.btnOpenNewTournament) {
+      this.btnOpenNewTournament.style.display = (this.state.currentTab === 'initial') ? 'inline-flex' : 'none';
     }
 
-    this.saveState();
+    // Re-render corresponding views
+    if (this.state.currentTab === 'initial') {
+      this.renderInitialTable();
+    } else if (this.state.currentTab === 'round') {
+      this.renderRoundView();
+    } else if (this.state.currentTab === 'master') {
+      this.renderMasterTable();
+    } else if (this.state.currentTab === 'podium') {
+      this.renderPodium();
+    }
   }
 
   // ==========================================
-  // SCORE CALCULATIONS & RANKINGS
-  // ==========================================
-  calculateTotals() {
-    return this.state.pairs.map(pair => {
-      let totVP = 0;
-      let totMP = 0;
-      let playedRounds = 0;
-
-      for (let i = 0; i < this.state.roundsCount; i++) {
-        const sc = pair.scores[i];
-        if (sc) {
-          if (sc.vp !== null && !isNaN(sc.vp)) {
-            totVP += Number(sc.vp);
-            playedRounds++;
-          }
-          if (sc.mp !== null && !isNaN(sc.mp)) {
-            totMP += Number(sc.mp);
-          }
-        }
-      }
-
-      return {
-        ...pair,
-        totVP,
-        totMP,
-        playedRounds
-      };
-    });
-  }
-
-  getRankedPairs() {
-    const pairsWithTotals = this.calculateTotals();
-    const validPairs = pairsWithTotals.filter(p => p.name && p.name.trim() !== '');
-
-    // Primary sort: Total VP DESC
-    // Secondary sort: Total MP DESC
-    // Tertiary: Lot Number ASC
-    return validPairs.sort((a, b) => {
-      if (b.totVP !== a.totVP) {
-        return b.totVP - a.totVP;
-      }
-      if (b.totMP !== a.totMP) {
-        return b.totMP - a.totMP;
-      }
-      return (a.lotNumber || 999) - (b.lotNumber || 999);
-    });
-  }
-
-  // ==========================================
-  // RENDERING ENGINE
+  // RENDER COORDINATOR
   // ==========================================
   render() {
-    this.updateTitles();
     this.renderTabs();
-    this.applySettingsVisibility();
     this.renderInitialTable();
     this.renderMasterTable();
     this.renderRoundView();
     this.renderPodium();
-  }
 
-  syncSettingsUI() {
-    if (!this.state.settings) {
-      this.state.settings = { showBulkPaste: false, showLottery: false };
+    // Update stats
+    if (this.statTotalPairs) {
+      const validCount = this.state.pairs.filter(p => p.name && p.name.trim() !== '').length;
+      this.statTotalPairs.textContent = validCount;
     }
-    if (this.settingToggleBulk) {
-      this.settingToggleBulk.checked = this.state.settings.showBulkPaste === true;
+    if (this.statCurrentRound) {
+      this.statCurrentRound.textContent = `Turno ${this.state.activeRoundIndex + 1} di ${this.state.roundsCount}`;
     }
-    if (this.settingToggleLottery) {
-      this.settingToggleLottery.checked = this.state.settings.showLottery === true;
+    if (this.printTitle) {
+      this.printTitle.textContent = this.state.title;
     }
-    if (this.settingRoundsCount) {
-      this.settingRoundsCount.value = this.state.roundsCount;
+    if (this.printDate) {
+      this.printDate.textContent = `Data: ${new Date().toLocaleDateString('it-IT')}`;
     }
-  }
 
-  applySettingsVisibility() {
-    if (!this.state.settings) {
-      this.state.settings = { showBulkPaste: false, showLottery: false };
+    // Show Nuova Serata only on Tabellone Iniziale
+    if (this.btnOpenNewTournament) {
+      this.btnOpenNewTournament.style.display = (this.state.currentTab === 'initial') ? 'inline-flex' : 'none';
     }
-    if (this.btnOpenBulkPaste) {
-      this.btnOpenBulkPaste.style.display = this.state.settings.showBulkPaste ? 'inline-flex' : 'none';
-    }
-    if (this.btnOpenLottery) {
-      this.btnOpenLottery.style.display = this.state.settings.showLottery ? 'inline-flex' : 'none';
-    }
-  }
-
-  updateTitles() {
-    if (this.titleInput) this.titleInput.value = this.state.title;
-    if (this.podiumTitle) this.podiumTitle.textContent = this.state.title;
-    if (this.printTitle) this.printTitle.textContent = this.state.title;
-    if (this.printDate) this.printDate.textContent = 'Data: ' + new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' });
   }
 
   renderTabs() {
+    if (!this.roundTabsContainer) return;
     this.roundTabsContainer.innerHTML = '';
-    for (let r = 0; r < this.state.roundsCount; r++) {
-      const btn = document.createElement('button');
-      btn.className = `tab-btn ${this.state.currentTab === 'round' && this.state.activeRoundIndex === r ? 'active' : ''}`;
-      btn.dataset.tab = `round-${r}`;
-      btn.innerHTML = `<span class="tab-icon">🎯</span> Turno ${r + 1}`;
-      this.roundTabsContainer.appendChild(btn);
+
+    for (let i = 0; i < this.state.roundsCount; i++) {
+      const tabBtn = document.createElement('button');
+      tabBtn.className = 'tab-btn';
+      tabBtn.dataset.tab = `round-${i}`;
+      if (this.state.currentTab === 'round' && this.state.activeRoundIndex === i) {
+        tabBtn.classList.add('active');
+      }
+      tabBtn.innerHTML = `<span class="tab-icon">🎯</span> Turno ${i + 1}`;
+      this.roundTabsContainer.appendChild(tabBtn);
     }
   }
 
   // ==========================================
-  // TABELLONE INIZIALE (REGISTRAZIONE E COPPIE)
+  // TAB 1: INITIAL PAIR REGISTRATION VIEW
   // ==========================================
   addNewPairRow() {
+    const maxLot = this.state.pairs.reduce((max, p) => Math.max(max, p.lotNumber || 0), 0);
     const newPair = {
       id: 'p_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-      lotNumber: null,
+      lotNumber: maxLot + 1,
       name: '',
       scores: Array.from({ length: this.state.roundsCount }, () => ({ mp: null, vp: null }))
     };
+
     this.state.pairs.push(newPair);
     this.saveState();
     this.renderInitialTable(newPair.id);
@@ -503,8 +451,8 @@ class BurracoApp {
       const emptyRow = document.createElement('tr');
       emptyRow.innerHTML = `
         <td colspan="4" style="text-align:center; padding:32px 20px; color:var(--text-muted);">
-          <div style="font-size:14px; font-weight:600; margin-bottom:6px; color:var(--text-main);">Nessuna coppia ancora inserita</div>
-          <p style="font-size:13px; margin:0;">Clicca su <strong>➕ Aggiungi Coppia</strong> qui sotto per inserire i partecipanti.</p>
+          <div style="font-size:16px; font-weight:600; margin-bottom:6px; color:var(--text-main);">Nessuna coppia ancora inserita</div>
+          <p style="font-size:14.5px; margin:0;">Clicca su <strong>➕ Aggiungi Coppia</strong> qui sotto per inserire i partecipanti.</p>
         </td>
       `;
       this.initialTableBody.appendChild(emptyRow);
@@ -524,25 +472,25 @@ class BurracoApp {
       const lotVal = (pair.lotNumber !== null && pair.lotNumber !== undefined) ? pair.lotNumber : '';
 
       tr.innerHTML = `
-        <td style="text-align:center; font-weight:700; color:var(--text-muted); font-size:13px; width:50px;">
+        <td style="text-align:center; font-weight:700; color:var(--text-muted); font-size:15px; width:55px;">
           ${rowIdx + 1}
         </td>
         <td>
           <input type="text" class="form-control initial-name-input" 
                  data-pair-id="${pair.id}" data-row-idx="${rowIdx}"
-                 value="${this.escapeHtml(pair.name)}" 
+                 value="${BurracoUtils.escapeHtml(pair.name)}" 
                  placeholder="Nome Coppia / Giocatori (es. Pietro + Paolo)"
-                 style="width:100%; font-size:13px; font-weight:600;">
+                 style="width:100%; font-size:16px; font-weight:600; padding:8px 12px;">
         </td>
         <td style="text-align:center; width:150px;">
           <input type="number" min="1" max="999" class="form-control tabular-nums initial-lot-input" 
                  data-pair-id="${pair.id}" data-row-idx="${rowIdx}"
                  value="${lotVal}" 
                  placeholder="N°" 
-                 style="width:85px; text-align:center; font-weight:700; margin:0 auto; font-size:14px;">
+                 style="width:90px; text-align:center; font-weight:700; margin:0 auto; font-size:16px; padding:8px 8px;">
         </td>
         <td style="text-align:center; width:60px;">
-          <button class="btn-ghost text-danger btn-delete-initial-pair" data-pair-id="${pair.id}" title="Elimina riga">🗑️</button>
+          <button class="btn-ghost text-danger btn-delete-initial-pair" data-pair-id="${pair.id}" title="Elimina riga" style="font-size:16px;">🗑️</button>
         </td>
       `;
       this.initialTableBody.appendChild(tr);
@@ -576,7 +524,7 @@ class BurracoApp {
       });
     });
 
-    // Input listeners for team number (lot)
+    // Input listeners for lot number
     this.initialTableBody.querySelectorAll('.initial-lot-input').forEach(input => {
       input.addEventListener('input', (e) => {
         const pairId = e.target.dataset.pairId;
@@ -587,53 +535,42 @@ class BurracoApp {
           this.saveState();
         }
       });
-
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          const rowIdx = parseInt(e.target.dataset.rowIdx, 10);
-          if (rowIdx < this.state.pairs.length - 1) {
-            const nextLot = this.initialTableBody.querySelectorAll('.initial-lot-input')[rowIdx + 1];
-            if (nextLot) {
-              nextLot.focus();
-              nextLot.select();
-            }
-          }
-        }
-      });
     });
 
-    // Delete buttons (Apre mini modale di conferma)
+    // Delete buttons
     this.initialTableBody.querySelectorAll('.btn-delete-initial-pair').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const pairId = e.currentTarget.dataset.pairId;
         const pair = this.state.pairs.find(p => p.id === pairId);
-        this.pendingDeletePairId = pairId;
-        if (this.confirmDeleteDetail) {
-          const pairName = pair && pair.name ? pair.name : '(Senza nome)';
-          const pairLot = pair && pair.lotNumber ? `Squadra N° ${pair.lotNumber} — ` : '';
-          this.confirmDeleteDetail.textContent = `${pairLot}${pairName}`;
+        if (pair && pair.name && pair.name.trim() !== '') {
+          this.pendingDeletePairId = pairId;
+          const msg = document.getElementById('delete-pair-confirm-msg');
+          if (msg) msg.textContent = `Vuoi eliminare definitivamente la coppia "${pair.name}"?`;
+          this.openModal('modalConfirmDelete');
+        } else {
+          this.state.pairs = this.state.pairs.filter(p => p.id !== pairId);
+          this.saveState();
+          this.renderInitialTable();
         }
-        this.openModal('modalConfirmDelete');
       });
     });
 
-    // Auto-focus if focusPairId is specified
+    // Focus requested row
     if (focusPairId) {
-      const targetInput = this.initialTableBody.querySelector(`.initial-name-input[data-pair-id="${focusPairId}"]`);
-      if (targetInput) {
-        targetInput.focus();
-      }
+      setTimeout(() => {
+        const targetInput = this.initialTableBody.querySelector(`.initial-name-input[data-pair-id="${focusPairId}"]`);
+        if (targetInput) targetInput.focus();
+      }, 50);
     }
   }
 
   // ==========================================
-  // CLASSIFICA (TABELLONE VIEW-ONLY IN ORDINE DI VP)
+  // TAB 3: MASTER LEADERBOARD VIEW
   // ==========================================
   renderMasterTable() {
     if (!this.masterTableHeadRow || !this.masterTableBody) return;
 
-    // 1. Build Header dynamically based on roundsCount (without Azioni)
+    // 1. Build Header dynamically based on roundsCount
     this.masterTableHeadRow.innerHTML = `
       <th class="col-rank">Pos.</th>
       <th class="col-lot" title="Numero identificativo">N°</th>
@@ -644,7 +581,7 @@ class BurracoApp {
       const th = document.createElement('th');
       th.colSpan = 2;
       th.className = 'round-col-header';
-      th.innerHTML = `Turno ${r + 1} <div class="sub-col-header" style="display:flex; justify-content:space-around; font-weight:600; font-size:10px; margin-top:3px; opacity:0.85;"><span>MP</span><span>VP</span></div>`;
+      th.innerHTML = `Turno ${r + 1} <div class="sub-col-header" style="display:flex; justify-content:space-around; font-weight:600; font-size:12px; margin-top:3px; opacity:0.85;"><span>MP</span><span>VP</span></div>`;
       this.masterTableHeadRow.appendChild(th);
     }
 
@@ -658,8 +595,7 @@ class BurracoApp {
     thTotMp.textContent = 'Totale MP';
     this.masterTableHeadRow.appendChild(thTotMp);
 
-    // 2. Ranked pairs (Primary: Totale VP DESC, Secondary: Totale MP DESC, Tertiary: Lot ASC)
-    // Filter out any empty rows
+    // 2. Ranked pairs
     const ranked = this.getRankedPairs().filter(p => p.name && p.name.trim() !== '');
     this.masterTableBody.innerHTML = '';
     const filter = this.state.searchFilter;
@@ -669,8 +605,8 @@ class BurracoApp {
       const emptyRow = document.createElement('tr');
       emptyRow.innerHTML = `
         <td colspan="${totalCols}" style="text-align:center; padding:36px 20px; color:var(--text-muted);">
-          <div style="font-size:15px; font-weight:600; margin-bottom:6px; color:var(--text-main);">Nessuna coppia registrata</div>
-          <p style="font-size:13px; margin:0;">Inserisci le coppie dal <strong>Tabellone Iniziale</strong> per visualizzare la classifica.</p>
+          <div style="font-size:16px; font-weight:600; margin-bottom:6px; color:var(--text-main);">Nessuna coppia registrata</div>
+          <p style="font-size:14.5px; margin:0;">Inserisci le coppie dal <strong>Tabellone Iniziale</strong> per visualizzare la classifica.</p>
         </td>
       `;
       this.masterTableBody.appendChild(emptyRow);
@@ -679,10 +615,8 @@ class BurracoApp {
 
     let rankCounter = 0;
     ranked.forEach((pair) => {
-      // Safety check for empty rows
       if (!pair.name || pair.name.trim() === '') return;
 
-      // Search filter check
       if (filter) {
         const matchesName = pair.name.toLowerCase().includes(filter);
         const matchesLot = String(pair.lotNumber || '').includes(filter);
@@ -691,21 +625,20 @@ class BurracoApp {
 
       rankCounter++;
       const rank = rankCounter;
-      let rankDisplay = `<span class="tabular-nums" style="font-weight:600; color:var(--text-muted); font-size:13px;">${rank}°</span>`;
+      let rankDisplay = `<span class="tabular-nums" style="font-weight:600; color:var(--text-muted); font-size:15px;">${rank}°</span>`;
       if (rank === 1) rankDisplay = `<span class="rank-badge rank-1">1°</span>`;
       else if (rank === 2) rankDisplay = `<span class="rank-badge rank-2">2°</span>`;
       else if (rank === 3) rankDisplay = `<span class="rank-badge rank-3">3°</span>`;
 
-      // Build turn scores columns (strictly view-only text/badges)
       let roundCellsHtml = '';
       for (let r = 0; r < this.state.roundsCount; r++) {
         const sc = pair.scores[r] || { mp: null, vp: null };
         const mpText = (sc.mp !== null && sc.mp !== undefined) ? Number(sc.mp).toLocaleString('it-IT') : '<span style="color:#CBD5E1;">—</span>';
-        const vpText = (sc.vp !== null && sc.vp !== undefined) ? `<strong style="color:var(--primary); font-size:13px;">${sc.vp}</strong>` : '<span style="color:#CBD5E1;">—</span>';
+        const vpText = (sc.vp !== null && sc.vp !== undefined) ? `<strong style="color:var(--primary); font-size:15.5px;">${sc.vp}</strong>` : '<span style="color:#CBD5E1;">—</span>';
 
         roundCellsHtml += `
-          <td style="text-align:center; font-family:var(--font-mono); font-size:12px; color:var(--text-muted);">${mpText}</td>
-          <td style="text-align:center; font-family:var(--font-mono); font-size:13px;">${vpText}</td>
+          <td style="text-align:center; font-family:var(--font-mono); font-size:14.5px; color:var(--text-muted);">${mpText}</td>
+          <td style="text-align:center; font-family:var(--font-mono); font-size:15.5px;">${vpText}</td>
         `;
       }
 
@@ -714,44 +647,19 @@ class BurracoApp {
 
       tr.innerHTML = `
         <td class="col-rank">${rankDisplay}</td>
-        <td class="col-lot"><span class="tabular-nums" style="font-weight:700;">${pair.lotNumber || '—'}</span></td>
-        <td class="col-name" style="font-size:14px; font-weight:600; color:var(--text-main);">${this.escapeHtml(pair.name)}</td>
+        <td class="col-lot"><span class="tabular-nums" style="font-weight:700; font-size:15.5px;">${pair.lotNumber || '—'}</span></td>
+        <td class="col-name" style="font-size:16px; font-weight:600; color:var(--text-main);">${BurracoUtils.escapeHtml(pair.name)}</td>
         ${roundCellsHtml}
-        <td class="col-tot-vp" style="text-align:center; font-weight:800; font-size:15px; color:var(--primary); background-color:#EFF6FF;">${pair.totVP}</td>
-        <td class="col-tot-mp" style="text-align:center; font-weight:700; font-size:13px; color:var(--text-main); background-color:#F8FAFC;">${pair.totMP.toLocaleString('it-IT')}</td>
+        <td class="col-tot-vp" style="text-align:center; font-weight:800; font-size:18px; color:var(--primary); background-color:#EFF6FF;">${pair.totVP}</td>
+        <td class="col-tot-mp" style="text-align:center; font-weight:700; font-size:15px; color:var(--text-main); background-color:#F8FAFC;">${pair.totMP.toLocaleString('it-IT')}</td>
       `;
 
       this.masterTableBody.appendChild(tr);
     });
   }
 
-  openEditPairModal(pairId) {
-    const pair = this.state.pairs.find(p => p.id === pairId);
-    if (!pair) return;
-    if (this.editPairId) this.editPairId.value = pair.id;
-    if (this.inputEditPairName) this.inputEditPairName.value = pair.name;
-    if (this.inputEditLotNumber) this.inputEditLotNumber.value = pair.lotNumber || '';
-    this.openModal('modalEditPair');
-  }
-
-  saveEditPair() {
-    const id = this.editPairId ? this.editPairId.value : null;
-    const pair = this.state.pairs.find(p => p.id === id);
-    if (!pair) return;
-
-    const name = this.inputEditPairName ? this.inputEditPairName.value.trim() : '';
-    if (name) pair.name = name;
-
-    const lotVal = this.inputEditLotNumber ? this.inputEditLotNumber.value.trim() : '';
-    pair.lotNumber = lotVal === '' ? null : parseInt(lotVal, 10);
-
-    this.saveState();
-    this.render();
-    this.closeModal('modalEditPair');
-  }
-
   // ==========================================
-  // INSERIMENTO PUNTEGGI TURNO SINGOLO
+  // TAB 2: ROUND SCORE INPUT VIEW
   // ==========================================
   renderRoundView() {
     const roundIdx = this.state.activeRoundIndex;
@@ -762,7 +670,6 @@ class BurracoApp {
       this.currentRoundBadge.textContent = `Turno ${roundIdx + 1} di ${this.state.roundsCount}`;
     }
 
-    // Hide "Turno Precedente" on first round and "Turno Successivo" on last round
     if (this.btnPrevRound) {
       this.btnPrevRound.style.display = roundIdx === 0 ? 'none' : 'inline-flex';
     }
@@ -773,7 +680,6 @@ class BurracoApp {
     if (!this.roundTableBody) return;
     this.roundTableBody.innerHTML = '';
 
-    // Pairs sorted by lot number for convenient table matching (excluding empty rows)
     const sortedPairs = this.state.pairs
       .filter(p => p.name && p.name.trim() !== '')
       .sort((a, b) => {
@@ -786,7 +692,7 @@ class BurracoApp {
     if (sortedPairs.length === 0) {
       const emptyRow = document.createElement('tr');
       emptyRow.innerHTML = `
-        <td colspan="4" style="text-align:center; padding:32px; color:var(--text-muted);">
+        <td colspan="4" style="text-align:center; padding:32px; color:var(--text-muted); font-size:15px;">
           Nessuna coppia registrata. Aggiungi prima le coppie dal Tabellone Iniziale.
         </td>
       `;
@@ -802,17 +708,17 @@ class BurracoApp {
       const tr = document.createElement('tr');
 
       tr.innerHTML = `
-        <td class="col-lot" style="font-weight:700;">${pair.lotNumber || '—'}</td>
-        <td class="col-name">${this.escapeHtml(pair.name)}</td>
+        <td class="col-lot" style="font-weight:700; font-size:16px;">${pair.lotNumber || '—'}</td>
+        <td class="col-name" style="font-size:16px; font-weight:600;">${BurracoUtils.escapeHtml(pair.name)}</td>
         <td class="col-input">
           <input type="number" class="form-control tabular-nums round-score-input" 
                  data-pair-id="${pair.id}" data-field="mp" value="${mpVal}" 
-                 placeholder="es. 1540" style="max-width:140px;">
+                 placeholder="es. 1540" style="max-width:145px; font-size:15.5px; padding:8px 12px;">
         </td>
         <td class="col-input">
           <input type="number" step="0.5" class="form-control tabular-nums round-score-input" 
                  data-pair-id="${pair.id}" data-field="vp" value="${vpVal}" 
-                 placeholder="es. 14" style="max-width:110px; font-weight:bold; color:var(--primary);">
+                 placeholder="es. 14" style="max-width:115px; font-weight:bold; color:var(--primary); font-size:16px; padding:8px 12px;">
         </td>
       `;
 
@@ -864,6 +770,16 @@ class BurracoApp {
         const prevTr = rows[rowIndex - 1];
         targetInput = prevTr.children[colIndex]?.querySelector('.round-score-input');
       }
+    } else if (e.key === 'ArrowRight') {
+      const isAtEnd = currentInput.selectionStart === currentInput.value.length;
+      if (isAtEnd && colIndex === 2) {
+        targetInput = currentTr.children[3]?.querySelector('.round-score-input');
+      }
+    } else if (e.key === 'ArrowLeft') {
+      const isAtStart = currentInput.selectionStart === 0;
+      if (isAtStart && colIndex === 3) {
+        targetInput = currentTr.children[2]?.querySelector('.round-score-input');
+      }
     }
 
     if (targetInput) {
@@ -872,39 +788,48 @@ class BurracoApp {
     }
   }
 
-  // Render Podium & Ceremony
+  // ==========================================
+  // PODIUM & CEREMONY VIEW
+  // ==========================================
   renderPodium() {
     const ranked = this.getRankedPairs();
 
     // 1st Place (Gold)
     const p1 = ranked[0];
-    document.getElementById('pillar-team-1').textContent = p1 ? p1.name : '—';
-    document.getElementById('pillar-score-1').textContent = p1 ? `${p1.totVP} VP (${p1.totMP.toLocaleString('it-IT')} MP)` : '0 VP';
+    const t1 = document.getElementById('pillar-team-1');
+    const s1 = document.getElementById('pillar-score-1');
+    if (t1) t1.textContent = p1 ? p1.name : '—';
+    if (s1) s1.textContent = p1 ? `${p1.totVP} VP (${p1.totMP.toLocaleString('it-IT')} MP)` : '0 VP';
 
     // 2nd Place (Silver)
     const p2 = ranked[1];
-    document.getElementById('pillar-team-2').textContent = p2 ? p2.name : '—';
-    document.getElementById('pillar-score-2').textContent = p2 ? `${p2.totVP} VP (${p2.totMP.toLocaleString('it-IT')} MP)` : '0 VP';
+    const t2 = document.getElementById('pillar-team-2');
+    const s2 = document.getElementById('pillar-score-2');
+    if (t2) t2.textContent = p2 ? p2.name : '—';
+    if (s2) s2.textContent = p2 ? `${p2.totVP} VP (${p2.totMP.toLocaleString('it-IT')} MP)` : '0 VP';
 
     // 3rd Place (Bronze)
     const p3 = ranked[2];
-    document.getElementById('pillar-team-3').textContent = p3 ? p3.name : '—';
-    document.getElementById('pillar-score-3').textContent = p3 ? `${p3.totVP} VP (${p3.totMP.toLocaleString('it-IT')} MP)` : '0 VP';
+    const t3 = document.getElementById('pillar-team-3');
+    const s3 = document.getElementById('pillar-score-3');
+    if (t3) t3.textContent = p3 ? p3.name : '—';
+    if (s3) s3.textContent = p3 ? `${p3.totVP} VP (${p3.totMP.toLocaleString('it-IT')} MP)` : '0 VP';
 
     // Honorable mentions (4th and 5th)
     const honorableGrid = document.getElementById('honorable-grid');
-    honorableGrid.innerHTML = '';
-
-    for (let i = 3; i < Math.min(5, ranked.length); i++) {
-      const p = ranked[i];
-      const card = document.createElement('div');
-      card.className = 'honorable-card';
-      card.innerHTML = `
-        <span class="honorable-rank">${i + 1}°</span>
-        <span class="honorable-name">${this.escapeHtml(p.name)}</span>
-        <span class="honorable-score">${p.totVP} VP (${p.totMP.toLocaleString('it-IT')} MP)</span>
-      `;
-      honorableGrid.appendChild(card);
+    if (honorableGrid) {
+      honorableGrid.innerHTML = '';
+      for (let i = 3; i < Math.min(5, ranked.length); i++) {
+        const p = ranked[i];
+        const card = document.createElement('div');
+        card.className = 'honorable-card';
+        card.innerHTML = `
+          <span class="honorable-rank">${i + 1}°</span>
+          <span class="honorable-name">${BurracoUtils.escapeHtml(p.name)}</span>
+          <span class="honorable-score">${p.totVP} VP (${p.totMP.toLocaleString('it-IT')} MP)</span>
+        `;
+        honorableGrid.appendChild(card);
+      }
     }
   }
 
@@ -920,7 +845,6 @@ class BurracoApp {
     }
 
     if (newCount < this.state.roundsCount) {
-      // Check if any round being removed has data
       let hasData = false;
       for (let r = newCount; r < this.state.roundsCount; r++) {
         if (this.state.pairs.some(p => p.scores[r] && (p.scores[r].vp !== null || p.scores[r].mp !== null))) {
@@ -936,18 +860,12 @@ class BurracoApp {
         }
       }
 
-      // Truncate scores arrays
       this.state.pairs.forEach(p => {
         if (p.scores.length > newCount) {
           p.scores = p.scores.slice(0, newCount);
         }
       });
-
-      if (this.state.activeRoundIndex >= newCount) {
-        this.state.activeRoundIndex = newCount - 1;
-      }
     } else {
-      // Expanding rounds count
       this.state.pairs.forEach(p => {
         while (p.scores.length < newCount) {
           p.scores.push({ mp: null, vp: null });
@@ -956,86 +874,12 @@ class BurracoApp {
     }
 
     this.state.roundsCount = newCount;
-    if (this.settingRoundsCount) this.settingRoundsCount.value = newCount;
-    this.saveState();
-    this.render();
-  }
-
-  addRound() {
-    this.setRoundsCount(this.state.roundsCount + 1);
-  }
-
-  removeRound() {
-    this.setRoundsCount(this.state.roundsCount - 1);
-  }
-
-  // ==========================================
-  // PAIRS & BULK REGISTRATION
-  // ==========================================
-  addSinglePair() {
-    const name = this.inputPairName.value.trim();
-    if (!name) return;
-
-    let lot = this.inputLotNumber.value ? parseInt(this.inputLotNumber.value, 10) : null;
-    if (lot === null || isNaN(lot)) {
-      // Find highest assigned lot number + 1
-      const maxLot = this.state.pairs.reduce((max, p) => Math.max(max, p.lotNumber || 0), 0);
-      lot = maxLot + 1;
+    if (this.state.activeRoundIndex >= newCount) {
+      this.state.activeRoundIndex = newCount - 1;
     }
 
-    const newPair = {
-      id: 'p_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-      lotNumber: lot,
-      name: name,
-      scores: Array.from({ length: this.state.roundsCount }, () => ({ mp: null, vp: null }))
-    };
-
-    this.state.pairs.push(newPair);
     this.saveState();
     this.render();
-
-    this.inputPairName.value = '';
-    this.inputLotNumber.value = '';
-    this.closeModal('modalAddPair');
-  }
-
-  processBulkPaste() {
-    const text = document.getElementById('bulk-paste-textarea').value.trim();
-    if (!text) {
-      alert('Incolla del testo prima di confermare.');
-      return;
-    }
-
-    const lines = text.split(/\r?\n/);
-    const autoNumber = document.getElementById('bulk-auto-number').checked;
-    let currentLot = this.state.pairs.reduce((max, p) => Math.max(max, p.lotNumber || 0), 0) + 1;
-
-    let importedCount = 0;
-
-    lines.forEach(rawLine => {
-      let line = rawLine.trim();
-      if (!line) return;
-
-      // Clean up leading numbers or table prefixes like "1. ", "1 - ", "Tavolo 1: "
-      line = line.replace(/^(?:Tavolo\s*\d+[\s:\-]+|\d+[\s\.\)\-:]+)/i, '').trim();
-      if (!line) return;
-
-      const newPair = {
-        id: 'p_' + Date.now() + '_' + Math.floor(Math.random() * 10000) + '_' + importedCount,
-        lotNumber: autoNumber ? currentLot++ : null,
-        name: line,
-        scores: Array.from({ length: this.state.roundsCount }, () => ({ mp: null, vp: null }))
-      };
-
-      this.state.pairs.push(newPair);
-      importedCount++;
-    });
-
-    this.saveState();
-    this.render();
-    document.getElementById('bulk-paste-textarea').value = '';
-    this.closeModal('modalBulkPaste');
-    alert(`Importate con successo ${importedCount} coppie!`);
   }
 
   // ==========================================
@@ -1052,168 +896,59 @@ class BurracoApp {
       return;
     }
 
-    // Generate numbers [1..N] and shuffle
-    const numbers = Array.from({ length: count }, (_, i) => i + 1);
-    for (let i = numbers.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
-    }
-
-    // Assign to pairs
-    this.state.pairs.forEach((pair, idx) => {
-      pair.lotNumber = numbers[idx];
-    });
-
+    BurracoEngine.assignRandomLots(this.state.pairs);
     this.saveState();
     this.render();
     this.closeModal('modalLottery');
   }
 
   runSequentialLottery() {
-    this.state.pairs.forEach((pair, idx) => {
-      pair.lotNumber = idx + 1;
-    });
-
+    BurracoEngine.assignSequentialLots(this.state.pairs);
     this.saveState();
     this.render();
     this.closeModal('modalLottery');
   }
 
   // ==========================================
-  // EXCEL EXPORT & PRINT
+  // BULK PASTE IMPORT
+  // ==========================================
+  processBulkPaste() {
+    const textarea = document.getElementById('bulk-paste-textarea');
+    const text = textarea?.value?.trim() || '';
+    if (!text) {
+      alert('Incolla del testo prima di confermare.');
+      return;
+    }
+
+    const autoNumber = document.getElementById('bulk-auto-number')?.checked || false;
+    const currentMaxLot = this.state.pairs.reduce((max, p) => Math.max(max, p.lotNumber || 0), 0);
+
+    const newPairs = BurracoExcel.parseBulkPaste(text, autoNumber, currentMaxLot + 1, this.state.roundsCount);
+    if (newPairs.length === 0) {
+      alert('Nessun nome rilevato.');
+      return;
+    }
+
+    this.state.pairs.push(...newPairs);
+    this.saveState();
+    this.render();
+
+    if (textarea) textarea.value = '';
+    this.closeModal('modalBulkPaste');
+    alert(`Importate con successo ${newPairs.length} coppie!`);
+  }
+
+  // ==========================================
+  // EXCEL & PRINT
   // ==========================================
   exportExcel() {
-    try {
-      if (typeof XLSX === 'undefined') {
-        alert('Libreria Excel non ancora caricata. Riprova tra un secondo.');
-        return;
-      }
-
-      const wb = XLSX.utils.book_new();
-      const ranked = this.getRankedPairs();
-
-      // Sheet 1: Classifica Generale
-      const leaderboardData = [
-        ['BURRACO - CLASSIFICA GENERALE UFFICIALE'],
-        ['Torneo:', this.state.title],
-        ['Data:', new Date().toLocaleDateString('it-IT')],
-        [],
-        ['Posizione', 'N° Estratto', 'Coppia / Giocatori', 'Totale VP', 'Totale MP', 'Distacco 1°']
-      ];
-
-      const leaderVP = ranked[0]?.totVP || 0;
-      ranked.forEach((p, idx) => {
-        leaderboardData.push([
-          idx + 1,
-          p.lotNumber || '',
-          p.name,
-          p.totVP,
-          p.totMP,
-          idx === 0 ? '—' : `-${leaderVP - p.totVP}`
-        ]);
-      });
-
-      const wsLeaderboard = XLSX.utils.aoa_to_sheet(leaderboardData);
-      XLSX.utils.book_append_sheet(wb, wsLeaderboard, 'Classifica');
-
-      // Sheet 2: Tabellone Completo Turni
-      const masterHeader = ['Pos.', 'N°', 'Coppia'];
-      for (let r = 0; r < this.state.roundsCount; r++) {
-        masterHeader.push(`T${r+1} MP`, `T${r+1} VP`);
-      }
-      masterHeader.push('Totale VP', 'Totale MP');
-
-      const masterData = [
-        ['BURRACO - TABELLONE COMPLETO DI TUTTI I TURNI'],
-        ['Torneo:', this.state.title],
-        [],
-        masterHeader
-      ];
-
-      ranked.forEach((p, idx) => {
-        const row = [idx + 1, p.lotNumber || '', p.name];
-        for (let r = 0; r < this.state.roundsCount; r++) {
-          const sc = p.scores[r] || {};
-          row.push(sc.mp !== null ? sc.mp : '', sc.vp !== null ? sc.vp : '');
-        }
-        row.push(p.totVP, p.totMP);
-        masterData.push(row);
-      });
-
-      const wsMaster = XLSX.utils.aoa_to_sheet(masterData);
-      XLSX.utils.book_append_sheet(wb, wsMaster, 'Tabellone Completo');
-
-      // File name
-      const safeTitle = this.state.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      const fileName = `${safeTitle}_risultati.xlsx`;
-
-      // Save via native Python bridge if in PyWebView, else browser download
-      if (window.pywebview && window.pywebview.api && window.pywebview.api.export_excel_native) {
-        const base64Data = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
-        window.pywebview.api.export_excel_native(fileName, base64Data).then(res => {
-          if (res && res.success) {
-            alert(`File Excel salvato con successo: ${res.path}`);
-          }
-        });
-      } else {
-        XLSX.writeFile(wb, fileName);
-      }
-    } catch (e) {
-      console.error('Errore export Excel:', e);
-      alert('Si è verificato un errore durante la generazione del file Excel.');
-    }
-  }
-
-  exportBackupJSON() {
-    try {
-      const dataStr = JSON.stringify(this.state, null, 2);
-      const blob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      const safeTitle = (this.state.title || 'torneo').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      const dateStr = new Date().toISOString().slice(0, 10);
-      a.href = url;
-      a.download = `${safeTitle}_backup_${dateStr}.json`;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 200);
-    } catch (e) {
-      console.error('Errore export JSON:', e);
-      alert('Si è verificato un errore durante il salvataggio del backup.');
-    }
-  }
-
-  importBackupJSON(file) {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const parsed = JSON.parse(e.target.result);
-        if (parsed && Array.isArray(parsed.pairs)) {
-          if (!parsed.settings) {
-            parsed.settings = { showBulkPaste: false, showLottery: false };
-          }
-          this.state = parsed;
-          this.saveState();
-          this.render();
-          this.closeModal('modalSettings');
-          alert('Backup caricato con successo! Dati del torneo ripristinati.');
-        } else {
-          alert('Il file selezionato non contiene dati validi per un torneo di Burraco.');
-        }
-      } catch (err) {
-        console.error('Errore lettura JSON:', err);
-        alert('Impossibile leggere il file: formato JSON non valido.');
-      }
-    };
-    reader.readAsText(file);
+    BurracoExcel.exportToExcel(this.state, this.getRankedPairs());
   }
 
   triggerPrint() {
     const printBody = document.getElementById('print-body');
+    if (!printBody) return;
+
     const ranked = this.getRankedPairs();
 
     let tableHtml = `
@@ -1228,7 +963,7 @@ class BurracoApp {
     `;
 
     for (let r = 0; r < this.state.roundsCount; r++) {
-      tableHtml += `<th style="text-align:center; font-size:10pt;">T${r+1} VP</th>`;
+      tableHtml += `<th style="text-align:center; font-size:10pt;">T${r + 1} VP</th>`;
     }
 
     tableHtml += `
@@ -1242,7 +977,7 @@ class BurracoApp {
         <tr>
           <td style="text-align:center; font-weight:bold;">${idx + 1}°</td>
           <td style="text-align:center;">${p.lotNumber || '—'}</td>
-          <td style="font-weight:600;">${this.escapeHtml(p.name)}</td>
+          <td style="font-weight:600;">${BurracoUtils.escapeHtml(p.name)}</td>
           <td style="text-align:center; font-weight:bold; font-size:12pt;">${p.totVP}</td>
           <td style="text-align:center;">${p.totMP.toLocaleString('it-IT')}</td>
       `;
@@ -1268,19 +1003,17 @@ class BurracoApp {
     window.print();
   }
 
-  confirmNewTournament() {
-    if (confirm('Sei sicuro di voler azzerare il torneo corrente e iniziarne uno nuovo? Tutti i punteggi correnti andranno persi.')) {
-      this.state = JSON.parse(JSON.stringify(defaultState));
-      this.state.title = 'Nuovo Torneo di Burraco';
-      this.state.pairs = [];
-      this.saveState();
-      this.render();
-      this.openModal('modalBulkPaste');
-    }
+  // ==========================================
+  // NEW EVENING / TOURNAMENT
+  // ==========================================
+  startNewEvening() {
+    BurracoStorage.startNewEvening(this.state);
+    this.render();
+    this.closeModal('modalNewTournament');
   }
 
   // ==========================================
-  // UTILITIES & MODAL HELPERS
+  // MODAL HELPERS
   // ==========================================
   openModal(modalKey) {
     if (this[modalKey]) {
@@ -1292,16 +1025,6 @@ class BurracoApp {
     if (this[modalKey]) {
       this[modalKey].classList.remove('active');
     }
-  }
-
-  escapeHtml(str) {
-    if (!str) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
   }
 }
 
