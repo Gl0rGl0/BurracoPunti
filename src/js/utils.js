@@ -19,15 +19,15 @@ function getDateGGMMAA(date = new Date()) {
 
 function formatGiornataLabel(key) {
   if (!key) return '';
-  const m = key.match(/^giornata_(\d{2})(\d{2})(\d{2})/);
+  const m = key.match(/^serata_(\d{2})(\d{2})(\d{2})/);
   if (m) {
     return `${m[1]}/${m[2]}/${m[3]}`;
   }
-  return key.replace(/^giornata_/, 'Giornata ');
+  return key.replace(/^serata_/, 'Giornata ');
 }
 
 function parseSortKey(k) {
-  const m = k.match(/^giornata_(\d{2})(\d{2})(\d{2})/);
+  const m = k.match(/^serata_(\d{2})(\d{2})(\d{2})/);
   if (m) return `20${m[3]}${m[2]}${m[1]}`;
   const num = parseInt(k.replace(/\D/g, ''), 10);
   return isNaN(num) ? k : String(num).padStart(8, '0');

@@ -1,5 +1,5 @@
 build/
 __pycache__/
-torneo_data.json
+statistiche_tornei.json
 *.spec
 *.exe

@@ -22,7 +22,7 @@ class BurracoApp {
               this.render();
             }
           }
-        }).catch(err => console.error('Errore lettura torneo_data.json da Python:', err));
+        }).catch(err => console.error('Errore lettura statistiche_tornei.json da Python:', err));
       }
     });
   }
@@ -294,20 +294,24 @@ class BurracoApp {
         reader.onload = (ev) => {
           try {
             const parsed = JSON.parse(ev.target.result);
-            const importedState = BurracoStorage.parseLoadedData(parsed);
-            if (importedState) {
-              this.state = importedState;
-              this.saveState();
+            const res = BurracoStorage.mergeBackupData(this.state, parsed);
+            if (res && res.success) {
               this.syncSettingsUI();
               this.render();
               this.closeModal('modalSettings');
-              alert('Backup caricato con successo! Dati ripristinati.');
+              if (res.addedCount > 0) {
+                alert(`Backup unito con successo!\nAggiunte ${res.addedCount} nuove serate allo storico (totale serate archiviate: ${res.totalCount}).`);
+              } else {
+                alert(`Nessuna nuova serata aggiunta.\nLe serate nel file erano già presenti nello storico o non contenevano dati completi (totale serate archiviate: ${res.totalCount}).`);
+              }
             } else {
-              alert('File JSON non valido per un torneo di Burraco.');
+              alert('File JSON non valido o privo di dati compatibili per il torneo.');
             }
           } catch (err) {
             console.error('Errore lettura JSON:', err);
-            alert('Formato JSON non valido.');
+            alert('Formato del file JSON non valido.');
+          } finally {
+            fileInput.value = '';
           }
         };
         reader.readAsText(file);

@@ -10,7 +10,7 @@ Applicazione gestionale moderna, reattiva e portabile (per Windows, Web, iPad e 
 
 - Fai doppio clic su **`BurracoPunti.exe`**.
 - File singolo portatile da ~39 MB senza necessità di installazione o Python sul PC.
-- Salva automaticamente lo stato del torneo in locale su file **`torneo_data.json`**.
+- Salva automaticamente lo stato del torneo in locale su file **`statistiche_tornei.json`**.
 
 ### 2. Versione Web / Mobile / iPad (100% Offline)
 
@@ -69,8 +69,8 @@ Applicazione gestionale moderna, reattiva e portabile (per Windows, Web, iPad e 
 
 ## 💾 Backup, Persistenza & Impostazioni
 
-- **Salvataggio Multi-Giornata Storico (`torneo_data.json`)**:
-  - Il file mantiene un'unica radice `title` e un'indentazione incrementale con i blocchi storici di tutte le serate giocate nominati per data in formato GGMMAA (es. `giornata_040926` per il 4 settembre 2026).
+- **Salvataggio Multi-Giornata Storico (`statistiche_tornei.json`)**:
+  - Il file mantiene un'unica radice `title` e un'indentazione incrementale con i blocchi storici di tutte le serate giocate nominati per data in formato GGMMAA (es. `serata_040926` per il 4 settembre 2026).
   - All'avvio di una **"✨ Nuova Serata"**, i punteggi e le coppie della serata corrente vengono archiviati nel loro blocco di data, azzerando il tabellone per inserire le nuove coppie e numeri.
   - Salvataggio automatico continuo sia in `localStorage` che nel file locale su Windows.
 - **Backup e Ripristino JSON**:

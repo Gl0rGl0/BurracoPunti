@@ -139,25 +139,25 @@ console.log(`Sorteggio 20 coppie generato: [${draw.slice(0, 8).join(', ')} ...]:
 console.log('>>> TEST 4 SUPERATO CON SUCCESSO!');
 
 console.log('\n--- TEST 5: Verifica Struttura Multi-Giornata con Formato Data GGMMAA (BurracoStorage) ---');
-const diskJsonRaw = fs.readFileSync(path.join(__dirname, 'torneo_data.json'), 'utf8');
+const diskJsonRaw = fs.readFileSync(path.join(__dirname, 'statistiche_tornei.json'), 'utf8');
 const diskJson = JSON.parse(diskJsonRaw);
 
 if (!diskJson.title) {
   throw new Error('Test Fallito: titolo mancante alla radice del JSON!');
 }
-if (!diskJson.giornata_040926 || !Array.isArray(diskJson.giornata_040926.pairs)) {
-  throw new Error('Test Fallito: blocco giornata_040926 mancante o senza pairs!');
+if (!diskJson.serata_040926 || !Array.isArray(diskJson.serata_040926.pairs)) {
+  throw new Error('Test Fallito: blocco serata_040926 mancante o senza pairs!');
 }
 
-console.log(`- File torneo_data.json letto con successo. Titolo: "${diskJson.title}"`);
-console.log(`- Giornate presenti: ${Object.keys(diskJson).filter(k => k.startsWith('giornata_')).join(', ')}`);
-console.log(`- Coppie in giornata_040926: ${diskJson.giornata_040926.pairs.length}`);
+console.log(`- File statistiche_tornei.json letto con successo. Titolo: "${diskJson.title}"`);
+console.log(`- Giornate presenti: ${Object.keys(diskJson).filter(k => k.startsWith('serata_')).join(', ')}`);
+console.log(`- Coppie in serata_040926: ${diskJson.serata_040926.pairs.length}`);
 
 const parsedState = BurracoStorage.parseLoadedData(diskJson);
 if (!parsedState || parsedState.pairs.length !== 4) {
   throw new Error('Test Fallito: parseLoadedData non ha estratto correttamente le coppie attive');
 }
-console.log('>>> TEST 5 SUPERATO CON SUCCESSO! Schema data GGMMAA (es. giornata_040926) e storage perfettamente conformi.');
+console.log('>>> TEST 5 SUPERATO CON SUCCESSO! Schema data GGMMAA (es. serata_040926) e storage perfettamente conformi.');
 
 console.log('\n--- TEST 6: Verifica File di Configurazione Centralizzato (BURRACO_CONFIG) ---');
 if (!BurracoConfig || typeof BurracoConfig !== 'object') {
@@ -207,6 +207,120 @@ const res0 = BurracoEngine.calculatePrizepool(0, 2);
 if (res0.totalPot !== 0 || res0.prizes.length !== 0) throw new Error('Test 7 fallito su 0 coppie');
 
 console.log('>>> TEST 7 SUPERATO CON SUCCESSO! Logica montepremi, arrotondamento ad euro intero e pareggio verificati.');
+
+console.log('\n--- TEST 8: Verifica Validazione Serate (checked flag, null check) e Merge Backup (BurracoStorage) ---');
+
+// 1. Verifica isEveningValid
+const completeEvening = {
+  roundsCount: 3,
+  pairs: [
+    { id: 'p1', name: 'Coppia Uno', scores: [{ mp: 1000, vp: 12 }, { mp: 1200, vp: 14 }, { mp: 900, vp: 10 }] },
+    { id: 'p2', name: 'Coppia Due', scores: [{ mp: 800, vp: 8 }, { mp: 600, vp: 6 }, { mp: 1100, vp: 10 }] }
+  ]
+};
+if (!BurracoStorage.isEveningValid(completeEvening)) {
+  throw new Error('Test 8 fallito: serata completa considerata non valida!');
+}
+
+const incompleteEvening = {
+  roundsCount: 3,
+  pairs: [
+    { id: 'p1', name: 'Coppia Uno', scores: [{ mp: 1000, vp: 12 }, { mp: null, vp: null }, { mp: 900, vp: 10 }] }
+  ]
+};
+if (BurracoStorage.isEveningValid(incompleteEvening)) {
+  throw new Error('Test 8 fallito: serata con null considerata valida!');
+}
+
+const checkedEvening = {
+  checked: true,
+  roundsCount: 4,
+  pairs: []
+};
+if (!BurracoStorage.isEveningValid(checkedEvening)) {
+  throw new Error('Test 8 fallito: serata con checked:true non accettata direttamente!');
+}
+console.log('- isEveningValid: completa=valida, con null=non valida, checked:true=valida diretta (OK)');
+
+// 2. Verifica startNewEvening con scarto serata non valida e archiviazione serata valida
+const mockStateValid = {
+  title: 'Torneo Test',
+  currentGiornataKey: 'serata_010126',
+  roundsCount: 2,
+  pairs: [
+    { id: 'p1', name: 'Test 1', scores: [{ mp: 1000, vp: 10 }, { mp: 1000, vp: 10 }] }
+  ],
+  allGiornate: {}
+};
+BurracoStorage.startNewEvening(mockStateValid);
+if (!mockStateValid.allGiornate['serata_010126'] || mockStateValid.allGiornate['serata_010126'].checked !== true) {
+  throw new Error('Test 8 fallito: serata valida non archiviata con checked:true in startNewEvening!');
+}
+
+const mockStateInvalid = {
+  title: 'Torneo Test',
+  currentGiornataKey: 'serata_020126',
+  roundsCount: 2,
+  pairs: [
+    { id: 'p1', name: 'Test 1', scores: [{ mp: 1000, vp: 10 }, { mp: null, vp: null }] }
+  ],
+  allGiornate: {}
+};
+BurracoStorage.startNewEvening(mockStateInvalid);
+if (mockStateInvalid.allGiornate['serata_020126']) {
+  throw new Error('Test 8 fallito: serata non valida (con null) conservata nello storico!');
+}
+console.log('- startNewEvening: serate valide archiviate con checked:true, serate incomplete rimosse (OK)');
+
+// 3. Verifica mergeBackupData
+const existingState = {
+  title: 'Torneo Burraco',
+  currentGiornataKey: 'serata_040926',
+  roundsCount: 2,
+  pairs: [],
+  allGiornate: {
+    'serata_010126': {
+      checked: true,
+      roundsCount: 2,
+      pairs: [{ id: 'p1', name: 'G1', scores: [{ mp: 1000, vp: 10 }, { mp: 1000, vp: 10 }] }]
+    }
+  }
+};
+
+const backupToImport = {
+  title: 'Backup Campionato',
+  serata_010126: { // Serata già presente: non deve essere duplicata
+    checked: true,
+    roundsCount: 2,
+    pairs: [{ id: 'p1', name: 'G1', scores: [{ mp: 500, vp: 5 }, { mp: 500, vp: 5 }] }]
+  },
+  serata_020126: { // Nuova serata valida: deve essere aggiunta
+    roundsCount: 2,
+    pairs: [{ id: 'p2', name: 'G2', scores: [{ mp: 1100, vp: 12 }, { mp: 900, vp: 8 }] }]
+  },
+  serata_030126: { // Serata non valida: deve essere scartata
+    roundsCount: 2,
+    pairs: [{ id: 'p3', name: 'G3', scores: [{ mp: 1100, vp: 12 }, { mp: null, vp: null }] }]
+  }
+};
+
+const mergeRes = BurracoStorage.mergeBackupData(existingState, backupToImport);
+if (mergeRes.addedCount !== 1) {
+  throw new Error(`Test 8 fallito: addedCount atteso 1 ma ottenuto ${mergeRes.addedCount}`);
+}
+if (!existingState.allGiornate['serata_020126'] || existingState.allGiornate['serata_020126'].checked !== true) {
+  throw new Error('Test 8 fallito: serata_020126 non importata correttamente!');
+}
+if (existingState.allGiornate['serata_030126']) {
+  throw new Error('Test 8 fallito: serata_030126 non valida importata erroneamente!');
+}
+// Verifica che serata_010126 non sia stata sovrascritta
+if (existingState.allGiornate['serata_010126'].pairs[0].scores[0].mp !== 1000) {
+  throw new Error('Test 8 fallito: serata_010126 esistente sovrascritta!');
+}
+console.log(`- mergeBackupData: aggiunte solo le serate mancanti e valide (${mergeRes.addedCount} aggiunta, totale ${mergeRes.totalCount}) (OK)`);
+
+console.log('>>> TEST 8 SUPERATO CON SUCCESSO! Validazione serate, flag checked e merge backup verificati al 100%.');
 
 console.log('\n=============================================');
 console.log('TUTTI I TEST MODULARI SONO PASSATI AL 100%!');

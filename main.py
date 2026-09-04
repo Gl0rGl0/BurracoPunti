@@ -21,7 +21,7 @@ def get_app_dir():
 
 class BurracoApi:
     def __init__(self):
-        self.save_path = os.path.join(get_app_dir(), "torneo_data.json")
+        self.save_path = os.path.join(get_app_dir(), "statistiche_tornei.json")
 
     def save_tournament_data(self, json_data):
         """ Auto-save tournament state to local JSON file """

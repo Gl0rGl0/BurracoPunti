@@ -140,7 +140,7 @@ const BurracoExcel = {
     const utils = typeof window !== 'undefined' ? window.BurracoUtils : require('./utils');
     try {
       if (!state.allGiornate) state.allGiornate = {};
-      const curKey = state.currentGiornataKey || `giornata_${utils.getDateGGMMAA()}`;
+      const curKey = state.currentGiornataKey || `serata_${utils.getDateGGMMAA()}`;
       state.allGiornate[curKey] = {
         roundsCount: state.roundsCount,
         pairs: state.pairs
@@ -151,7 +151,7 @@ const BurracoExcel = {
       };
 
       const sortedKeys = Object.keys(state.allGiornate)
-        .filter(k => /^giornata_/i.test(k))
+        .filter(k => /^serata_/i.test(k))
         .sort((a, b) => utils.parseSortKey(a).localeCompare(utils.parseSortKey(b)));
 
       sortedKeys.forEach(k => {
