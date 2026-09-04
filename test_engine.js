@@ -154,10 +154,26 @@ console.log(`- Giornate presenti: ${Object.keys(diskJson).filter(k => k.startsWi
 console.log(`- Coppie in serata_040926: ${diskJson.serata_040926.pairs.length}`);
 
 const parsedState = BurracoStorage.parseLoadedData(diskJson);
-if (!parsedState || parsedState.pairs.length !== 4) {
-  throw new Error('Test Fallito: parseLoadedData non ha estratto correttamente le coppie attive');
+if (!parsedState || !parsedState.allGiornate['serata_040926'] || parsedState.allGiornate['serata_040926'].pairs.length !== 4) {
+  throw new Error('Test Fallito: parseLoadedData non ha estratto correttamente le coppie archiviate in serata_040926');
 }
-console.log('>>> TEST 5 SUPERATO CON SUCCESSO! Schema data GGMMAA (es. serata_040926) e storage perfettamente conformi.');
+
+// Verifica posizione (rank) e vincita di coppia (prize)
+const p1 = diskJson.serata_040926.pairs.find(p => p.id === 'p1');
+const p3 = diskJson.serata_040926.pairs.find(p => p.id === 'p3');
+if (!p1 || p1.rank !== 1 || p1.prize !== 8) {
+  throw new Error(`Test Fallito: p1 deve avere rank 1 e prize 8, trovato rank=${p1?.rank}, prize=${p1?.prize}`);
+}
+if (!p3 || p3.rank !== 2 || p3.prize !== 4) {
+  throw new Error(`Test Fallito: p3 deve avere rank 2 e prize 4, trovato rank=${p3?.rank}, prize=${p3?.prize}`);
+}
+
+const testEnriched = BurracoStorage.enrichPairsWithStats(diskJson.serata_040926.pairs, 4);
+if (!testEnriched || testEnriched[0].rank !== 1 || testEnriched[0].prize !== 8) {
+  throw new Error('Test Fallito: enrichPairsWithStats non ha calcolato correttamente rank e prize');
+}
+console.log('- Posizione (rank) e vincita di coppia (prize) salvate e verificate con successo (OK)');
+console.log('>>> TEST 5 SUPERATO CON SUCCESSO! Schema data GGMMAA, rank e vincita perfettamente conformi.');
 
 console.log('\n--- TEST 6: Verifica File di Configurazione Centralizzato (BURRACO_CONFIG) ---');
 if (!BurracoConfig || typeof BurracoConfig !== 'object') {

@@ -178,6 +178,55 @@ const BurracoStorage = {
     return this.getDefaultState();
   },
 
+  /**
+   * Arricchisce ciascuna coppia con la posizione finale (rank) e la vincita di coppia (prize).
+   */
+  enrichPairsWithStats(pairs, roundsCount, settings = {}) {
+    if (!Array.isArray(pairs) || pairs.length === 0) return pairs;
+    const engine = typeof window !== 'undefined' ? window.BurracoEngine : require('./engine');
+    const utils = typeof window !== 'undefined' ? window.BurracoUtils : require('./utils');
+    const cfg = typeof window !== 'undefined' && window.BURRACO_CONFIG 
+      ? window.BURRACO_CONFIG 
+      : (function() { try { return require('./config'); } catch(e) { return {}; } })();
+
+    const cfgPrize = (cfg && cfg.prizepool) || {};
+    const fee = (settings && settings.entryFeePerPlayer !== undefined)
+      ? Number(settings.entryFeePerPlayer)
+      : (cfgPrize.entryFeePerPlayer !== undefined ? Number(cfgPrize.entryFeePerPlayer) : 2);
+    const pcts = (settings && settings.prizePercentages) || cfgPrize.percentages || [50, 30, 20, 0, 0];
+
+    const rCount = roundsCount || (utils && utils.DEFAULT_ROUNDS) || 4;
+    const ranked = engine.getRankedPairs(pairs, rCount);
+    const validCount = ranked.length;
+    const prizepool = engine.calculatePrizepool(validCount, fee, pcts);
+
+    const prizeByRank = {};
+    if (prizepool && Array.isArray(prizepool.prizes)) {
+      prizepool.prizes.forEach(p => {
+        prizeByRank[p.rank] = p.teamPrize;
+      });
+    }
+
+    const rankMap = new Map();
+    ranked.forEach((p, idx) => {
+      const rank = idx + 1;
+      const prize = prizeByRank[rank] !== undefined ? prizeByRank[rank] : 0;
+      rankMap.set(p.id, { rank, prize });
+    });
+
+    return pairs.map(p => {
+      const stats = rankMap.get(p.id);
+      return {
+        id: p.id,
+        lotNumber: p.lotNumber,
+        name: p.name,
+        rank: stats ? stats.rank : null,
+        prize: stats ? stats.prize : 0,
+        scores: p.scores
+      };
+    });
+  },
+
   saveState(state) {
     const utils = typeof window !== 'undefined' ? window.BurracoUtils : require('./utils');
     try {
@@ -201,7 +250,15 @@ const BurracoStorage = {
         .sort((a, b) => utils.parseSortKey(a).localeCompare(utils.parseSortKey(b)));
 
       sortedKeys.forEach(k => {
-        fileData[k] = state.allGiornate[k];
+        const ev = state.allGiornate[k];
+        if (ev && Array.isArray(ev.pairs) && ev.pairs.length > 0) {
+          fileData[k] = {
+            ...ev,
+            pairs: this.enrichPairsWithStats(ev.pairs, ev.roundsCount || state.roundsCount, state.settings)
+          };
+        } else {
+          fileData[k] = ev;
+        }
       });
 
       // Indented incremental JSON structure
@@ -278,9 +335,10 @@ const BurracoStorage = {
     if (!state.allGiornate) state.allGiornate = {};
 
     // 1. Verifica validità della serata corrente prima di archiviarla
+    const enrichedPairs = this.enrichPairsWithStats(JSON.parse(JSON.stringify(state.pairs || [])), state.roundsCount, state.settings);
     const candidateCur = {
       roundsCount: state.roundsCount,
-      pairs: JSON.parse(JSON.stringify(state.pairs || []))
+      pairs: enrichedPairs
     };
 
     if (this.isEveningValid(candidateCur)) {
