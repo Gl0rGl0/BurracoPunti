@@ -20,7 +20,7 @@ cssModules.forEach(mod => {
 });
 
 // Verify modular JS files
-const jsModules = ['utils.js', 'engine.js', 'storage.js', 'excel.js'];
+const jsModules = ['config.js', 'utils.js', 'engine.js', 'storage.js', 'excel.js'];
 jsModules.forEach(mod => {
   const p = path.join(__dirname, 'src', 'js', mod);
   if (!fs.existsSync(p)) throw new Error(`Modulo JS mancante: src/js/${mod}`);
@@ -34,6 +34,7 @@ console.log(`- app.js (controller): ${js.length} bytes`);
 console.log(`- xlsx.full.min.js presente: ${xlsxExists ? 'OK' : 'MANCANTE'}`);
 
 // Import the actual engine modules
+const BurracoConfig = require('./src/js/config.js');
 const BurracoUtils = require('./src/js/utils.js');
 const BurracoEngine = require('./src/js/engine.js');
 const BurracoStorage = require('./src/js/storage.js');
@@ -157,6 +158,26 @@ if (!parsedState || parsedState.pairs.length !== 4) {
   throw new Error('Test Fallito: parseLoadedData non ha estratto correttamente le coppie attive');
 }
 console.log('>>> TEST 5 SUPERATO CON SUCCESSO! Schema data GGMMAA (es. giornata_040926) e storage perfettamente conformi.');
+
+console.log('\n--- TEST 6: Verifica File di Configurazione Centralizzato (BURRACO_CONFIG) ---');
+if (!BurracoConfig || typeof BurracoConfig !== 'object') {
+  throw new Error('Test Fallito: BURRACO_CONFIG non esportato!');
+}
+if (!BurracoConfig.appTitle || !BurracoConfig.brandName || !BurracoConfig.defaultTournamentTitle) {
+  throw new Error('Test Fallito: titoli e identità mancanti in BURRACO_CONFIG!');
+}
+if (!BurracoConfig.labels || !BurracoConfig.labels.playersTab || !BurracoConfig.labels.masterTab) {
+  throw new Error('Test Fallito: etichette mancanti in BURRACO_CONFIG.labels!');
+}
+if (!BurracoConfig.export || !BurracoConfig.export.sheetLeaderboard) {
+  throw new Error('Test Fallito: parametri export mancanti in BURRACO_CONFIG.export!');
+}
+console.log(`- appTitle: "${BurracoConfig.appTitle}"`);
+console.log(`- brandName: "${BurracoConfig.brandName}"`);
+console.log(`- defaultTournamentTitle: "${BurracoConfig.defaultTournamentTitle}"`);
+console.log(`- defaultRounds: ${BurracoConfig.defaultRounds}`);
+console.log(`- labels.playersTab: "${BurracoConfig.labels.playersTab}"`);
+console.log('>>> TEST 6 SUPERATO CON SUCCESSO! Configurazione centralizzata verificata.');
 
 console.log('\n=============================================');
 console.log('TUTTI I TEST MODULARI SONO PASSATI AL 100%!');

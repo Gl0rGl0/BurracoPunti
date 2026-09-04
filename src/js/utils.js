@@ -3,7 +3,11 @@
  * Shared constants, date string formatting, HTML escape utilities
  */
 
-const DEFAULT_ROUNDS = 4;
+const config = typeof window !== 'undefined' && window.BURRACO_CONFIG 
+  ? window.BURRACO_CONFIG 
+  : (function() { try { return require('./config'); } catch(e) { return {}; } })();
+
+const DEFAULT_ROUNDS = (config && config.defaultRounds) || 4;
 const STORAGE_KEY = 'burraco_master_tournament_v1';
 
 function getDateGGMMAA(date = new Date()) {

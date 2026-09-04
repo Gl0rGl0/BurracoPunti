@@ -74,6 +74,24 @@ class BurracoApi:
             print(f"Error exporting Excel: {e}")
             return {"success": False, "error": str(e)}
 
+import re
+
+def get_app_title():
+    default_title = "Burraco - Gestione Torneo"
+    try:
+        config_path = get_resource_path(os.path.join("src", "js", "config.js"))
+        if not os.path.exists(config_path):
+            config_path = get_resource_path(os.path.join("js", "config.js"))
+        if os.path.exists(config_path):
+            with open(config_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            match = re.search(r'appTitle\s*:\s*["\']([^"\']+)["\']', content)
+            if match:
+                return match.group(1)
+    except Exception as e:
+        print(f"Errore lettura appTitle da config.js: {e}")
+    return default_title
+
 def main():
     api = BurracoApi()
     
@@ -82,8 +100,10 @@ def main():
         # Fallback if src is flat in the bundled dir
         html_path = get_resource_path("index.html")
 
+    app_title = get_app_title()
+
     window = webview.create_window(
-        title="Burraco - Gestione Torneo",
+        title=app_title,
         url=html_path,
         js_api=api,
         width=1280,

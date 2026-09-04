@@ -4,13 +4,21 @@
  */
 
 const BurracoStorage = {
+  _getConfig() {
+    if (typeof window !== 'undefined' && window.BURRACO_CONFIG) return window.BURRACO_CONFIG;
+    try { return require('./config'); } catch(e) { return {}; }
+  },
+
   getDefaultState() {
     const utils = typeof window !== 'undefined' ? window.BurracoUtils : require('./utils');
+    const cfg = this._getConfig();
     const defaultTodayKey = `giornata_${utils.getDateGGMMAA()}`;
-    const defaultRounds = utils.DEFAULT_ROUNDS || 4;
+    const defaultRounds = utils.DEFAULT_ROUNDS || cfg.defaultRounds || 4;
+    const defaultTitle = cfg.defaultTournamentTitle || 'Torneo di Burraco';
+    const defaultSettings = cfg.defaultSettings || { showBulkPaste: false, showLottery: false, showPodium: false };
 
     return {
-      title: 'Torneo di Burraco',
+      title: defaultTitle,
       currentGiornataKey: defaultTodayKey,
       allGiornate: {
         [defaultTodayKey]: {
@@ -24,7 +32,7 @@ const BurracoStorage = {
         }
       },
       roundsCount: defaultRounds,
-      settings: { showBulkPaste: false, showLottery: false, showPodium: false },
+      settings: { ...defaultSettings },
       currentTab: 'initial', // 'initial' | 'round' | 'master' | 'podium'
       activeRoundIndex: 0,
       searchFilter: '',
@@ -42,7 +50,9 @@ const BurracoStorage = {
     if (!data || typeof data !== 'object') return null;
 
     const utils = typeof window !== 'undefined' ? window.BurracoUtils : require('./utils');
-    const title = data.title || 'Torneo di Burraco';
+    const cfg = this._getConfig();
+    const defaultTitle = cfg.defaultTournamentTitle || 'Torneo di Burraco';
+    const title = data.title || defaultTitle;
 
     // Retrieve existing settings from localStorage if data doesn't provide them
     let savedSettings = null;
@@ -56,7 +66,7 @@ const BurracoStorage = {
       }
     } catch (e) {}
 
-    const defaultSettings = { showBulkPaste: false, showLottery: false, showPodium: false };
+    const defaultSettings = cfg.defaultSettings || { showBulkPaste: false, showLottery: false, showPodium: false };
     const settings = {
       ...defaultSettings,
       ...(savedSettings || {}),

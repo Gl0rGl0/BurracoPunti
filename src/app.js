@@ -112,7 +112,49 @@ class BurracoApp {
 
     // Initialize inputs with current state values
     if (this.titleInput) this.titleInput.value = this.state.title;
+    this.applyConfig();
     this.syncSettingsUI();
+  }
+
+  applyConfig() {
+    const cfg = typeof window !== 'undefined' && window.BURRACO_CONFIG ? window.BURRACO_CONFIG : null;
+    if (!cfg) return;
+
+    if (cfg.appTitle) {
+      document.title = cfg.appTitle;
+    }
+
+    const brandEl = document.getElementById('brand-title');
+    if (brandEl && cfg.brandName) {
+      brandEl.textContent = cfg.brandName;
+    }
+
+    if (cfg.labels) {
+      const tabInitial = document.getElementById('tab-btn-initial');
+      if (tabInitial && cfg.labels.playersTab) {
+        tabInitial.innerHTML = `<span class="tab-icon">📋</span> ${BurracoUtils.escapeHtml(cfg.labels.playersTab)}`;
+      }
+      const initialH2 = document.querySelector('#view-initial .card-header h2');
+      if (initialH2 && cfg.labels.playersTab) {
+        initialH2.textContent = cfg.labels.playersTab;
+      }
+      const tabMaster = document.getElementById('tab-btn-master');
+      if (tabMaster && cfg.labels.masterTab) {
+        tabMaster.innerHTML = `<span class="tab-icon">🏆</span> ${BurracoUtils.escapeHtml(cfg.labels.masterTab)}`;
+      }
+      const masterH2 = document.querySelector('#view-master .card-header h2');
+      if (masterH2 && cfg.labels.masterTab) {
+        masterH2.textContent = cfg.labels.masterTab;
+      }
+      const tabPodium = document.getElementById('tab-btn-podium');
+      if (tabPodium && cfg.labels.podiumTab) {
+        tabPodium.innerHTML = `<span class="tab-icon">🥇</span> ${BurracoUtils.escapeHtml(cfg.labels.podiumTab)}`;
+      }
+      const btnNew = document.getElementById('btn-open-new-tournament');
+      if (btnNew && cfg.labels.newEveningBtn) {
+        btnNew.innerHTML = `<span class="btn-icon">✨</span> ${BurracoUtils.escapeHtml(cfg.labels.newEveningBtn)}`;
+      }
+    }
   }
 
   syncSettingsUI() {
@@ -1044,12 +1086,23 @@ class BurracoApp {
       tableHtml += `</tr>`;
     });
 
+    const cfg = typeof window !== 'undefined' && window.BURRACO_CONFIG ? window.BURRACO_CONFIG : {};
+    const expCfg = cfg.export || {};
+    const sigRef = expCfg.printRefereeSignature || 'Firma Arbitro di Gara';
+    const sigDir = expCfg.printDirectorSignature || 'Firma Direttore di Torneo';
+    const subTitle = expCfg.printSubtitle || 'Classifica Finale Ufficiale';
+
+    const printMetaSubtitle = document.querySelector('#print-container .print-meta span:last-child');
+    if (printMetaSubtitle) {
+      printMetaSubtitle.textContent = subTitle;
+    }
+
     tableHtml += `
         </tbody>
       </table>
       <div style="margin-top:40px; display:flex; justify-content:space-between; font-size:11pt;">
-        <div>Firma Arbitro di Gara: ______________________</div>
-        <div>Firma Direttore di Torneo: ______________________</div>
+        <div>${BurracoUtils.escapeHtml(sigRef)}: ______________________</div>
+        <div>${BurracoUtils.escapeHtml(sigDir)}: ______________________</div>
       </div>
     `;
 

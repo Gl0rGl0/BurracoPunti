@@ -36,6 +36,11 @@ const BurracoExcel = {
     return result;
   },
 
+  _getConfig() {
+    if (typeof window !== 'undefined' && window.BURRACO_CONFIG) return window.BURRACO_CONFIG;
+    try { return require('./config'); } catch(e) { return {}; }
+  },
+
   /**
    * Generate and download Excel workbook (.xlsx) with Classifica and Tabellone Turni.
    */
@@ -46,12 +51,20 @@ const BurracoExcel = {
     }
 
     try {
+      const cfg = this._getConfig();
+      const expCfg = cfg.export || {};
+      const sheetLeaderboard = expCfg.sheetLeaderboard || 'Classifica';
+      const sheetMaster = expCfg.sheetMaster || 'Tabellone Completo';
+      const headerLeaderboard = expCfg.headerLeaderboard || 'BURRACO - CLASSIFICA GENERALE UFFICIALE';
+      const headerMaster = expCfg.headerMaster || 'BURRACO - TABELLONE COMPLETO DI TUTTI I TURNI';
+      const defaultTitle = cfg.defaultTournamentTitle || 'Torneo di Burraco';
+
       const wb = XLSX.utils.book_new();
 
       // Sheet 1: Classifica Generale
       const leaderboardData = [
-        ['BURRACO - CLASSIFICA GENERALE UFFICIALE'],
-        ['Torneo:', state.title || 'Torneo di Burraco'],
+        [headerLeaderboard],
+        ['Torneo:', state.title || defaultTitle],
         ['Data:', new Date().toLocaleDateString('it-IT')],
         [],
         ['Posizione', 'N° Estratto', 'Coppia / Giocatori', 'Totale VP', 'Totale MP', 'Distacco 1°']
@@ -70,7 +83,7 @@ const BurracoExcel = {
       });
 
       const wsLeaderboard = XLSX.utils.aoa_to_sheet(leaderboardData);
-      XLSX.utils.book_append_sheet(wb, wsLeaderboard, 'Classifica');
+      XLSX.utils.book_append_sheet(wb, wsLeaderboard, sheetLeaderboard);
 
       // Sheet 2: Tabellone Completo Turni
       const masterHeader = ['Pos.', 'N°', 'Coppia'];
@@ -80,8 +93,8 @@ const BurracoExcel = {
       masterHeader.push('Totale VP', 'Totale MP');
 
       const masterData = [
-        ['BURRACO - TABELLONE COMPLETO DI TUTTI I TURNI'],
-        ['Torneo:', state.title || 'Torneo di Burraco'],
+        [headerMaster],
+        ['Torneo:', state.title || defaultTitle],
         [],
         masterHeader
       ];
@@ -97,9 +110,10 @@ const BurracoExcel = {
       });
 
       const wsMaster = XLSX.utils.aoa_to_sheet(masterData);
-      XLSX.utils.book_append_sheet(wb, wsMaster, 'Tabellone Completo');
+      XLSX.utils.book_append_sheet(wb, wsMaster, sheetMaster);
 
-      const safeTitle = (state.title || 'torneo').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      const filePrefix = expCfg.excelFilePrefix || 'torneo';
+      const safeTitle = (state.title || filePrefix).replace(/[^a-z0-9]/gi, '_').toLowerCase();
       const fileName = `${safeTitle}_risultati.xlsx`;
 
       // Native PyWebView file dialog or browser fallback
