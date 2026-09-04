@@ -24,7 +24,7 @@ const BurracoStorage = {
         }
       },
       roundsCount: defaultRounds,
-      settings: { showBulkPaste: false, showLottery: false, showPodium: false },
+      settings: { showBulkPaste: false, showLottery: false, showPodium: true },
       currentTab: 'initial', // 'initial' | 'round' | 'master' | 'podium'
       activeRoundIndex: 0,
       searchFilter: '',
@@ -43,7 +43,25 @@ const BurracoStorage = {
 
     const utils = typeof window !== 'undefined' ? window.BurracoUtils : require('./utils');
     const title = data.title || 'Torneo di Burraco';
-    const settings = data.settings || { showBulkPaste: false, showLottery: false, showPodium: false };
+
+    // Retrieve existing settings from localStorage if data doesn't provide them
+    let savedSettings = null;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const local = localStorage.getItem(utils.STORAGE_KEY);
+        if (local) {
+          const parsedLocal = JSON.parse(local);
+          if (parsedLocal && parsedLocal.settings) savedSettings = parsedLocal.settings;
+        }
+      }
+    } catch (e) {}
+
+    const defaultSettings = { showBulkPaste: false, showLottery: false, showPodium: true };
+    const settings = {
+      ...defaultSettings,
+      ...(savedSettings || {}),
+      ...(data.settings || {})
+    };
 
     // Search for all keys starting with giornata_
     const giornataKeys = Object.keys(data)

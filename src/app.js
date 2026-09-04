@@ -96,9 +96,9 @@ class BurracoApp {
     this.pendingDeletePairId = null;
 
     // Settings elements
-    this.toggleBulkPaste = document.getElementById('setting-bulk-paste');
-    this.toggleLottery = document.getElementById('setting-lottery');
-    this.togglePodium = document.getElementById('setting-podium');
+    this.toggleBulkPaste = document.getElementById('setting-toggle-bulk') || document.getElementById('setting-bulk-paste');
+    this.toggleLottery = document.getElementById('setting-toggle-lottery') || document.getElementById('setting-lottery');
+    this.togglePodium = document.getElementById('setting-toggle-podium') || document.getElementById('setting-podium');
     this.settingRoundsCount = document.getElementById('setting-rounds-count');
     this.btnBulkPasteToolbar = document.getElementById('btn-open-bulk-paste');
     this.btnLotteryToolbar = document.getElementById('btn-open-lottery');
@@ -200,18 +200,23 @@ class BurracoApp {
     });
 
     // Toolbar and Quick Action Buttons
-    document.getElementById('btn-add-pair')?.addEventListener('click', () => this.addNewPairRow());
+    const btnAddPair = document.getElementById('btn-add-pair-row') || document.getElementById('btn-add-pair');
+    btnAddPair?.addEventListener('click', () => this.addNewPairRow());
     this.btnBulkPasteToolbar?.addEventListener('click', () => this.openModal('modalBulkPaste'));
     this.btnLotteryToolbar?.addEventListener('click', () => this.openModal('modalLottery'));
 
-    // Export Buttons
-    document.getElementById('btn-export-excel')?.addEventListener('click', () => this.exportExcel());
+    // Export Buttons (Toolbar & Settings Modal)
+    const btnExportExcel = document.getElementById('btn-modal-export-excel') || document.getElementById('btn-export-excel');
+    btnExportExcel?.addEventListener('click', () => this.exportExcel());
     document.getElementById('btn-export-excel-round')?.addEventListener('click', () => this.exportExcel());
-    document.getElementById('btn-export-json')?.addEventListener('click', () => BurracoExcel.exportBackupJSON(this.state));
+
+    const btnExportJson = document.getElementById('btn-modal-export-json') || document.getElementById('btn-export-json');
+    btnExportJson?.addEventListener('click', () => BurracoExcel.exportBackupJSON(this.state));
 
     // Import JSON File
     const fileInput = document.getElementById('input-import-json');
-    document.getElementById('btn-trigger-import-json')?.addEventListener('click', () => fileInput?.click());
+    const btnImportJson = document.getElementById('btn-modal-import-json') || document.getElementById('btn-trigger-import-json');
+    btnImportJson?.addEventListener('click', () => fileInput?.click());
     fileInput?.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
@@ -239,12 +244,26 @@ class BurracoApp {
       }
     });
 
+    // Clear Tournament Data Button in Settings
+    document.getElementById('btn-modal-clear-data')?.addEventListener('click', () => {
+      if (confirm('Sei sicuro di voler azzerare tutti i dati del torneo corrente?')) {
+        this.state.pairs = [];
+        this.saveState();
+        this.render();
+        this.closeModal('modalSettings');
+      }
+    });
+
     // Lottery Actions
-    document.getElementById('btn-draw-random-lottery')?.addEventListener('click', () => this.runRandomLottery());
-    document.getElementById('btn-draw-sequential-lottery')?.addEventListener('click', () => this.runSequentialLottery());
+    const btnDrawRandom = document.getElementById('btn-run-random-lottery') || document.getElementById('btn-draw-random-lottery');
+    btnDrawRandom?.addEventListener('click', () => this.runRandomLottery());
+
+    const btnDrawSeq = document.getElementById('btn-run-sequential-lottery') || document.getElementById('btn-draw-sequential-lottery');
+    btnDrawSeq?.addEventListener('click', () => this.runSequentialLottery());
 
     // Bulk Paste Actions
-    document.getElementById('btn-confirm-bulk-paste')?.addEventListener('click', () => this.processBulkPaste());
+    const btnConfirmBulk = document.getElementById('btn-confirm-bulk') || document.getElementById('btn-confirm-bulk-paste');
+    btnConfirmBulk?.addEventListener('click', () => this.processBulkPaste());
 
     // Settings Toggle Listeners
     this.toggleBulkPaste?.addEventListener('change', (e) => {
@@ -308,13 +327,19 @@ class BurracoApp {
       }
     });
 
-    // Close modals on backdrop click
+    // Close modals on backdrop click or Escape key
     document.querySelectorAll('.modal-backdrop').forEach(modal => {
       modal.addEventListener('click', (e) => {
         if (e.target === modal) {
           modal.classList.remove('active');
         }
       });
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-backdrop.active').forEach(m => m.classList.remove('active'));
+      }
     });
 
     // Keyboard navigation in Round Table
@@ -502,6 +527,15 @@ class BurracoApp {
         const pairId = e.target.dataset.pairId;
         const pair = this.state.pairs.find(p => p.id === pairId);
         if (pair) {
+          pair.name = e.target.value;
+          this.saveState();
+        }
+      });
+
+      input.addEventListener('blur', (e) => {
+        const pairId = e.target.dataset.pairId;
+        const pair = this.state.pairs.find(p => p.id === pairId);
+        if (pair) {
           pair.name = e.target.value.trim();
           this.saveState();
         }
@@ -544,8 +578,8 @@ class BurracoApp {
         const pair = this.state.pairs.find(p => p.id === pairId);
         if (pair && pair.name && pair.name.trim() !== '') {
           this.pendingDeletePairId = pairId;
-          const msg = document.getElementById('delete-pair-confirm-msg');
-          if (msg) msg.textContent = `Vuoi eliminare definitivamente la coppia "${pair.name}"?`;
+          const msg = document.getElementById('confirm-delete-detail') || document.getElementById('delete-pair-confirm-msg');
+          if (msg) msg.textContent = pair.name;
           this.openModal('modalConfirmDelete');
         } else {
           this.state.pairs = this.state.pairs.filter(p => p.id !== pairId);
@@ -1016,6 +1050,26 @@ class BurracoApp {
   // MODAL HELPERS
   // ==========================================
   openModal(modalKey) {
+    if (modalKey === 'modalSettings') {
+      this.syncSettingsUI();
+    }
+    if (modalKey === 'modalLottery') {
+      const countEl = document.getElementById('lottery-total-count');
+      if (countEl) {
+        const activeCount = this.state.pairs.filter(p => p.name && p.name.trim() !== '').length;
+        countEl.textContent = activeCount || this.state.pairs.length;
+      }
+    }
+    if (modalKey === 'modalNewTournament') {
+      const label = document.getElementById('modal-new-date-label');
+      if (label) {
+        const d = new Date();
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const yy = String(d.getFullYear()).slice(-2);
+        label.textContent = `${dd}/${mm}/${yy}`;
+      }
+    }
     if (this[modalKey]) {
       this[modalKey].classList.add('active');
     }
