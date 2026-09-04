@@ -18,6 +18,7 @@ class BurracoApp {
             const parsedState = BurracoStorage.parseLoadedData(diskData);
             if (parsedState) {
               this.state = parsedState;
+              this.applyConfig();
               this.syncSettingsUI();
               this.render();
             }
@@ -68,6 +69,7 @@ class BurracoApp {
     this.roundTable = document.getElementById('round-table');
     this.roundTableBody = document.getElementById('round-table-body');
     this.roundViewTitle = document.getElementById('round-view-title');
+    this.roundTitleCheck = document.getElementById('round-title-check');
     this.currentRoundBadge = document.getElementById('current-round-badge');
     this.btnPrevRound = document.getElementById('btn-prev-round');
     this.btnNextRound = document.getElementById('btn-next-round');
@@ -86,8 +88,17 @@ class BurracoApp {
     this.modalLottery = document.getElementById('modal-lottery');
     this.modalConfirmDelete = document.getElementById('modal-confirm-delete');
     this.modalNewTournament = document.getElementById('modal-new-tournament');
+    this.modalExportImage = document.getElementById('modal-export-image');
 
-    // Form inputs in modals
+    // Form inputs & export preview elements
+    this.exportPreviewImg = document.getElementById('export-preview-img');
+    this.exportModalFilename = document.getElementById('export-modal-filename');
+    this.exportStatusTitle = document.getElementById('export-status-title');
+    this.exportStatusDesc = document.getElementById('export-status-desc');
+    this.instructionClipboard = document.getElementById('instruction-clipboard');
+    this.btnCopyImageAgain = document.getElementById('btn-copy-image-again');
+    this.currentExportBlob = null;
+    this.currentExportBlobUrl = null;
     this.inputPairName = document.getElementById('input-pair-name');
     this.inputLotNumber = document.getElementById('input-lot-number');
     this.inputEditPairName = document.getElementById('edit-pair-name');
@@ -108,7 +119,14 @@ class BurracoApp {
       document.getElementById('setting-prize-pct-4'),
       document.getElementById('setting-prize-pct-5')
     ];
+    this.prizePctBadge = document.getElementById('prize-pct-total-badge');
+    this.prizePctHint = document.getElementById('prize-pct-hint');
+    this._prizeHintTimer = null;
     this.settingRoundsCount = document.getElementById('setting-rounds-count');
+    this.settingByePoints = document.getElementById('setting-bye-points');
+    this.roundVpCheckBanner = document.getElementById('round-vp-check-banner');
+    this.roundVpCheckIcon = document.getElementById('round-vp-check-icon');
+    this.roundVpCheckMessage = document.getElementById('round-vp-check-message');
     this.btnBulkPasteToolbar = document.getElementById('btn-open-bulk-paste');
     this.btnLotteryToolbar = document.getElementById('btn-open-lottery');
     this.tabBtnPodium = document.getElementById('tab-btn-podium');
@@ -135,6 +153,12 @@ class BurracoApp {
     const brandEl = document.getElementById('brand-title');
     if (brandEl && cfg.brandName) {
       brandEl.textContent = cfg.brandName;
+    }
+
+    if (cfg.defaultTournamentTitle) {
+      if (!this.state.title || this.state.title === 'Torneo di Burraco') {
+        this.state.title = cfg.defaultTournamentTitle;
+      }
     }
 
     if (cfg.labels) {
@@ -189,7 +213,14 @@ class BurracoApp {
       if (inp) inp.value = (curPcts[idx] !== undefined && curPcts[idx] !== null) ? curPcts[idx] : 0;
     });
 
+    this.updatePrizePercentages();
+
     if (this.settingRoundsCount) this.settingRoundsCount.value = this.state.roundsCount;
+
+    const cfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (window.BURRACO_CONFIG || {});
+    const defaultBye = cfg.defaultByePoints !== undefined ? cfg.defaultByePoints : 12;
+    const curBye = (this.state.settings && this.state.settings.byePoints !== undefined) ? this.state.settings.byePoints : defaultBye;
+    if (this.settingByePoints) this.settingByePoints.value = curBye;
 
     this.applySettingsVisibility();
   }
@@ -211,6 +242,76 @@ class BurracoApp {
         }
       }
     }
+  }
+
+  updatePrizePercentages(activeInput = null) {
+    if (!this.settingPrizePcts) return;
+
+    if (activeInput) {
+      let otherSum = 0;
+      this.settingPrizePcts.forEach(inp => {
+        if (inp && inp !== activeInput) {
+          const val = parseFloat(inp.value) || 0;
+          otherSum += Math.max(0, Math.min(100, val));
+        }
+      });
+
+      const maxAllowed = Math.max(0, 100 - otherSum);
+      const rawVal = activeInput.value ? activeInput.value.trim() : '';
+
+      if (rawVal !== '') {
+        let currentVal = parseFloat(rawVal);
+        if (isNaN(currentVal) || currentVal < 0) {
+          activeInput.value = 0;
+        } else if (currentVal > maxAllowed) {
+          activeInput.value = maxAllowed;
+          if (this.prizePctHint) {
+            this.prizePctHint.textContent = maxAllowed > 0
+              ? `Valore limitato a ${maxAllowed}% per non superare il 100% totale.`
+              : `Totale già al 100%. Riduci prima un'altra quota per aumentare questa.`;
+            clearTimeout(this._prizeHintTimer);
+            this._prizeHintTimer = setTimeout(() => {
+              if (this.prizePctHint) this.prizePctHint.textContent = '';
+            }, 3500);
+          }
+        } else if (this.prizePctHint && this.prizePctHint.textContent) {
+          this.prizePctHint.textContent = '';
+        }
+      }
+    }
+
+    let total = 0;
+    const pcts = this.settingPrizePcts.map(inp => {
+      const v = Math.max(0, Math.min(100, parseFloat(inp?.value) || 0));
+      total += v;
+      return v;
+    });
+
+    if (this.prizePctBadge) {
+      if (total === 100) {
+        this.prizePctBadge.textContent = 'Totale: 100% ✓';
+        this.prizePctBadge.style.background = '#ECFDF5';
+        this.prizePctBadge.style.color = '#059669';
+        this.prizePctBadge.style.borderColor = '#A7F3D0';
+      } else if (total < 100) {
+        const rem = 100 - total;
+        this.prizePctBadge.textContent = `Totale: ${total}% (Disponibile: ${rem}%)`;
+        this.prizePctBadge.style.background = '#EFF6FF';
+        this.prizePctBadge.style.color = '#1D4ED8';
+        this.prizePctBadge.style.borderColor = '#BFDBFE';
+      } else {
+        this.prizePctBadge.textContent = `Totale: ${total}% (> 100%)`;
+        this.prizePctBadge.style.background = '#FEF2F2';
+        this.prizePctBadge.style.color = '#DC2626';
+        this.prizePctBadge.style.borderColor = '#FECACA';
+      }
+    }
+
+    const fee = Math.max(0, parseFloat(this.settingEntryFee?.value) || 0);
+    this.state.settings.entryFeePerPlayer = fee;
+    this.state.settings.prizePercentages = pcts;
+    this.saveState();
+    this.renderMasterTable();
   }
 
   // ==========================================
@@ -255,7 +356,7 @@ class BurracoApp {
     });
 
     // Global Action Buttons
-    this.btnPrint?.addEventListener('click', () => this.triggerPrint());
+    this.btnPrint?.addEventListener('click', () => this.exportLeaderboardImage());
     this.btnOpenSettings?.addEventListener('click', () => this.openModal('modalSettings'));
 
     // Search filters
@@ -364,23 +465,41 @@ class BurracoApp {
       this.renderMasterTable();
     });
 
-    const onPrizepoolChange = () => {
-      const fee = Math.max(0, parseFloat(this.settingEntryFee?.value) || 0);
-      const pcts = this.settingPrizePcts?.map(inp => Math.max(0, Math.min(100, parseFloat(inp?.value) || 0))) || [50, 30, 20, 0, 0];
-      this.state.settings.entryFeePerPlayer = fee;
-      this.state.settings.prizePercentages = pcts;
-      this.saveState();
-      this.renderMasterTable();
-    };
-
-    this.settingEntryFee?.addEventListener('input', onPrizepoolChange);
+    this.settingEntryFee?.addEventListener('input', () => this.updatePrizePercentages());
     this.settingPrizePcts?.forEach(inp => {
-      inp?.addEventListener('input', onPrizepoolChange);
+      inp?.addEventListener('input', () => this.updatePrizePercentages(inp));
+      inp?.addEventListener('blur', () => {
+        if (inp.value === '') {
+          inp.value = 0;
+          this.updatePrizePercentages(inp);
+        }
+      });
     });
 
     this.settingRoundsCount?.addEventListener('change', (e) => {
       const val = parseInt(e.target.value, 10);
       this.setRoundsCount(val);
+    });
+
+    this.settingByePoints?.addEventListener('input', (e) => {
+      const raw = e.target.value.trim();
+      if (raw === '') return;
+      const parsed = parseInt(raw, 10);
+      if (!isNaN(parsed)) {
+        const clamped = Math.max(0, Math.min(20, parsed));
+        if (clamped !== parsed) {
+          e.target.value = clamped;
+        }
+      }
+    });
+
+    this.settingByePoints?.addEventListener('change', (e) => {
+      const parsed = parseInt(e.target.value, 10);
+      const val = Math.max(0, Math.min(20, isNaN(parsed) ? 12 : parsed));
+      this.state.settings.byePoints = val;
+      if (this.settingByePoints) this.settingByePoints.value = val;
+      this.saveState();
+      this.checkRoundScoreConsistency();
     });
 
     // New Tournament Modal
@@ -410,6 +529,22 @@ class BurracoApp {
     document.getElementById('btn-close-lottery')?.addEventListener('click', () => this.closeModal('modalLottery'));
     document.getElementById('close-confirm-delete-modal')?.addEventListener('click', () => this.closeModal('modalConfirmDelete'));
     document.getElementById('btn-cancel-delete')?.addEventListener('click', () => this.closeModal('modalConfirmDelete'));
+    document.getElementById('close-export-image-modal')?.addEventListener('click', () => this.closeModal('modalExportImage'));
+    document.getElementById('btn-close-export-modal')?.addEventListener('click', () => this.closeModal('modalExportImage'));
+
+    this.btnCopyImageAgain?.addEventListener('click', () => {
+      if (this.currentExportBlob && typeof navigator !== 'undefined' && navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+        navigator.clipboard.write([new ClipboardItem({ 'image/png': this.currentExportBlob })]).then(() => {
+          if (this.btnCopyImageAgain) {
+            const originalHTML = this.btnCopyImageAgain.innerHTML;
+            this.btnCopyImageAgain.innerHTML = '<span class="btn-icon">✓</span> Copiata!';
+            setTimeout(() => {
+              if (this.btnCopyImageAgain) this.btnCopyImageAgain.innerHTML = originalHTML;
+            }, 2000);
+          }
+        }).catch(err => console.warn('Errore ricopia immagine:', err));
+      }
+    });
 
     this.btnConfirmDelete?.addEventListener('click', () => {
       if (this.pendingDeletePairId) {
@@ -518,11 +653,16 @@ class BurracoApp {
       this.printTitle.textContent = this.state.title;
     }
     if (this.printDate) {
-      this.printDate.textContent = `Data: ${new Date().toLocaleDateString('it-IT')}`;
+      let printDateStr = '';
+      if (this.state.currentGiornataKey) {
+        const m = this.state.currentGiornataKey.match(/^serata_(\d{2})(\d{2})(\d{2})/);
+        if (m) printDateStr = `${m[1]}/${m[2]}/20${m[3]}`;
+      }
+      this.printDate.textContent = `Data: ${printDateStr || new Date().toLocaleDateString('it-IT')}`;
     }
     if (this.badgeGiornata) {
       const dateText = BurracoUtils.formatGiornataLabel(this.state.currentGiornataKey);
-      this.badgeGiornata.textContent = dateText || new Date().toLocaleDateString('it-IT');
+      this.badgeGiornata.textContent = dateText || '';
     }
 
     // Show Nuova Serata only on Tabellone Iniziale
@@ -601,7 +741,7 @@ class BurracoApp {
           <input type="text" class="form-control initial-name-input" 
                  data-pair-id="${pair.id}" data-row-idx="${rowIdx}"
                  value="${BurracoUtils.escapeHtml(pair.name)}" 
-                 placeholder="Nome Coppia / Giocatori (es. Pietro + Paolo)"
+                 placeholder="Nome Coppia / Giocatori (es. Pietro - Paolo)"
                  style="width:100%; font-size:16px; font-weight:600; padding:8px 12px;">
         </td>
         <td style="text-align:center; width:150px;">
@@ -732,36 +872,39 @@ class BurracoApp {
     });
     const colNameWidth = `${maxNameLen + 2}ch`;
 
-    // 2. Build Header dynamically based on roundsCount
-    this.masterTableHeadRow.innerHTML = `
-      <th class="col-rank">Pos.</th>
-      <th class="col-lot" title="Numero identificativo">N°</th>
-      <th class="col-name" style="width:${colNameWidth}; max-width:${colNameWidth}; white-space:nowrap;">Coppia / Giocatori</th>
-    `;
+    // 2. Build Header dynamically based on roundsCount (Two-row header for precise column alignment)
+    const thead = this.masterTable.querySelector('thead');
+    if (thead) {
+      let roundColsHtml = '';
+      let subHeadersHtml = '';
+      for (let r = 0; r < this.state.roundsCount; r++) {
+        roundColsHtml += `<th colspan="2" class="round-col-header">Turno ${r + 1}</th>`;
+        subHeadersHtml += `
+          <th class="sub-header-mp">MP</th>
+          <th class="sub-header-vp">VP</th>
+        `;
+      }
 
-    for (let r = 0; r < this.state.roundsCount; r++) {
-      const th = document.createElement('th');
-      th.colSpan = 2;
-      th.className = 'round-col-header';
-      th.innerHTML = `Turno ${r + 1} <div class="sub-col-header" style="display:flex; justify-content:space-around; font-weight:600; font-size:12px; margin-top:3px; opacity:0.85;"><span>MP</span><span>VP</span></div>`;
-      this.masterTableHeadRow.appendChild(th);
-    }
+      let prizeTh = '';
+      if (showPrizepool) {
+        prizeTh = `<th rowspan="2" class="col-prize">${prizeColTitle}</th>`;
+      }
 
-    const thTotVp = document.createElement('th');
-    thTotVp.className = 'col-tot-vp';
-    thTotVp.textContent = 'Totale VP';
-    this.masterTableHeadRow.appendChild(thTotVp);
-
-    const thTotMp = document.createElement('th');
-    thTotMp.className = 'col-tot-mp';
-    thTotMp.textContent = 'Totale MP';
-    this.masterTableHeadRow.appendChild(thTotMp);
-
-    if (showPrizepool) {
-      const thPrize = document.createElement('th');
-      thPrize.className = 'col-prize';
-      thPrize.textContent = prizeColTitle;
-      this.masterTableHeadRow.appendChild(thPrize);
+      thead.innerHTML = `
+        <tr id="master-table-head-row">
+          <th rowspan="2" class="col-rank">Pos.</th>
+          <th rowspan="2" class="col-name" style="width:${colNameWidth}; max-width:${colNameWidth}; white-space:nowrap;">Coppia / Giocatori</th>
+          <th rowspan="2" class="col-lot" title="Numero identificativo">N°</th>
+          ${roundColsHtml}
+          <th rowspan="2" class="col-tot-vp">Totale VP</th>
+          <th rowspan="2" class="col-tot-mp">Totale MP</th>
+          ${prizeTh}
+        </tr>
+        <tr class="master-table-subhead-row">
+          ${subHeadersHtml}
+        </tr>
+      `;
+      this.masterTableHeadRow = document.getElementById('master-table-head-row');
     }
 
     this.masterTableBody.innerHTML = '';
@@ -807,7 +950,7 @@ class BurracoApp {
       }
 
       const rank = idx + 1;
-      let rankDisplay = `<span class="tabular-nums" style="font-weight:600; color:var(--text-muted); font-size:15px;">${rank}°</span>`;
+      let rankDisplay = `<span class="tabular-nums" style="color:var(--text-muted);">${rank}°</span>`;
       if (rank === 1) rankDisplay = `<span class="rank-badge rank-1">1°</span>`;
       else if (rank === 2) rankDisplay = `<span class="rank-badge rank-2">2°</span>`;
       else if (rank === 3) rankDisplay = `<span class="rank-badge rank-3">3°</span>`;
@@ -839,8 +982,8 @@ class BurracoApp {
 
       tr.innerHTML = `
         <td class="col-rank">${rankDisplay}</td>
-        <td class="col-lot"><span class="tabular-nums" style="font-weight:700; font-size:15.5px;">${pair.lotNumber || '—'}</span></td>
-        <td class="col-name" style="width:${colNameWidth}; max-width:${colNameWidth}; white-space:nowrap; font-size:16px; font-weight:600; color:var(--text-main);">${BurracoUtils.escapeHtml(pair.name)}</td>
+        <td class="col-name" style="width:${colNameWidth}; max-width:${colNameWidth}; white-space:nowrap; color:var(--text-main);">${BurracoUtils.escapeHtml(pair.name)}</td>
+        <td class="col-lot"><span class="tabular-nums">${pair.lotNumber || '—'}</span></td>
         ${roundCellsHtml}
         <td class="col-tot-vp" style="text-align:center; font-weight:800; font-size:18px; color:var(--primary); background-color:#EFF6FF;">${pair.totVP}</td>
         <td class="col-tot-mp" style="text-align:center; font-weight:700; font-size:15px; color:var(--text-main); background-color:#F8FAFC;">${pair.totMP.toLocaleString('it-IT')}</td>
@@ -901,7 +1044,7 @@ class BurracoApp {
       const tr = document.createElement('tr');
 
       tr.innerHTML = `
-        <td class="col-lot" style="font-weight:700; font-size:16px;">${pair.lotNumber || '—'}</td>
+        <td class="col-lot" style="font-size:16px; font-weight:600;">${pair.lotNumber || '—'}</td>
         <td class="col-name" style="font-size:16px; font-weight:600;">${BurracoUtils.escapeHtml(pair.name)}</td>
         <td class="col-input">
           <input type="number" class="form-control tabular-nums round-score-input" 
@@ -909,7 +1052,7 @@ class BurracoApp {
                  placeholder="es. 1540" style="max-width:145px; font-size:15.5px; padding:8px 12px;">
         </td>
         <td class="col-input">
-          <input type="number" step="0.5" class="form-control tabular-nums round-score-input" 
+          <input type="number" step="1" min="0" max="20" class="form-control tabular-nums round-score-input" 
                  data-pair-id="${pair.id}" data-field="vp" value="${vpVal}" 
                  placeholder="es. 14" style="max-width:115px; font-weight:bold; color:var(--primary); font-size:16px; padding:8px 12px;">
         </td>
@@ -920,19 +1063,139 @@ class BurracoApp {
 
     // Event listeners for round inputs
     this.roundTableBody.querySelectorAll('.round-score-input').forEach(inp => {
-      inp.addEventListener('change', (e) => {
+      const handleInputOrChange = (e) => {
         const pairId = e.target.dataset.pairId;
         const field = e.target.dataset.field;
         const pair = this.state.pairs.find(p => p.id === pairId);
         if (!pair) return;
 
         if (!pair.scores[roundIdx]) pair.scores[roundIdx] = { mp: null, vp: null };
-        const val = e.target.value.trim();
-        pair.scores[roundIdx][field] = val === '' ? null : Number(val);
+        const rawVal = e.target.value.trim();
+        let val = rawVal === '' ? null : Number(rawVal);
 
-        this.saveState();
-      });
+        // I singoli punteggi VP non possono superare 20 e devono essere >= 0
+        if (field === 'vp' && val !== null && !isNaN(val)) {
+          if (val < 0) {
+            val = 0;
+            e.target.value = 0;
+          } else if (val > 20) {
+            val = 20;
+            e.target.value = 20;
+          }
+        }
+
+        pair.scores[roundIdx][field] = val;
+
+        if (e.type === 'change') {
+          this.saveState();
+        }
+        this.checkRoundScoreConsistency();
+      };
+
+      inp.addEventListener('input', handleInputOrChange);
+      inp.addEventListener('change', handleInputOrChange);
     });
+
+    this.checkRoundScoreConsistency();
+  }
+
+  /**
+   * Verifica la consistenza della somma punti VP per il turno attivo.
+   * Il controllo avviene solamente quando tutte le coppie hanno i VP inseriti.
+   */
+  checkRoundScoreConsistency() {
+    const roundIdx = this.state.activeRoundIndex;
+    const validPairs = this.state.pairs.filter(p => p.name && p.name.trim() !== '');
+
+    if (this.roundTitleCheck) this.roundTitleCheck.style.display = 'none';
+
+    if (validPairs.length === 0) {
+      if (this.roundVpCheckBanner) this.roundVpCheckBanner.style.display = 'none';
+      return;
+    }
+
+    // Verifica se TUTTE le coppie hanno il punteggio VP compilato
+    let allVpFilled = true;
+    let totalVP = 0;
+    let hasOutOfRangeScore = false;
+    const vpScores = [];
+
+    for (const pair of validPairs) {
+      const sc = pair.scores && pair.scores[roundIdx];
+      if (!sc || sc.vp === null || sc.vp === undefined || sc.vp === '') {
+        allVpFilled = false;
+        break;
+      }
+      const num = Number(sc.vp);
+      if (isNaN(num)) {
+        allVpFilled = false;
+        break;
+      }
+      if (num < 0 || num > 20) {
+        hasOutOfRangeScore = true;
+      }
+      totalVP += num;
+      vpScores.push(num);
+    }
+
+    // Il check si attiva solamente dopo che tutti i punti sono stati inseriti
+    if (!allVpFilled) {
+      if (this.roundVpCheckBanner) this.roundVpCheckBanner.style.display = 'none';
+      return;
+    }
+
+    const numPairs = validPairs.length;
+    const cfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (window.BURRACO_CONFIG || {});
+    const defaultBye = cfg.defaultByePoints !== undefined ? cfg.defaultByePoints : 12;
+    const byePoints = (this.state.settings && this.state.settings.byePoints !== undefined)
+      ? Number(this.state.settings.byePoints)
+      : defaultBye;
+
+    const res = BurracoEngine.validateRoundVpSum(vpScores, numPairs, byePoints);
+
+    if (hasOutOfRangeScore || res.hasOutOfRange) {
+      if (this.roundTitleCheck) this.roundTitleCheck.style.display = 'none';
+      if (this.roundVpCheckBanner) {
+        this.roundVpCheckBanner.style.display = 'flex';
+        this.roundVpCheckBanner.style.background = '#FEF2F2';
+        this.roundVpCheckBanner.style.border = '1px solid #FECACA';
+        this.roundVpCheckBanner.style.color = '#991B1B';
+      }
+      if (this.roundVpCheckIcon) this.roundVpCheckIcon.textContent = '⚠️';
+      if (this.roundVpCheckMessage) {
+        this.roundVpCheckMessage.textContent = `Attenzione Turno ${roundIdx + 1}: I singoli punteggi VP devono essere compresi tra 0 e 20!`;
+      }
+      return;
+    }
+
+    if (res.valid) {
+      // Quando il turno è valido, non mostriamo il banner verde ingombrante: mostriamo solo la spunta ✅ accanto al titolo
+      if (this.roundVpCheckBanner) {
+        this.roundVpCheckBanner.style.display = 'none';
+      }
+      if (this.roundTitleCheck) {
+        this.roundTitleCheck.style.display = 'inline-block';
+        const detail = res.isOdd
+          ? `(${res.completeTables} tavoli da 20 VP + ${res.byePoints} VP riposo)`
+          : `(${res.completeTables} tavoli completi da 20 VP)`;
+        this.roundTitleCheck.title = `Turno ${roundIdx + 1} valido: Totale di ${totalVP} VP corretto per ${res.numPairs} squadre ${detail}`;
+      }
+    } else {
+      if (this.roundTitleCheck) this.roundTitleCheck.style.display = 'none';
+      if (this.roundVpCheckBanner) {
+        this.roundVpCheckBanner.style.display = 'flex';
+        this.roundVpCheckBanner.style.background = '#FEF2F2';
+        this.roundVpCheckBanner.style.border = '1px solid #FECACA';
+        this.roundVpCheckBanner.style.color = '#991B1B';
+      }
+      if (this.roundVpCheckIcon) this.roundVpCheckIcon.textContent = '⚠️';
+      if (this.roundVpCheckMessage) {
+        const detail = res.isOdd
+          ? `(attesi esattamente ${res.expectedVP} VP: ${res.completeTables} tavoli da 20 VP + ${res.byePoints} VP riposo)`
+          : `(attesi esattamente ${res.expectedVP} VP per ${res.completeTables} tavoli da 20 VP)`;
+        this.roundVpCheckMessage.textContent = `Attenzione Turno ${roundIdx + 1}: Totale inserito di ${totalVP} VP non corretto ${detail}. Verifica i punteggi inseriti nei tavoli.`;
+      }
+    }
   }
 
   // Keyboard navigation inside round table (Excel feel)
@@ -1138,73 +1401,43 @@ class BurracoApp {
     BurracoExcel.exportToExcel(this.state, this.getRankedPairs());
   }
 
-  triggerPrint() {
-    const printBody = document.getElementById('print-body');
-    if (!printBody) return;
-
-    const ranked = this.getRankedPairs();
-
-    let tableHtml = `
-      <table class="data-table" style="width:100%;">
-        <thead>
-          <tr>
-            <th style="width:60px; text-align:center;">Pos.</th>
-            <th style="width:60px; text-align:center;">N°</th>
-            <th>Coppia</th>
-            <th style="text-align:center;">Totale VP</th>
-            <th style="text-align:center;">Totale MP</th>
-    `;
-
-    for (let r = 0; r < this.state.roundsCount; r++) {
-      tableHtml += `<th style="text-align:center; font-size:10pt;">T${r + 1} VP</th>`;
-    }
-
-    tableHtml += `
-          </tr>
-        </thead>
-        <tbody>
-    `;
-
-    ranked.forEach((p, idx) => {
-      tableHtml += `
-        <tr>
-          <td style="text-align:center; font-weight:bold;">${idx + 1}°</td>
-          <td style="text-align:center;">${p.lotNumber || '—'}</td>
-          <td style="font-weight:600;">${BurracoUtils.escapeHtml(p.name)}</td>
-          <td style="text-align:center; font-weight:bold; font-size:12pt;">${p.totVP}</td>
-          <td style="text-align:center;">${p.totMP.toLocaleString('it-IT')}</td>
-      `;
-
-      for (let r = 0; r < this.state.roundsCount; r++) {
-        const sc = p.scores[r];
-        tableHtml += `<td style="text-align:center;">${sc && sc.vp !== null ? sc.vp : '—'}</td>`;
+  exportLeaderboardImage() {
+    BurracoExcel.exportLeaderboardImage(this.state, this.getRankedPairs(), (res) => {
+      if (res && res.success) {
+        this.showExportImageModal(res);
+      } else if (res && res.error) {
+        alert(res.error);
       }
-
-      tableHtml += `</tr>`;
     });
+  }
 
-    const cfg = typeof window !== 'undefined' && window.BURRACO_CONFIG ? window.BURRACO_CONFIG : {};
-    const expCfg = cfg.export || {};
-    const sigRef = expCfg.printRefereeSignature || 'Firma Arbitro di Gara';
-    const sigDir = expCfg.printDirectorSignature || 'Firma Direttore di Torneo';
-    const subTitle = expCfg.printSubtitle || 'Classifica Finale Ufficiale';
+  showExportImageModal({ blob, fileName, copiedToClipboard }) {
+    if (this.currentExportBlobUrl) {
+      URL.revokeObjectURL(this.currentExportBlobUrl);
+      this.currentExportBlobUrl = null;
+    }
+    this.currentExportBlob = blob;
+    this.currentExportBlobUrl = URL.createObjectURL(blob);
 
-    const printMetaSubtitle = document.querySelector('#print-container .print-meta span:last-child');
-    if (printMetaSubtitle) {
-      printMetaSubtitle.textContent = subTitle;
+    if (this.exportPreviewImg) {
+      this.exportPreviewImg.src = this.currentExportBlobUrl;
+    }
+    if (this.exportModalFilename) {
+      this.exportModalFilename.textContent = fileName;
+    }
+    if (copiedToClipboard) {
+      if (this.exportStatusTitle) this.exportStatusTitle.textContent = 'Pronta per WhatsApp!';
+      if (this.exportStatusDesc) this.exportStatusDesc.textContent = "L'immagine è stata copiata negli appunti e scaricata sul tuo computer.";
+      if (this.instructionClipboard) this.instructionClipboard.style.display = 'flex';
+      if (this.btnCopyImageAgain) this.btnCopyImageAgain.style.display = 'inline-flex';
+    } else {
+      if (this.exportStatusTitle) this.exportStatusTitle.textContent = 'Immagine Scaricata!';
+      if (this.exportStatusDesc) this.exportStatusDesc.textContent = "Il file PNG è pronto: puoi allegarlo direttamente su WhatsApp dalla cartella Download.";
+      if (this.instructionClipboard) this.instructionClipboard.style.display = 'none';
+      if (this.btnCopyImageAgain) this.btnCopyImageAgain.style.display = 'none';
     }
 
-    tableHtml += `
-        </tbody>
-      </table>
-      <div style="margin-top:40px; display:flex; justify-content:space-between; font-size:11pt;">
-        <div>${BurracoUtils.escapeHtml(sigRef)}: ______________________</div>
-        <div>${BurracoUtils.escapeHtml(sigDir)}: ______________________</div>
-      </div>
-    `;
-
-    printBody.innerHTML = tableHtml;
-    window.print();
+    this.openModal('modalExportImage');
   }
 
   // ==========================================

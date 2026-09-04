@@ -52,7 +52,7 @@ const BurracoStorage = {
     const utils = typeof window !== 'undefined' ? window.BurracoUtils : require('./utils');
     const cfg = this._getConfig();
     const defaultTitle = cfg.defaultTournamentTitle || 'Torneo di Burraco';
-    const title = data.title || defaultTitle;
+    const title = (!data.title || data.title === 'Torneo di Burraco') ? defaultTitle : data.title;
 
     // Retrieve existing settings from localStorage if data doesn't provide them
     let savedSettings = null;
@@ -73,18 +73,43 @@ const BurracoStorage = {
       ...(data.settings || {})
     };
 
-    // Search for all keys starting with serata_
-    const giornataKeys = Object.keys(data)
-      .filter(k => /^serata_/i.test(k))
-      .sort((a, b) => utils.parseSortKey(a).localeCompare(utils.parseSortKey(b)));
+    // Search for all keys starting with serata_ at root level OR inside allGiornate
+    const candidateKeys = new Set([
+      ...Object.keys(data).filter(k => /^serata_/i.test(k)),
+      ...(data.allGiornate && typeof data.allGiornate === 'object'
+        ? Object.keys(data.allGiornate).filter(k => /^serata_/i.test(k))
+        : [])
+    ]);
+
+    if (data.currentGiornataKey && /^serata_/i.test(data.currentGiornataKey)) {
+      candidateKeys.add(data.currentGiornataKey);
+    }
 
     const allGiornate = {};
+    candidateKeys.forEach(k => {
+      allGiornate[k] = data[k] || (data.allGiornate && data.allGiornate[k]) || {};
+    });
+
+    const giornataKeys = Array.from(candidateKeys)
+      .sort((a, b) => utils.parseSortKey(a).localeCompare(utils.parseSortKey(b)));
+
+    // Se per effetto del cambio data a mezzanotte è stata creata una chiave duplicata non archiviata
+    if (giornataKeys.length > 1) {
+      const lastKey = giornataKeys[giornataKeys.length - 1];
+      const prevKey = giornataKeys[giornataKeys.length - 2];
+      const lastG = allGiornate[lastKey];
+      const prevG = allGiornate[prevKey];
+      if (prevG && prevG.checked !== true && lastG && lastG.checked !== true) {
+        delete allGiornate[lastKey];
+        candidateKeys.delete(lastKey);
+        giornataKeys.pop();
+        if (data.currentGiornataKey === lastKey) {
+          data.currentGiornataKey = prevKey;
+        }
+      }
+    }
 
     if (giornataKeys.length > 0) {
-      giornataKeys.forEach(k => {
-        allGiornate[k] = data[k];
-      });
-
       // Target active key: if data specified one and exists, use it; otherwise use last chronological
       let activeKey = data.currentGiornataKey;
       if (!activeKey || !allGiornate[activeKey]) {
@@ -92,8 +117,14 @@ const BurracoStorage = {
       }
 
       const activeG = allGiornate[activeKey] || {};
-      const pairs = Array.isArray(activeG.pairs) ? activeG.pairs : [];
+      const pairs = (Array.isArray(data.pairs) && data.pairs.length > 0)
+        ? data.pairs
+        : (Array.isArray(activeG.pairs) ? activeG.pairs : []);
       const roundsCount = activeG.roundsCount || data.roundsCount || utils.DEFAULT_ROUNDS;
+
+      if (!activeG.pairs) activeG.pairs = pairs;
+      if (!activeG.roundsCount) activeG.roundsCount = roundsCount;
+      allGiornate[activeKey] = activeG;
 
       return {
         title,
@@ -108,8 +139,8 @@ const BurracoStorage = {
         initialSearchFilter: ''
       };
     } else if (Array.isArray(data.pairs)) {
-      // Legacy format migration
-      const todayKey = `serata_${utils.getDateGGMMAA()}`;
+      // Legacy format migration: preserve data.currentGiornataKey if already set
+      const todayKey = data.currentGiornataKey || `serata_${utils.getDateGGMMAA()}`;
       const roundsCount = data.roundsCount || utils.DEFAULT_ROUNDS;
       allGiornate[todayKey] = {
         roundsCount,

@@ -20,8 +20,8 @@
 
     <div class="header-right">
       <div class="header-actions">
-        <button id="btn-print" class="btn btn-secondary" title="Salva in PDF la classifica">
-          <span class="btn-icon">🖨️</span> PDF
+        <button id="btn-print" class="btn btn-secondary" title="Salva e copia immagine della classifica per WhatsApp">
+          <span class="btn-icon">🖼️</span> Salva Immagine
         </button>
         <span class="header-divider" aria-hidden="true"></span>
         <button id="btn-open-settings" class="btn btn-secondary" title="Impostazioni e Gestione Dati">
@@ -134,7 +134,10 @@
       <div class="table-card">
         <div class="card-header">
           <div>
-            <h2 id="round-view-title">Inserimento Punteggi - Turno 1</h2>
+            <h2 style="display: inline-flex; align-items: center; gap: 8px;">
+              <span id="round-view-title">Inserimento Punteggi - Turno 1</span>
+              <span id="round-title-check" style="display: none; font-size: 19px; line-height: 1; vertical-align: middle; cursor: default;" title="Punteggi del turno verificati e corretti">✅</span>
+            </h2>
             <!-- <p class="subtitle">Inserisci Match Point (MP) e Ventesimi (VP) per ciascuna coppia.</p> -->
           </div>
           <div class="round-header-actions">
@@ -142,6 +145,11 @@
             <span class="round-indicator-badge" id="current-round-badge">Turno 1 di 4</span>
             <button id="btn-next-round" class="btn btn-secondary btn-sm">Turno Successivo ▶</button>
           </div>
+        </div>
+
+        <div id="round-vp-check-banner" style="display: none; padding: 10px 16px; margin: 0 16px 12px 16px; border-radius: 8px; font-size: 14.5px; font-weight: 600; align-items: center; gap: 10px; transition: all 0.2s ease;">
+          <span id="round-vp-check-icon" style="font-size: 18px;"></span>
+          <span id="round-vp-check-message"></span>
         </div>
 
         <div class="table-container">
@@ -224,7 +232,7 @@
         <div class="modal-body">
           <div class="form-group">
             <label for="input-pair-name">Nome Coppia / Giocatori</label>
-            <input type="text" id="input-pair-name" class="form-control" placeholder="es. Pietro + Paolo" required autofocus>
+            <input type="text" id="input-pair-name" class="form-control" placeholder="es. Pietro - Paolo" required autofocus>
             <small class="form-hint">Puoi indicare i due nomi separati da '+' o '-'</small>
           </div>
           <div class="form-group">
@@ -279,7 +287,7 @@
       </div>
       <div class="modal-body">
         <p class="subtitle">Incolla qui sotto la colonna o le righe dal tuo foglio Excel o dagli appunti. Verrà creata una coppia per ogni riga.</p>
-        <textarea id="bulk-paste-textarea" class="bulk-textarea" rows="10" placeholder="Pietro + Paolo&#10;Anna - Marco&#10;Giovanni e Luca&#10;Tavolo 4: Maria + Elena"></textarea>
+        <textarea id="bulk-paste-textarea" class="bulk-textarea" rows="10" placeholder="Pietro - Paolo&#10;Anna - Marco&#10;Giovanni e Luca&#10;Tavolo 4: Maria + Elena"></textarea>
         <div class="bulk-options">
           <label class="checkbox-label">
             <input type="checkbox" id="bulk-auto-number" checked> Assegna automaticamente numeri di sorteggio crescenti (1, 2, 3...)
@@ -380,6 +388,16 @@
                   <input type="number" id="setting-rounds-count" class="form-control tabular-nums" style="width: 70px; text-align: center; font-weight: bold; font-size: 15px;" min="1" max="12" value="4">
                 </div>
               </div>
+
+              <div class="setting-toggle-item" style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border-light);">
+                <div>
+                  <span class="toggle-text">Punti Riposo (VP)</span>
+                  <small class="form-hint">Punti assegnati se una coppia non gioca (default 12)</small>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <input type="number" id="setting-bye-points" class="form-control tabular-nums" style="width: 70px; text-align: center; font-weight: bold; font-size: 15px;" min="0" max="20" step="1" value="12">
+                </div>
+              </div>
             </div>
           </div>
 
@@ -398,7 +416,10 @@
               </div>
 
               <div style="margin-top: 10px;">
-                <span class="toggle-text" style="font-size: 14.5px;">Ripartizione Percentuale Premi (%):</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+                  <span class="toggle-text" style="font-size: 14.5px;">Ripartizione Percentuale Premi (%):</span>
+                  <span id="prize-pct-total-badge" style="font-size: 12.5px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: #ECFDF5; color: #059669; border: 1px solid #A7F3D0; transition: all 0.2s;">Totale: 100% ✓</span>
+                </div>
                 <div class="prizepool-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 8px;">
                   <div style="text-align: center;">
                     <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">1° Posto</label>
@@ -421,6 +442,7 @@
                     <input type="number" id="setting-prize-pct-5" class="form-control tabular-nums" style="text-align: center; font-weight: bold; padding: 6px 2px;" min="0" max="100" placeholder="0" value="0">
                   </div>
                 </div>
+                <div id="prize-pct-hint" style="font-size: 12px; color: #D97706; margin-top: 6px; min-height: 18px; font-weight: 500;"></div>
               </div>
             </div>
 
@@ -499,17 +521,58 @@
     </div>
   </div>
 
-  <!-- Printable Container (Target for Clean A4 Printing) -->
-  <div id="print-container" class="print-container">
-    <div class="print-header">
-      <h1 id="print-title">Torneo di Burraco</h1>
-      <div class="print-meta">
-        <span id="print-date">Data: —</span>
-        <span>Classifica Finale Ufficiale</span>
+  <!-- Modal 7: Esportazione Immagine Classifica per WhatsApp -->
+  <div class="modal-backdrop" id="modal-export-image">
+    <div class="modal-dialog modal-export-dialog">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">🖼️</span>
+          <h3 style="margin: 0; font-size: 18px;">Classifica Pronta per la Condivisione</h3>
+        </div>
+        <button class="modal-close" id="close-export-image-modal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <div class="export-status-banner" id="export-status-banner">
+          <div class="export-status-icon">💬</div>
+          <div class="export-status-text">
+            <h4 id="export-status-title">Pronta per WhatsApp!</h4>
+            <p id="export-status-desc">L'immagine è stata copiata negli appunti e scaricata sul tuo computer.</p>
+          </div>
+        </div>
+
+        <div class="export-instructions">
+          <div class="instruction-row" id="instruction-clipboard">
+            <span class="instruction-badge">📋 Appunti</span>
+            <span>Apri la chat su <strong>WhatsApp Web</strong> e premi <kbd class="kbd-shortcut">Ctrl + V</kbd> per incollarla.</span>
+          </div>
+          <div class="instruction-row">
+            <span class="instruction-badge">💾 Download</span>
+            <span>File salvato: <code id="export-modal-filename" class="export-code-badge">Classifica.png</code></span>
+          </div>
+        </div>
+
+        <div class="export-preview-container">
+          <div class="export-preview-header">
+            <span>Anteprima immagine</span>
+          </div>
+          <div class="export-preview-scroll">
+            <img id="export-preview-img" src="" alt="Anteprima Classifica" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; align-items: center;">
+        <div style="display: flex; gap: 10px;">
+          <button type="button" class="btn btn-secondary" id="btn-copy-image-again" style="display: none;">
+            <span class="btn-icon">📋</span> Ricopia
+          </button>
+          <button type="button" class="btn btn-primary" id="btn-close-export-modal">
+            Ho capito
+          </button>
+        </div>
       </div>
     </div>
-    <div id="print-body"></div>
   </div>
+
 
   <!-- Modular JavaScript Engine & Utilities -->
   <script src="js/config.js?v=1.1"></script>

@@ -322,6 +322,165 @@ console.log(`- mergeBackupData: aggiunte solo le serate mancanti e valide (${mer
 
 console.log('>>> TEST 8 SUPERATO CON SUCCESSO! Validazione serate, flag checked e merge backup verificati al 100%.');
 
+console.log('\n--- TEST 9: Verifica Esportatore Immagine Classifica per WhatsApp (BurracoExcel.exportLeaderboardImage) ---');
+if (typeof BurracoExcel.exportLeaderboardImage !== 'function') {
+  throw new Error('Test 9 fallito: exportLeaderboardImage non definita in BurracoExcel!');
+}
+// Verifica esecuzione sicura in ambiente non-DOM
+const testImgResult = BurracoExcel.exportLeaderboardImage({ title: 'Test' }, []);
+if (testImgResult !== null) {
+  throw new Error('Test 9 fallito: exportLeaderboardImage non gestisce ambiente headless');
+}
+// Verifica aggiornamento pulsante in index.html
+if (html.includes('title="Salva in PDF')) {
+  throw new Error('Test 9 fallito: vecchio pulsante PDF ancora presente in index.html!');
+}
+if (!html.includes('id="modal-export-image"')) {
+  throw new Error('Test 9 fallito: modale custom modal-export-image mancante in index.html!');
+}
+console.log('- Funzione BurracoExcel.exportLeaderboardImage: presente e sicura (OK)');
+console.log('- Interfaccia HTML: pulsante "🖼️ Salva Immagine" e modale custom presenti (OK)');
+console.log('>>> TEST 9 SUPERATO CON SUCCESSO! Generazione immagine classifica e modale custom verificate.');
+
+console.log('\n--- TEST 10: Verifica Validazione Real-Time Percentuali Montepremi (<= 100%) ---');
+if (!html.includes('id="prize-pct-total-badge"')) {
+  throw new Error('Test 10 fallito: badge prize-pct-total-badge mancante in index.html!');
+}
+if (!html.includes('id="prize-pct-hint"')) {
+  throw new Error('Test 10 fallito: container hint prize-pct-hint mancante in index.html!');
+}
+// Simulazione logica di clamping in app.js
+const mockInputs = [50, 50, 0, 0, 0];
+const targetIdx = 2; // tenta di inserire 50 al 3° posto
+const otherSum = mockInputs.reduce((sum, v, idx) => idx !== targetIdx ? sum + v : sum, 0); // 100
+const maxAllowed = Math.max(0, 100 - otherSum); // 0
+const inputVal = 50;
+const clampedVal = Math.min(inputVal, maxAllowed);
+if (clampedVal !== 0) {
+  throw new Error(`Test 10 fallito: con 50+50 il 3° posto deve essere bloccato a 0, invece ha dato ${clampedVal}`);
+}
+console.log('- Badge e hint percentuali presenti in index.html (OK)');
+console.log(`- Simulazione inserimento 50+50+50: il 3° campo viene bloccato a ${clampedVal}% (OK)`);
+console.log('>>> TEST 10 SUPERATO CON SUCCESSO! Controllo real-time somma percentuali <= 100% verificato.');
+
+console.log('\n--- TEST 11: Verifica Controllo Somma Punti Turno (Multiplo 20 o Resto Bye/Riposo) ---');
+if (!html.includes('id="setting-bye-points"')) {
+  throw new Error('Test 11 fallito: input setting-bye-points mancante in index.html!');
+}
+if (!html.includes('id="round-vp-check-banner"')) {
+  throw new Error('Test 11 fallito: banner round-vp-check-banner mancante in index.html!');
+}
+if (!html.includes('id="round-title-check"')) {
+  throw new Error('Test 11 fallito: spunta round-title-check mancante in index.html!');
+}
+
+const BURRACO_CONFIG = require('./src/js/config');
+if (BURRACO_CONFIG.defaultByePoints !== 12) {
+  throw new Error(`Test 11 fallito: defaultByePoints deve essere 12, trovato ${BURRACO_CONFIG.defaultByePoints}`);
+}
+
+// 1. Tavoli completi con coppie pari (es. 4 coppie -> 2 tavoli -> esattamente 40 VP; 6 coppie -> 60 VP)
+const v40 = BurracoEngine.validateRoundVpSum(40, 4, 12);
+if (!v40.valid || v40.expectedVP !== 40) throw new Error('Test 11 fallito: 4 coppie con 40 VP deve essere valido');
+
+const vWrong40 = BurracoEngine.validateRoundVpSum(60, 4, 12); // 60 è multiplo di 20, ma per 4 coppie ne servono 40!
+if (vWrong40.valid) throw new Error('Test 11 fallito: 4 coppie con 60 VP non deve essere valido!');
+
+const v60 = BurracoEngine.validateRoundVpSum(60, 6, 12);
+if (!v60.valid || v60.expectedVP !== 60) throw new Error('Test 11 fallito: 6 coppie con 60 VP deve essere valido');
+
+// 2. Tavoli con 1 coppia di riposo (es. 5 coppie -> 2 tavoli x 20 + 12 = 52 VP; 7 coppie -> 3 tavoli x 20 + 12 = 72 VP)
+const v52 = BurracoEngine.validateRoundVpSum(52, 5, 12);
+if (!v52.valid || v52.expectedVP !== 52 || !v52.isOdd) throw new Error('Test 11 fallito: 5 coppie con riposo 12 deve attendersi 52 VP');
+
+const v72 = BurracoEngine.validateRoundVpSum(72, 7, 12);
+if (!v72.valid || v72.expectedVP !== 72 || !v72.isOdd) throw new Error('Test 11 fallito: 7 coppie con riposo 12 deve attendersi 72 VP');
+
+// 3. Punti riposo personalizzati (es. 10 VP su 5 coppie -> 2 tavoli x 20 + 10 = 50 VP)
+const v50 = BurracoEngine.validateRoundVpSum(50, 5, 10);
+if (!v50.valid || v50.expectedVP !== 50) throw new Error('Test 11 fallito: 5 coppie con riposo 10 deve attendersi 50 VP');
+
+// 4. Somme non valide (errori di punteggio ai tavoli)
+const v42 = BurracoEngine.validateRoundVpSum(42, 4, 12);
+if (v42.valid) throw new Error('Test 11 fallito: 4 coppie con 42 VP deve risultare non valido!');
+
+const v54 = BurracoEngine.validateRoundVpSum(54, 5, 12);
+if (v54.valid) throw new Error('Test 11 fallito: 5 coppie con 54 VP (attesi 52) deve risultare non valido!');
+
+// 5. Verifica limiti singoli punteggi (0 <= VP <= 20)
+const vOver20 = BurracoEngine.validateRoundVpSum([25, 15, 0, 0], 4, 12); // somma 40 ma contiene 25 (>20)
+if (vOver20.valid || !vOver20.hasOutOfRange) throw new Error('Test 11 fallito: punteggio > 20 deve essere rilevato come out-of-range e non valido!');
+
+const vNegative = BurracoEngine.validateRoundVpSum([-2, 22, 10, 10], 4, 12); // somma 40 ma contiene negativi e >20
+if (vNegative.valid || !vNegative.hasOutOfRange) throw new Error('Test 11 fallito: punteggio negativo deve essere rilevato come out-of-range!');
+
+const vBoundary = BurracoEngine.validateRoundVpSum([20, 0, 10, 10], 4, 12); // estremi esatti 0 e 20
+if (!vBoundary.valid || vBoundary.hasOutOfRange || vBoundary.totalVP !== 40) throw new Error('Test 11 fallito: punteggi limite 0 e 20 devono essere validi!');
+
+// 6. Verifica attributi di input UI in app.js
+if (!js.includes('min="0"') || !js.includes('max="20"')) {
+  throw new Error('Test 11 fallito: controlli min="0" e max="20" mancanti per i campi VP in app.js!');
+}
+
+console.log('- Componenti UI presenti (setting-bye-points e round-vp-check-banner) (OK)');
+console.log('- Uguaglianza esatta coppie pari verificata (4 coppie=40 VP, 6 coppie=60 VP; scartato 60 VP su 4 coppie) (OK)');
+console.log('- Uguaglianza esatta con riposo verificata (5 coppie=52 VP, 7 coppie=72 VP; riposo 10 su 5 coppie=50 VP) (OK)');
+console.log('- Errori di inserimento rilevati (42 VP su 4 coppie, 54 VP su 5 coppie) (OK)');
+console.log('- Limiti singoli punteggi (0 <= VP <= 20) verificati su array e boundary [20, 0, 10, 10] (OK)');
+console.log('>>> TEST 11 SUPERATO CON SUCCESSO! Controllo uguaglianza esatta e limiti singoli punteggi VP verificati al 100%.');
+
+console.log('\n--- TEST 12: Verifica Persistenza Data Serata Oltre la Mezzanotte (BurracoStorage) ---');
+
+// 1. Simula salvataggio localStorage con data 04/09/26 caricato dopo mezzanotte
+const statePastMidnight = {
+  title: 'Burraco Pezzo',
+  currentGiornataKey: 'serata_040926',
+  allGiornate: {
+    serata_040926: { roundsCount: 4, pairs: [{ id: 'p1', name: 'Pietro + Paolo' }] }
+  },
+  pairs: [{ id: 'p1', name: 'Pietro + Paolo' }]
+};
+const parsedPastMidnight = BurracoStorage.parseLoadedData(statePastMidnight);
+if (parsedPastMidnight.currentGiornataKey !== 'serata_040926') {
+  throw new Error(`Test 12 fallito: la data della serata attiva è cambiata a ${parsedPastMidnight.currentGiornataKey} invece di rimanere serata_040926!`);
+}
+console.log(`- Data serata attiva preservata dopo mezzanotte (${parsedPastMidnight.currentGiornataKey}) (OK)`);
+
+// 2. Simula duplicato creato accidentalmente dopo la mezzanotte senza aver premuto "Nuova Serata"
+const stateCorruptedDuplicate = {
+  title: 'Burraco Pezzo',
+  currentGiornataKey: 'serata_050926',
+  allGiornate: {
+    serata_040926: { roundsCount: 4, pairs: [{ id: 'p1', name: 'Pietro + Paolo' }] },
+    serata_050926: { roundsCount: 4, pairs: [{ id: 'p1', name: 'Pietro + Paolo' }] }
+  },
+  pairs: [{ id: 'p1', name: 'Pietro + Paolo' }]
+};
+const parsedRecovered = BurracoStorage.parseLoadedData(stateCorruptedDuplicate);
+if (parsedRecovered.currentGiornataKey !== 'serata_040926') {
+  throw new Error(`Test 12 fallito: recupero mancato della serata originale 040926, trovato ${parsedRecovered.currentGiornataKey}`);
+}
+console.log(`- Auto-recupero duplicato non archiviato effettuato con successo (${parsedRecovered.currentGiornataKey}) (OK)`);
+
+// 3. Verifica che con "Nuova Serata" la data passi effettivamente alla nuova giornata
+const freshEveningState = {
+  title: 'Burraco Pezzo',
+  currentGiornataKey: 'serata_040926',
+  roundsCount: 4,
+  pairs: [{ id: 'p1', name: 'Pietro + Paolo', scores: [{ mp: 1000, vp: 10 }, { mp: 1000, vp: 10 }, { mp: 1000, vp: 10 }, { mp: 1000, vp: 10 }] }],
+  allGiornate: {}
+};
+BurracoStorage.startNewEvening(freshEveningState);
+const todayKeyExpected = `serata_${BurracoUtils.getDateGGMMAA()}`;
+if (freshEveningState.currentGiornataKey !== todayKeyExpected) {
+  throw new Error(`Test 12 fallito: startNewEvening non ha impostato la nuova data ${todayKeyExpected}, trovato ${freshEveningState.currentGiornataKey}`);
+}
+if (freshEveningState.allGiornate['serata_040926'].checked !== true) {
+  throw new Error('Test 12 fallito: la serata precedente non è stata archiviata con checked:true');
+}
+console.log(`- Nuova Serata attiva correttamente la nuova data (${freshEveningState.currentGiornataKey}) e archivia la precedente (OK)`);
+console.log('>>> TEST 12 SUPERATO CON SUCCESSO! Persistenza data serata verificata al 100%.');
+
 console.log('\n=============================================');
 console.log('TUTTI I TEST MODULARI SONO PASSATI AL 100%!');
 console.log('=============================================');

@@ -19,16 +19,17 @@
 .data-table thead th {
   background-color: #F8FAFC;
   color: var(--text-muted);
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: 0.05em;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border-bottom: 2px solid var(--border-color);
-  border-right: 1px solid var(--border-light);
+  border-right: 1px solid var(--border-color);
   position: sticky;
   top: 0;
   z-index: 10;
+  vertical-align: middle;
 }
 
 .data-table tbody td {
@@ -50,16 +51,15 @@
 .col-rank {
   width: 55px;
   text-align: center;
-  font-weight: 700;
-  font-size: 15.5px;
+  font-weight: 600;
+  font-size: 16px;
 }
 
 .col-lot {
   width: 65px;
   text-align: center;
-  font-weight: 700;
-  font-size: 15.5px;
-  background-color: #F1F5F9;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .col-name {
@@ -101,8 +101,32 @@
   text-align: center !important;
   background-color: #EFF6FF !important;
   color: var(--primary) !important;
-  border-bottom: 2px solid var(--primary-border) !important;
-  min-width: 125px;
+  border-bottom: 1px solid var(--border-light) !important;
+  border-right: 1px solid var(--border-color) !important;
+  padding: 8px 6px !important;
+  font-size: 13px !important;
+  vertical-align: middle !important;
+}
+
+.master-table-subhead-row th {
+  background-color: #EFF6FF !important;
+  color: var(--primary) !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+  padding: 5px 4px !important;
+  border-bottom: 2px solid var(--border-color) !important;
+  border-right: 1px solid var(--border-color) !important;
+}
+
+.sub-header-mp {
+  min-width: 68px;
+}
+
+.sub-header-vp {
+  min-width: 56px;
+  border-right: 1px solid var(--border-color) !important;
 }
 
 .col-round-mp {
@@ -112,6 +136,8 @@
   color: var(--text-muted);
   min-width: 68px;
   padding: 8px 10px !important;
+  vertical-align: middle !important;
+  line-height: 1.25 !important;
 }
 
 .col-round-vp {
@@ -120,11 +146,9 @@
   font-size: 16px;
   min-width: 56px;
   padding: 8px 10px !important;
-}
-
-.sub-header-mp, .sub-header-vp {
-  text-align: center !important;
-  font-size: 12.5px !important;
+  vertical-align: middle !important;
+  line-height: 1.25 !important;
+  border-right: 1px solid var(--border-color) !important;
 }
 
 /* Inputs inside grid */

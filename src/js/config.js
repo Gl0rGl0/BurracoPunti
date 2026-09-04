@@ -8,9 +8,9 @@ const BURRACO_CONFIG = {
   // ==========================================
   // TITOLI E IDENTITÀ
   // ==========================================
-  appTitle: "Burraco - Gestione Torneo",
-  brandName: "Burraco",
-  defaultTournamentTitle: "Torneo di Burraco",
+  appTitle: "Burraco - Scursai Pezzo",
+  brandName: "Burraco Pezzo",
+  defaultTournamentTitle: "Burraco Pezzo",
 
   // ==========================================
   // PARAMETRI DI GARA PREDEFINITI
@@ -18,6 +18,7 @@ const BURRACO_CONFIG = {
   defaultRounds: 4,
   minRounds: 1,
   maxRounds: 12,
+  defaultByePoints: 12,
 
   // ==========================================
   // VISIBILITÀ INIZIALE STRUMENTI (Impostazioni)
@@ -26,7 +27,8 @@ const BURRACO_CONFIG = {
     showBulkPaste: false,
     showLottery: false,
     showPodium: false,
-    showPrizepool: true
+    showPrizepool: true,
+    byePoints: 12
   },
 
   // ==========================================

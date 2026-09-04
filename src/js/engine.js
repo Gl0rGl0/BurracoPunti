@@ -149,6 +149,54 @@ const BurracoEngine = {
     }
 
     return { totalPot, prizes };
+  },
+
+  /**
+   * Verifica la congruenza matematica dei punti VP di un turno.
+   * I singoli punteggi devono essere compresi tra 0 e 20.
+   * La somma di tutti i VP deve essere esattamente uguale ai punti attesi:
+   * - Se coppie pari: (numPairs / 2) * 20
+   * - Se coppie dispari: Math.floor(numPairs / 2) * 20 + byePoints
+   */
+  validateRoundVpSum(totalVPOrScores, numPairs, byePoints = 12) {
+    let sum = 0;
+    let hasOutOfRange = false;
+    let n = Number(numPairs) || 0;
+
+    if (Array.isArray(totalVPOrScores)) {
+      if (n <= 0) n = totalVPOrScores.length;
+      for (const sc of totalVPOrScores) {
+        const val = Number(sc);
+        if (isNaN(val) || val < 0 || val > 20) {
+          hasOutOfRange = true;
+        }
+        sum += val;
+      }
+    } else {
+      sum = Number(totalVPOrScores);
+    }
+
+    const b = (byePoints !== undefined && byePoints !== null && !isNaN(Number(byePoints))) ? Number(byePoints) : 12;
+    const isOdd = (n % 2 === 1);
+    const completeTables = Math.floor(n / 2);
+    const expectedVP = (completeTables * 20) + (isOdd ? b : 0);
+
+    if (isNaN(sum) || n <= 0) {
+      return { valid: false, hasOutOfRange, totalVP: sum, expectedVP: 0, numPairs: n, byePoints: b, isOdd, completeTables };
+    }
+
+    const valid = !hasOutOfRange && (sum === expectedVP);
+
+    return {
+      valid,
+      hasOutOfRange,
+      totalVP: sum,
+      expectedVP,
+      numPairs: n,
+      byePoints: b,
+      isOdd,
+      completeTables
+    };
   }
 };
 
