@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Burraco - Gestione e Conteggio Torneo</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="xlsx.full.min.js"></script>
+</head>
+<body>
+  <!-- Header Bar -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand">
+        <div class="brand-text">
+          <h1>Burraco</h1>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="status-indicator" id="save-status">
+        <span class="status-dot"></span>
+        <span class="status-text">Salvataggio attivo</span>
+      </div>
+      <div class="header-actions">
+        <button id="btn-print" class="btn btn-secondary" title="Salva in PDF la classifica">
+          <span class="btn-icon">🖨️</span> PDF
+        </button>
+        <span class="header-divider" aria-hidden="true"></span>
+        <button id="btn-open-settings" class="btn btn-secondary" title="Impostazioni e Gestione Dati">
+          <span class="btn-icon">⚙️</span> Impostazioni
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Navigation Tabs -->
+  <nav class="tabs-nav" id="tabs-nav">
+    <div class="tabs-list">
+      <button class="tab-btn active" data-tab="initial" id="tab-btn-initial">
+        <span class="tab-icon">📋</span> Tabellone Iniziale
+      </button>
+      <div id="round-tabs-container" class="round-tabs-container">
+        <!-- Rendered dynamically: Round 1, 2, 3, 4... -->
+      </div>
+      <button class="tab-btn" data-tab="master" id="tab-btn-master">
+        <span class="tab-icon">🏆</span> Classifica
+      </button>
+      <button class="tab-btn" data-tab="podium" id="tab-btn-podium">
+        <span class="tab-icon">🥇</span> Podio & Cerimonia
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Content Container -->
+  <main class="app-main">
+
+    <!-- Tab View 0: TABELLONE INIZIALE (Gestione e Inserimento Coppie) -->
+    <section id="view-initial" class="view-panel active">
+      <div class="table-card">
+        <div class="card-header">
+          <div>
+            <h2>Tabellone Iniziale</h2>
+          </div>
+          <div class="card-header-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="initial-search-input" class="search-input" placeholder="🔍 Cerca coppia per nome o n°...">
+            <button id="btn-open-bulk-paste" class="btn btn-secondary btn-sm">
+              <span class="btn-icon">📝</span> Incolla da Excel
+            </button>
+            <button id="btn-open-lottery" class="btn btn-secondary btn-sm">
+              <span class="btn-icon">🎲</span> Sorteggio
+            </button>
+          </div>
+        </div>
+
+        <div class="table-container" id="initial-table-container">
+          <table class="data-table initial-table" id="initial-table">
+            <thead>
+              <tr>
+                <th style="width:50px; text-align:center;">#</th>
+                <th class="col-name">Coppia / Giocatori</th>
+                <th style="width:150px; text-align:center;">Numero Squadra</th>
+                <th class="col-actions" style="width:60px; text-align:center;"></th>
+              </tr>
+            </thead>
+            <tbody id="initial-table-body">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="table-card-footer" style="padding: 12px 16px; border-top: 1px solid var(--border-light); background: #FAFBFD;">
+          <button id="btn-add-pair-row" class="btn btn-primary btn-sm">
+            <span class="btn-icon">➕</span> Aggiungi Coppia
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab View 1: CLASSIFICA GENERALE (Tabellone Completo View-Only) -->
+    <section id="view-master" class="view-panel">
+      <div class="table-card">
+        <div class="card-header">
+          <div>
+            <h2>Classifica</h2>
+          </div>
+          <div class="card-header-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="master-search-input" class="search-input" placeholder="🔍 Cerca in classifica per nome o n°...">
+          </div>
+        </div>
+
+        <div class="table-container" id="master-table-container">
+          <table class="data-table master-table" id="master-table">
+            <thead>
+              <tr id="master-table-head-row">
+                <!-- Dinamico per ogni turno: Turno 1 (MP, VP), etc. -->
+              </tr>
+            </thead>
+            <tbody id="master-table-body">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab View 2: DEDICATED ROUND VIEW (Turno Singolo) -->
+    <section id="view-round" class="view-panel">
+      <div class="table-card">
+        <div class="card-header">
+          <div>
+            <h2 id="round-view-title">Inserimento Punteggi - Turno 1</h2>
+            <!-- <p class="subtitle">Inserisci Match Point (MP) e Ventesimi (VP) per ciascuna coppia.</p> -->
+          </div>
+          <div class="round-header-actions">
+            <button id="btn-prev-round" class="btn btn-secondary btn-sm">◀ Turno Precedente</button>
+            <span class="round-indicator-badge" id="current-round-badge">Turno 1 di 4</span>
+            <button id="btn-next-round" class="btn btn-secondary btn-sm">Turno Successivo ▶</button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table round-table" id="round-table">
+            <thead>
+              <tr>
+                <th class="col-lot">N°</th>
+                <th class="col-name">Coppia</th>
+                <th class="col-input">Match Points (MP)</th>
+                <th class="col-input">Ventesimi (VP)</th>
+              </tr>
+            </thead>
+            <tbody id="round-table-body">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab View 3: PODIUM & CEREMONY (Podio e Premiazioni) -->
+    <section id="view-podium" class="view-panel">
+      <div class="podium-card">
+        <div class="podium-header">
+          <span class="podium-eyebrow">Cerimonia di Premiazione</span>
+          <h2 class="podium-title" id="podium-tournament-title">Torneo di Burraco</h2>
+          <p class="subtitle">I vincitori e i primi classificati del torneo</p>
+        </div>
+
+        <!-- 3-tier podium visualization -->
+        <div class="podium-stage" id="podium-stage">
+          <!-- 2nd place (Silver) -->
+          <div class="podium-pillar pillar-2" id="pillar-silver">
+            <div class="medal medal-silver">🥈 2° Posto</div>
+            <div class="pillar-team" id="pillar-team-2">—</div>
+            <div class="pillar-score" id="pillar-score-2">0 VP (0 MP)</div>
+            <div class="pillar-block block-2">2</div>
+          </div>
+
+          <!-- 1st place (Gold) -->
+          <div class="podium-pillar pillar-1" id="pillar-gold">
+            <div class="crown">👑</div>
+            <div class="medal medal-gold">🥇 1° Posto - Vincitori</div>
+            <div class="pillar-team team-winner" id="pillar-team-1">—</div>
+            <div class="pillar-score" id="pillar-score-1">0 VP (0 MP)</div>
+            <div class="pillar-block block-1">1</div>
+          </div>
+
+          <!-- 3rd place (Bronze) -->
+          <div class="podium-pillar pillar-3" id="pillar-bronze">
+            <div class="medal medal-bronze">🥉 3° Posto</div>
+            <div class="pillar-team" id="pillar-team-3">—</div>
+            <div class="pillar-score" id="pillar-score-3">0 VP (0 MP)</div>
+            <div class="pillar-block block-3">3</div>
+          </div>
+        </div>
+
+        <!-- Honorable mentions (4th and 5th place) -->
+        <div class="honorable-section" id="honorable-section">
+          <h3>Altri premiati e piazzati</h3>
+          <div class="honorable-grid" id="honorable-grid">
+            <!-- 4° e 5° posto -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODALS -->
+
+  <!-- Modal 1: Add Single Pair -->
+  <div class="modal-backdrop" id="modal-add-pair">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Aggiungi Nuova Coppia</h3>
+        <button class="modal-close" id="close-add-pair-modal">&times;</button>
+      </div>
+      <form id="form-add-pair">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="input-pair-name">Nome Coppia / Giocatori</label>
+            <input type="text" id="input-pair-name" class="form-control" placeholder="es. Pietro + Paolo" required autofocus>
+            <small class="form-hint">Puoi indicare i due nomi separati da '+' o '-'</small>
+          </div>
+          <div class="form-group">
+            <label for="input-lot-number">Numero Assegnato</label>
+            <input type="number" id="input-lot-number" class="form-control" placeholder="es. 1" min="1" max="999">
+            <small class="form-hint">Se lasciato vuoto verrà assegnato il numero progressivo</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-add-pair">Annulla</button>
+          <button type="submit" class="btn btn-primary">Inserisci Coppia</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 1b: Edit Pair -->
+  <div class="modal-backdrop" id="modal-edit-pair">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Modifica Coppia</h3>
+        <button class="modal-close" id="close-edit-pair-modal">&times;</button>
+      </div>
+      <form id="form-edit-pair">
+        <input type="hidden" id="edit-pair-id">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="input-edit-pair-name">Nome Coppia / Giocatori</label>
+            <input type="text" id="input-edit-pair-name" class="form-control" required>
+            <small class="form-hint">Puoi modificare i nomi dei componenti</small>
+          </div>
+          <div class="form-group">
+            <label for="input-edit-lot-number">Numero Assegnato (N°)</label>
+            <input type="number" id="input-edit-lot-number" class="form-control" min="1" max="999">
+            <small class="form-hint">Numero identificativo per i tavoli</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-edit-pair">Annulla</button>
+          <button type="submit" class="btn btn-primary">Salva Modifiche</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 2: Bulk Paste from Excel / Text -->
+  <div class="modal-backdrop" id="modal-bulk-paste">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3>Incolla Elenco Coppie da Excel o Testo</h3>
+        <button class="modal-close" id="close-bulk-paste-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="subtitle">Incolla qui sotto la colonna o le righe dal tuo foglio Excel o dagli appunti. Verrà creata una coppia per ogni riga.</p>
+        <textarea id="bulk-paste-textarea" class="bulk-textarea" rows="10" placeholder="Pietro + Paolo&#10;Anna - Marco&#10;Giovanni e Luca&#10;Tavolo 4: Maria + Elena"></textarea>
+        <div class="bulk-options">
+          <label class="checkbox-label">
+            <input type="checkbox" id="bulk-auto-number" checked> Assegna automaticamente numeri di sorteggio crescenti (1, 2, 3...)
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btn-cancel-bulk">Annulla</button>
+        <button type="button" class="btn btn-primary" id="btn-confirm-bulk">Importa Coppie</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Lottery & Number Assignment -->
+  <div class="modal-backdrop" id="modal-lottery">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Gestione Numeri e Sorteggio</h3>
+        <button class="modal-close" id="close-lottery-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="subtitle">Puoi estrarre a sorte i numeri identificativi per tutte le coppie registrate (da 1 a N, senza duplicati) o azzerarli.</p>
+        <div class="lottery-actions-grid">
+          <div class="lottery-action-card">
+            <h4>🎲 Estrazione Casuale Totale</h4>
+            <p>Genera numeri casuali da 1 a <span id="lottery-total-count">0</span> e li assegna a ciascuna coppia.</p>
+            <button id="btn-run-random-lottery" class="btn btn-primary btn-block">Estrai a Sorte Ora</button>
+          </div>
+          <div class="lottery-action-card">
+            <h4>🔢 Numerazione Progressiva (1..N)</h4>
+            <p>Assegna i numeri in base all'ordine attuale di inserimento.</p>
+            <button id="btn-run-sequential-lottery" class="btn btn-secondary btn-block">Numera in Ordine</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btn-close-lottery">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Settings & Options -->
+  <div class="modal-backdrop" id="modal-settings">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>⚙️ Impostazioni Torneo</h3>
+        <button class="modal-close" id="close-settings-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="settings-group">
+          <h4 class="settings-group-title">Visibilità Strumenti Barra</h4>
+          <p class="form-hint" style="margin-bottom: 12px;">Scegli quali pulsanti visualizzare nella barra degli strumenti:</p>
+          
+          <div class="setting-toggle-item">
+            <span class="toggle-text">Pulsante "Incolla Elenco da Excel"</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="setting-toggle-bulk" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="setting-toggle-item">
+            <span class="toggle-text">Pulsante "Sorteggio / Numeri"</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="setting-toggle-lottery" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-group" style="margin-top: 20px; border-top: 1px solid var(--border-light); padding-top: 16px;">
+          <h4 class="settings-group-title">Struttura Torneo</h4>
+          <div class="setting-toggle-item">
+            <div>
+              <span class="toggle-text">Numero di Turni</span>
+              <small class="form-hint">Imposta i turni di gioco (default 4)</small>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="number" id="setting-rounds-count" class="form-control tabular-nums" style="width: 70px; text-align: center; font-weight: bold; font-size: 15px;" min="1" max="12" value="4">
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-group" style="margin-top: 20px; border-top: 1px solid var(--border-light); padding-top: 16px;">
+          <h4 class="settings-group-title">Dati ed Esportazione</h4>
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">
+            <button id="btn-modal-export-excel" class="btn btn-secondary btn-block">
+              <span class="btn-icon">📊</span> Esporta Tabellone in Excel (.xlsx)
+            </button>
+            <button id="btn-modal-clear-data" class="btn btn-outline-danger btn-block" style="border-color: rgba(220, 38, 38, 0.4); color: var(--danger);">
+              <span class="btn-icon">🗑️</span> Pulisci Tutti i Dati del Torneo
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btn-close-settings">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Confirm Delete Pair (Mini Modale) -->
+  <div class="modal-backdrop" id="modal-confirm-delete">
+    <div class="modal-dialog modal-sm">
+      <div class="modal-header">
+        <h3>🗑️ Conferma Eliminazione</h3>
+        <button class="modal-close" id="close-confirm-delete-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 14px; color: var(--text-main); margin-bottom: 10px;">
+          Sei sicuro di voler eliminare questa coppia dal torneo?
+        </p>
+        <div id="confirm-delete-detail" style="font-size: 13px; color: var(--text-muted); background: var(--bg-app); border: 1px solid var(--border-color); padding: 10px 14px; border-radius: var(--radius-sm); font-weight: 600;">
+          <!-- Nome coppia -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btn-cancel-delete">Annulla</button>
+        <button type="button" class="btn btn-danger" id="btn-confirm-delete">Elimina</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Printable Container (Target for Clean A4 Printing) -->
+  <div id="print-container" class="print-container">
+    <div class="print-header">
+      <h1 id="print-title">Torneo di Burraco</h1>
+      <div class="print-meta">
+        <span id="print-date">Data: —</span>
+        <span>Classifica Finale Ufficiale</span>
+      </div>
+    </div>
+    <div id="print-body"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
