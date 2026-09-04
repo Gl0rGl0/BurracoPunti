@@ -179,6 +179,35 @@ console.log(`- defaultRounds: ${BurracoConfig.defaultRounds}`);
 console.log(`- labels.playersTab: "${BurracoConfig.labels.playersTab}"`);
 console.log('>>> TEST 6 SUPERATO CON SUCCESSO! Configurazione centralizzata verificata.');
 
+console.log('\n--- TEST 7: Verifica Calcolo Montepremi e Premi (BurracoEngine.calculatePrizepool) ---');
+
+// Caso standard: 10 coppie (20 giocatori x 2€ = 40€) con quote 50, 30, 20
+const res10 = BurracoEngine.calculatePrizepool(10, 2, [50, 30, 20, 0, 0]);
+if (res10.totalPot !== 40) throw new Error(`Test 7 fallito: montepremi errato (${res10.totalPot} !== 40)`);
+if (res10.prizes[0].teamPrize !== 20 || res10.prizes[0].singlePrize !== 10) throw new Error('Test 7 fallito su 1° premio');
+if (res10.prizes[1].teamPrize !== 12 || res10.prizes[1].singlePrize !== 6) throw new Error('Test 7 fallito su 2° premio');
+if (res10.prizes[2].teamPrize !== 8 || res10.prizes[2].singlePrize !== 4) throw new Error('Test 7 fallito su 3° premio');
+if (res10.prizes[0].text !== '20€ (10€)') throw new Error(`Test 7 testo errato: ${res10.prizes[0].text}`);
+console.log(`- 10 coppie (40€): 1°=${res10.prizes[0].text}, 2°=${res10.prizes[1].text}, 3°=${res10.prizes[2].text} (OK)`);
+
+// Caso con arrotondamenti e riassorbimento scarto: 7 coppie (14 giocatori x 2€ = 28€)
+const res7 = BurracoEngine.calculatePrizepool(7, 2, [50, 30, 20, 0, 0]);
+if (res7.totalPot !== 28) throw new Error('Test 7 fallito montepremi 7 coppie');
+const sum7 = res7.prizes.reduce((s, p) => s + p.teamPrize, 0);
+if (sum7 !== 28) throw new Error(`Test 7 somma premi erogati non pareggia totale: ${sum7} !== 28`);
+console.log(`- 7 coppie (28€): 1°=${res7.prizes[0].text}, 2°=${res7.prizes[1].text}, 3°=${res7.prizes[2].text}, Totale erogato=${sum7}€ (OK)`);
+
+// Caso con 4 premiati: 15 coppie (60€) con quote 40, 30, 20, 10
+const res15 = BurracoEngine.calculatePrizepool(15, 2, [40, 30, 20, 10, 0]);
+if (res15.prizes[3].teamPrize !== 6 || res15.prizes[3].singlePrize !== 3) throw new Error('Test 7 fallito su 4° premio');
+console.log(`- 15 coppie (60€ con 4 premiati): 4°=${res15.prizes[3].text} (OK)`);
+
+// Caso limite: 0 coppie o 0€
+const res0 = BurracoEngine.calculatePrizepool(0, 2);
+if (res0.totalPot !== 0 || res0.prizes.length !== 0) throw new Error('Test 7 fallito su 0 coppie');
+
+console.log('>>> TEST 7 SUPERATO CON SUCCESSO! Logica montepremi, arrotondamento ad euro intero e pareggio verificati.');
+
 console.log('\n=============================================');
 console.log('TUTTI I TEST MODULARI SONO PASSATI AL 100%!');
 console.log('=============================================');

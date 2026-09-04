@@ -35,6 +35,10 @@
   max-width: 650px;
 }
 
+.modal-dialog.modal-settings {
+  max-width: 820px;
+}
+
 .modal-dialog.modal-sm {
   max-width: 400px;
 }
@@ -83,6 +87,29 @@
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+/* Pulsanti nelle modali con sfondo grigio chiarissimo per risaltare dallo sfondo */
+.modal-dialog .btn-secondary {
+  background-color: var(--bg-subtle);
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+
+.modal-dialog .btn-secondary:hover {
+  background-color: var(--bg-hover);
+  border-color: #94A3B8;
+}
+
+.modal-dialog .btn-outline-danger {
+  background-color: var(--danger-bg);
+  border-color: rgba(220, 38, 38, 0.35);
+  color: var(--danger);
+}
+
+.modal-dialog .btn-outline-danger:hover {
+  background-color: #FEE2E2;
+  border-color: var(--danger);
 }
 
 .form-group {
@@ -243,4 +270,35 @@
 
 .toggle-switch input:checked + .toggle-slider:before {
   transform: translateX(20px);
+}
+
+/* Layout a due colonne per finestra Impostazioni */
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+
+.settings-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-col:first-child {
+  border-right: 1px solid var(--border-light);
+  padding-right: 32px;
+}
+
+@media (max-width: 768px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .settings-col:first-child {
+    border-right: none;
+    padding-right: 0;
+    border-bottom: 1px solid var(--border-light);
+    padding-bottom: 20px;
+  }
 }

@@ -25,7 +25,18 @@ const BURRACO_CONFIG = {
   defaultSettings: {
     showBulkPaste: false,
     showLottery: false,
-    showPodium: false
+    showPodium: false,
+    showPrizepool: true
+  },
+
+  // ==========================================
+  // MONTEPREMI E PREMI CLASSIFICA
+  // ==========================================
+  prizepool: {
+    showColumn: true,
+    entryFeePerPlayer: 2,
+    percentages: [50, 30, 20, 0, 0],
+    columnHeader: "Premio (€)"
   },
 
   // ==========================================

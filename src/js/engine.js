@@ -89,6 +89,66 @@ const BurracoEngine = {
       pair.lotNumber = idx + 1;
     });
     return pairs;
+  },
+
+  /**
+   * Calculate tournament prizepool and prize distribution for top pairs.
+   * Total Pot = (valid pairs count) * 2 * (entry fee per player)
+   * Individual prizes are rounded to the nearest integer euro, team prize is single * 2.
+   * Any rounding remainder (when percentages sum to ~100%) is reconciled on 1st place.
+   *
+   * @param {number} validPairsCount - Number of participating pairs
+   * @param {number} entryFeePerPlayer - Fee in Euro per individual player
+   * @param {Array<number>} percentages - Array of percentage allocations for ranks 1..5
+   * @returns {Object} { totalPot, prizes: Array<{ rank, teamPrize, singlePrize, text }> }
+   */
+  calculatePrizepool(validPairsCount = 0, entryFeePerPlayer = 2, percentages = [50, 30, 20, 0, 0]) {
+    const fee = Number(entryFeePerPlayer) || 0;
+    const count = Math.max(0, parseInt(validPairsCount, 10) || 0);
+    const totalPot = count * 2 * fee;
+
+    if (totalPot <= 0 || count === 0) {
+      return { totalPot: 0, prizes: [] };
+    }
+
+    const pcts = (Array.isArray(percentages) ? percentages : [50, 30, 20, 0, 0]).slice(0, 5);
+    const maxPositions = Math.min(count, 5);
+
+    const prizes = [];
+    let allocatedTotal = 0;
+
+    for (let pos = 0; pos < maxPositions; pos++) {
+      const pct = Number(pcts[pos]) || 0;
+      if (pct <= 0) {
+        prizes.push({ rank: pos + 1, teamPrize: 0, singlePrize: 0, text: '—' });
+        continue;
+      }
+
+      const rawTeamPrize = (totalPot * pct) / 100;
+      const singlePrize = Math.round(rawTeamPrize / 2);
+      const teamPrize = singlePrize * 2;
+
+      allocatedTotal += teamPrize;
+      prizes.push({
+        rank: pos + 1,
+        teamPrize,
+        singlePrize,
+        text: teamPrize > 0 ? `${teamPrize}€ (${singlePrize}€)` : '—'
+      });
+    }
+
+    // Remainder adjustment on 1st place if percentages sum to ~100% and 1st prize is active
+    const sumPct = pcts.reduce((sum, p) => sum + (Number(p) || 0), 0);
+    if (sumPct >= 99 && sumPct <= 101 && prizes.length > 0 && prizes[0].teamPrize > 0) {
+      const diff = totalPot - allocatedTotal;
+      if (diff !== 0 && diff % 2 === 0) {
+        prizes[0].teamPrize += diff;
+        prizes[0].singlePrize = prizes[0].teamPrize / 2;
+        prizes[0].text = prizes[0].teamPrize > 0 ? `${prizes[0].teamPrize}€ (${prizes[0].singlePrize}€)` : '—';
+      }
+    }
+
+    return { totalPot, prizes };
   }
 };
 

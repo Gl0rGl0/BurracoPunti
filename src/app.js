@@ -96,10 +96,18 @@ class BurracoApp {
     this.btnConfirmDelete = document.getElementById('btn-confirm-delete');
     this.pendingDeletePairId = null;
 
-    // Settings elements
     this.toggleBulkPaste = document.getElementById('setting-toggle-bulk') || document.getElementById('setting-bulk-paste');
     this.toggleLottery = document.getElementById('setting-toggle-lottery') || document.getElementById('setting-lottery');
     this.togglePodium = document.getElementById('setting-toggle-podium') || document.getElementById('setting-podium');
+    this.togglePrizepool = document.getElementById('setting-toggle-prizepool');
+    this.settingEntryFee = document.getElementById('setting-entry-fee');
+    this.settingPrizePcts = [
+      document.getElementById('setting-prize-pct-1'),
+      document.getElementById('setting-prize-pct-2'),
+      document.getElementById('setting-prize-pct-3'),
+      document.getElementById('setting-prize-pct-4'),
+      document.getElementById('setting-prize-pct-5')
+    ];
     this.settingRoundsCount = document.getElementById('setting-rounds-count');
     this.btnBulkPasteToolbar = document.getElementById('btn-open-bulk-paste');
     this.btnLotteryToolbar = document.getElementById('btn-open-lottery');
@@ -162,6 +170,25 @@ class BurracoApp {
     if (this.toggleBulkPaste) this.toggleBulkPaste.checked = !!this.state.settings.showBulkPaste;
     if (this.toggleLottery) this.toggleLottery.checked = !!this.state.settings.showLottery;
     if (this.togglePodium) this.togglePodium.checked = !!this.state.settings.showPodium;
+
+    const cfgPrize = (typeof BURRACO_CONFIG !== 'undefined' && BURRACO_CONFIG.prizepool) || {};
+    if (this.togglePrizepool) {
+      const isPrizeVisible = (this.state.settings.showPrizepool !== undefined)
+        ? !!this.state.settings.showPrizepool
+        : (cfgPrize.showColumn !== false);
+      this.togglePrizepool.checked = isPrizeVisible;
+    }
+
+    const curFee = (this.state.settings.entryFeePerPlayer !== undefined)
+      ? this.state.settings.entryFeePerPlayer
+      : (cfgPrize.entryFeePerPlayer !== undefined ? cfgPrize.entryFeePerPlayer : 2);
+    if (this.settingEntryFee) this.settingEntryFee.value = curFee;
+
+    const curPcts = this.state.settings.prizePercentages || cfgPrize.percentages || [50, 30, 20, 0, 0];
+    this.settingPrizePcts?.forEach((inp, idx) => {
+      if (inp) inp.value = (curPcts[idx] !== undefined && curPcts[idx] !== null) ? curPcts[idx] : 0;
+    });
+
     if (this.settingRoundsCount) this.settingRoundsCount.value = this.state.roundsCount;
 
     this.applySettingsVisibility();
@@ -325,6 +352,26 @@ class BurracoApp {
       this.state.settings.showPodium = e.target.checked;
       this.applySettingsVisibility();
       this.saveState();
+    });
+
+    this.togglePrizepool?.addEventListener('change', (e) => {
+      this.state.settings.showPrizepool = e.target.checked;
+      this.saveState();
+      this.renderMasterTable();
+    });
+
+    const onPrizepoolChange = () => {
+      const fee = Math.max(0, parseFloat(this.settingEntryFee?.value) || 0);
+      const pcts = this.settingPrizePcts?.map(inp => Math.max(0, Math.min(100, parseFloat(inp?.value) || 0))) || [50, 30, 20, 0, 0];
+      this.state.settings.entryFeePerPlayer = fee;
+      this.state.settings.prizePercentages = pcts;
+      this.saveState();
+      this.renderMasterTable();
+    };
+
+    this.settingEntryFee?.addEventListener('input', onPrizepoolChange);
+    this.settingPrizePcts?.forEach(inp => {
+      inp?.addEventListener('input', onPrizepoolChange);
     });
 
     this.settingRoundsCount?.addEventListener('change', (e) => {
@@ -666,11 +713,26 @@ class BurracoApp {
   renderMasterTable() {
     if (!this.masterTableHeadRow || !this.masterTableBody) return;
 
-    // 1. Build Header dynamically based on roundsCount
+    const cfgPrize = (typeof BURRACO_CONFIG !== 'undefined' && BURRACO_CONFIG.prizepool) || {};
+    const showPrizepool = (this.state.settings.showPrizepool !== undefined)
+      ? !!this.state.settings.showPrizepool
+      : (cfgPrize.showColumn !== false);
+    const prizeColTitle = cfgPrize.columnHeader || 'Premio (€)';
+
+    // 1. Ranked pairs e calcolo dinamico larghezza colonna "Coppia / Giocatori" (nome più lungo + 2 caratteri)
+    const ranked = this.getRankedPairs().filter(p => p.name && p.name.trim() !== '');
+    let maxNameLen = 19; // Intestazione "Coppia / Giocatori"
+    ranked.forEach(pair => {
+      const len = pair.name ? pair.name.trim().length : 0;
+      if (len > maxNameLen) maxNameLen = len;
+    });
+    const colNameWidth = `${maxNameLen + 2}ch`;
+
+    // 2. Build Header dynamically based on roundsCount
     this.masterTableHeadRow.innerHTML = `
       <th class="col-rank">Pos.</th>
       <th class="col-lot" title="Numero identificativo">N°</th>
-      <th class="col-name">Coppia / Giocatori</th>
+      <th class="col-name" style="width:${colNameWidth}; max-width:${colNameWidth}; white-space:nowrap;">Coppia / Giocatori</th>
     `;
 
     for (let r = 0; r < this.state.roundsCount; r++) {
@@ -691,13 +753,18 @@ class BurracoApp {
     thTotMp.textContent = 'Totale MP';
     this.masterTableHeadRow.appendChild(thTotMp);
 
-    // 2. Ranked pairs
-    const ranked = this.getRankedPairs().filter(p => p.name && p.name.trim() !== '');
+    if (showPrizepool) {
+      const thPrize = document.createElement('th');
+      thPrize.className = 'col-prize';
+      thPrize.textContent = prizeColTitle;
+      this.masterTableHeadRow.appendChild(thPrize);
+    }
+
     this.masterTableBody.innerHTML = '';
     const filter = this.state.searchFilter;
 
     if (ranked.length === 0) {
-      const totalCols = 5 + (this.state.roundsCount * 2);
+      const totalCols = 5 + (this.state.roundsCount * 2) + (showPrizepool ? 1 : 0);
       const emptyRow = document.createElement('tr');
       emptyRow.innerHTML = `
         <td colspan="${totalCols}" style="text-align:center; padding:36px 20px; color:var(--text-muted);">
@@ -709,8 +776,24 @@ class BurracoApp {
       return;
     }
 
-    let rankCounter = 0;
-    ranked.forEach((pair) => {
+    // Compute prizes map
+    const fee = (this.state.settings.entryFeePerPlayer !== undefined)
+      ? this.state.settings.entryFeePerPlayer
+      : (cfgPrize.entryFeePerPlayer !== undefined ? cfgPrize.entryFeePerPlayer : 2);
+    const pcts = this.state.settings.prizePercentages || cfgPrize.percentages || [50, 30, 20, 0, 0];
+
+    const prizepoolResult = showPrizepool
+      ? BurracoEngine.calculatePrizepool(ranked.length, fee, pcts)
+      : null;
+
+    const prizeMap = {};
+    if (prizepoolResult && prizepoolResult.prizes) {
+      prizepoolResult.prizes.forEach(p => {
+        prizeMap[p.rank] = p.text;
+      });
+    }
+
+    ranked.forEach((pair, idx) => {
       if (!pair.name || pair.name.trim() === '') return;
 
       if (filter) {
@@ -719,8 +802,7 @@ class BurracoApp {
         if (!matchesName && !matchesLot) return;
       }
 
-      rankCounter++;
-      const rank = rankCounter;
+      const rank = idx + 1;
       let rankDisplay = `<span class="tabular-nums" style="font-weight:600; color:var(--text-muted); font-size:15px;">${rank}°</span>`;
       if (rank === 1) rankDisplay = `<span class="rank-badge rank-1">1°</span>`;
       else if (rank === 2) rankDisplay = `<span class="rank-badge rank-2">2°</span>`;
@@ -733,9 +815,19 @@ class BurracoApp {
         const vpText = (sc.vp !== null && sc.vp !== undefined) ? `<strong style="color:var(--primary); font-size:15.5px;">${sc.vp}</strong>` : '<span style="color:#CBD5E1;">—</span>';
 
         roundCellsHtml += `
-          <td style="text-align:center; font-family:var(--font-mono); font-size:14.5px; color:var(--text-muted);">${mpText}</td>
-          <td style="text-align:center; font-family:var(--font-mono); font-size:15.5px;">${vpText}</td>
+          <td class="col-round-mp">${mpText}</td>
+          <td class="col-round-vp">${vpText}</td>
         `;
+      }
+
+      let prizeCellHtml = '';
+      if (showPrizepool) {
+        const pText = prizeMap[rank] || '—';
+        const isAwarded = pText !== '—';
+        const pStyle = isAwarded
+          ? 'font-weight:700; color:#047857; background-color:#F0FDF4; font-size:15px;'
+          : 'color:#94A3B8; font-size:14px;';
+        prizeCellHtml = `<td class="col-prize" style="text-align:center; ${pStyle}">${pText}</td>`;
       }
 
       const tr = document.createElement('tr');
@@ -744,10 +836,11 @@ class BurracoApp {
       tr.innerHTML = `
         <td class="col-rank">${rankDisplay}</td>
         <td class="col-lot"><span class="tabular-nums" style="font-weight:700; font-size:15.5px;">${pair.lotNumber || '—'}</span></td>
-        <td class="col-name" style="font-size:16px; font-weight:600; color:var(--text-main);">${BurracoUtils.escapeHtml(pair.name)}</td>
+        <td class="col-name" style="width:${colNameWidth}; max-width:${colNameWidth}; white-space:nowrap; font-size:16px; font-weight:600; color:var(--text-main);">${BurracoUtils.escapeHtml(pair.name)}</td>
         ${roundCellsHtml}
         <td class="col-tot-vp" style="text-align:center; font-weight:800; font-size:18px; color:var(--primary); background-color:#EFF6FF;">${pair.totVP}</td>
         <td class="col-tot-mp" style="text-align:center; font-weight:700; font-size:15px; color:var(--text-main); background-color:#F8FAFC;">${pair.totMP.toLocaleString('it-IT')}</td>
+        ${prizeCellHtml}
       `;
 
       this.masterTableBody.appendChild(tr);

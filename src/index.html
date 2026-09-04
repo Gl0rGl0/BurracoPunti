@@ -323,72 +323,127 @@
 
   <!-- Modal 4: Settings & Options -->
   <div class="modal-backdrop" id="modal-settings">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-settings">
       <div class="modal-header">
         <h3>⚙️ Impostazioni Torneo</h3>
         <button class="modal-close" id="close-settings-modal">&times;</button>
       </div>
       <div class="modal-body">
-        <div class="settings-group">
-          <h4 class="settings-group-title">Visibilità Strumenti Barra</h4>
-          <p class="form-hint" style="margin-bottom: 12px;">Scegli quali pulsanti visualizzare nella barra degli strumenti:</p>
-          
-          <div class="setting-toggle-item">
-            <label for="setting-toggle-bulk" class="toggle-text" style="cursor: pointer;">Pulsante "Incolla Elenco da Excel"</label>
-            <label class="toggle-switch">
-              <input type="checkbox" id="setting-toggle-bulk">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
+        <div class="settings-grid">
+          <!-- Colonna 1: Visibilità Strumenti & Struttura Torneo -->
+          <div class="settings-col">
+            <div class="settings-group">
+              <h4 class="settings-group-title">Visibilità Strumenti Barra</h4>
+              <p class="form-hint" style="margin-bottom: 12px;">Scegli quali pulsanti visualizzare nella barra degli strumenti:</p>
+              
+              <div class="setting-toggle-item">
+                <label for="setting-toggle-bulk" class="toggle-text" style="cursor: pointer;">Pulsante "Incolla Elenco da Excel"</label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="setting-toggle-bulk">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
 
-          <div class="setting-toggle-item">
-            <label for="setting-toggle-lottery" class="toggle-text" style="cursor: pointer;">Pulsante "Sorteggio / Numeri"</label>
-            <label class="toggle-switch">
-              <input type="checkbox" id="setting-toggle-lottery">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
+              <div class="setting-toggle-item">
+                <label for="setting-toggle-lottery" class="toggle-text" style="cursor: pointer;">Pulsante "Sorteggio / Numeri"</label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="setting-toggle-lottery">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
 
-          <div class="setting-toggle-item">
-            <label for="setting-toggle-podium" class="toggle-text" style="cursor: pointer;">Scheda "Podio"</label>
-            <label class="toggle-switch">
-              <input type="checkbox" id="setting-toggle-podium" checked>
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-        </div>
+              <div class="setting-toggle-item">
+                <label for="setting-toggle-podium" class="toggle-text" style="cursor: pointer;">Scheda "Podio"</label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="setting-toggle-podium">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
 
-        <div class="settings-group" style="margin-top: 20px; border-top: 1px solid var(--border-light); padding-top: 16px;">
-          <h4 class="settings-group-title">Struttura Torneo</h4>
-          <div class="setting-toggle-item">
-            <div>
-              <span class="toggle-text">Numero di Turni</span>
-              <small class="form-hint">Imposta i turni di gioco (default 4)</small>
+              <div class="setting-toggle-item">
+                <label for="setting-toggle-prizepool" class="toggle-text" style="cursor: pointer;">Colonna "Premio (€)" in Classifica</label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="setting-toggle-prizepool" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <input type="number" id="setting-rounds-count" class="form-control tabular-nums" style="width: 70px; text-align: center; font-weight: bold; font-size: 15px;" min="1" max="12" value="4">
+
+            <div class="settings-group" style="margin-top: 20px; border-top: 1px solid var(--border-light); padding-top: 16px;">
+              <h4 class="settings-group-title">Struttura Torneo</h4>
+              <div class="setting-toggle-item">
+                <div>
+                  <span class="toggle-text">Numero di Turni</span>
+                  <small class="form-hint">Imposta i turni di gioco (default 4)</small>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <input type="number" id="setting-rounds-count" class="form-control tabular-nums" style="width: 70px; text-align: center; font-weight: bold; font-size: 15px;" min="1" max="12" value="4">
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="settings-group" style="margin-top: 20px; border-top: 1px solid var(--border-light); padding-top: 16px;">
-          <h4 class="settings-group-title">Dati ed Esportazione</h4>
-          <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">
-            <button id="btn-modal-export-excel" class="btn btn-secondary btn-block">
-              <span class="btn-icon">📊</span> Esporta Tabellone in Excel (.xlsx)
-            </button>
-            <div style="display: flex; gap: 8px;">
-              <button id="btn-modal-export-json" class="btn btn-secondary" style="flex: 1;">
-                <span class="btn-icon">💾</span> Salva Backup (.json)
-              </button>
-              <button id="btn-modal-import-json" class="btn btn-secondary" style="flex: 1;">
-                <span class="btn-icon">📂</span> Carica Backup (.json)
-              </button>
-              <input type="file" id="input-import-json" accept=".json,application/json" style="display: none;">
+          <!-- Colonna 2: Montepremi & Dati / Esportazione -->
+          <div class="settings-col">
+            <div class="settings-group">
+              <h4 class="settings-group-title">Montepremi & Quote</h4>
+              <div class="setting-toggle-item" style="padding-bottom: 8px;">
+                <div>
+                  <span class="toggle-text">Quota a Persona (€)</span>
+                  <small class="form-hint">Costo ingresso per singolo giocatore (default 2€)</small>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <input type="number" id="setting-entry-fee" class="form-control tabular-nums" style="width: 75px; text-align: center; font-weight: bold; font-size: 15px;" min="0" step="0.5" value="2">
+                </div>
+              </div>
+
+              <div style="margin-top: 10px;">
+                <span class="toggle-text" style="font-size: 14.5px;">Ripartizione Percentuale Premi (%):</span>
+                <div class="prizepool-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 8px;">
+                  <div style="text-align: center;">
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">1° Posto</label>
+                    <input type="number" id="setting-prize-pct-1" class="form-control tabular-nums" style="text-align: center; font-weight: bold; padding: 6px 2px;" min="0" max="100" value="50">
+                  </div>
+                  <div style="text-align: center;">
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">2° Posto</label>
+                    <input type="number" id="setting-prize-pct-2" class="form-control tabular-nums" style="text-align: center; font-weight: bold; padding: 6px 2px;" min="0" max="100" value="30">
+                  </div>
+                  <div style="text-align: center;">
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">3° Posto</label>
+                    <input type="number" id="setting-prize-pct-3" class="form-control tabular-nums" style="text-align: center; font-weight: bold; padding: 6px 2px;" min="0" max="100" value="20">
+                  </div>
+                  <div style="text-align: center;">
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">4° Posto</label>
+                    <input type="number" id="setting-prize-pct-4" class="form-control tabular-nums" style="text-align: center; font-weight: bold; padding: 6px 2px;" min="0" max="100" placeholder="0" value="0">
+                  </div>
+                  <div style="text-align: center;">
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">5° Posto</label>
+                    <input type="number" id="setting-prize-pct-5" class="form-control tabular-nums" style="text-align: center; font-weight: bold; padding: 6px 2px;" min="0" max="100" placeholder="0" value="0">
+                  </div>
+                </div>
+              </div>
             </div>
-            <button id="btn-modal-clear-data" class="btn btn-outline-danger btn-block" style="border-color: rgba(220, 38, 38, 0.4); color: var(--danger); margin-top: 4px;">
-              <span class="btn-icon">🗑️</span> Pulisci Tutti i Dati del Torneo
-            </button>
+
+            <div class="settings-group" style="margin-top: 20px; border-top: 1px solid var(--border-light); padding-top: 16px;">
+              <h4 class="settings-group-title">Dati ed Esportazione</h4>
+              <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">
+                <button id="btn-modal-export-excel" class="btn btn-secondary btn-block">
+                  <span class="btn-icon">📊</span> Esporta Tabellone in Excel (.xlsx)
+                </button>
+                <div style="display: flex; gap: 8px;">
+                  <button id="btn-modal-export-json" class="btn btn-secondary" style="flex: 1;">
+                    <span class="btn-icon">💾</span> Salva Backup (.json)
+                  </button>
+                  <button id="btn-modal-import-json" class="btn btn-secondary" style="flex: 1;">
+                    <span class="btn-icon">📂</span> Carica Backup (.json)
+                  </button>
+                  <input type="file" id="input-import-json" accept=".json,application/json" style="display: none;">
+                </div>
+                <button id="btn-modal-clear-data" class="btn btn-outline-danger btn-block" style="margin-top: 4px;">
+                  <span class="btn-icon">🗑️</span> Pulisci Tutti i Dati del Torneo
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
