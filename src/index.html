@@ -65,10 +65,10 @@
           </div>
           <div class="card-header-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <input type="text" id="initial-search-input" class="search-input" placeholder="🔍 Cerca coppia per nome o n°...">
-            <button id="btn-open-bulk-paste" class="btn btn-secondary btn-sm">
+            <button id="btn-open-bulk-paste" class="btn btn-secondary btn-sm" style="display: none;">
               <span class="btn-icon">📝</span> Incolla da Excel
             </button>
-            <button id="btn-open-lottery" class="btn btn-secondary btn-sm">
+            <button id="btn-open-lottery" class="btn btn-secondary btn-sm" style="display: none;">
               <span class="btn-icon">🎲</span> Sorteggio
             </button>
           </div>
@@ -332,7 +332,7 @@
           <div class="setting-toggle-item">
             <span class="toggle-text">Pulsante "Incolla Elenco da Excel"</span>
             <label class="toggle-switch">
-              <input type="checkbox" id="setting-toggle-bulk" checked>
+              <input type="checkbox" id="setting-toggle-bulk">
               <span class="toggle-slider"></span>
             </label>
           </div>
@@ -340,7 +340,7 @@
           <div class="setting-toggle-item">
             <span class="toggle-text">Pulsante "Sorteggio / Numeri"</span>
             <label class="toggle-switch">
-              <input type="checkbox" id="setting-toggle-lottery" checked>
+              <input type="checkbox" id="setting-toggle-lottery">
               <span class="toggle-slider"></span>
             </label>
           </div>
@@ -365,7 +365,16 @@
             <button id="btn-modal-export-excel" class="btn btn-secondary btn-block">
               <span class="btn-icon">📊</span> Esporta Tabellone in Excel (.xlsx)
             </button>
-            <button id="btn-modal-clear-data" class="btn btn-outline-danger btn-block" style="border-color: rgba(220, 38, 38, 0.4); color: var(--danger);">
+            <div style="display: flex; gap: 8px;">
+              <button id="btn-modal-export-json" class="btn btn-secondary" style="flex: 1;">
+                <span class="btn-icon">💾</span> Salva Backup (.json)
+              </button>
+              <button id="btn-modal-import-json" class="btn btn-secondary" style="flex: 1;">
+                <span class="btn-icon">📂</span> Carica Backup (.json)
+              </button>
+              <input type="file" id="input-import-json" accept=".json,application/json" style="display: none;">
+            </div>
+            <button id="btn-modal-clear-data" class="btn btn-outline-danger btn-block" style="border-color: rgba(220, 38, 38, 0.4); color: var(--danger); margin-top: 4px;">
               <span class="btn-icon">🗑️</span> Pulisci Tutti i Dati del Torneo
             </button>
           </div>

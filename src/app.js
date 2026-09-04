@@ -10,7 +10,7 @@ const STORAGE_KEY = 'burraco_master_tournament_v1';
 const defaultState = {
   title: 'Torneo di Burraco',
   roundsCount: DEFAULT_ROUNDS,
-  settings: { showBulkPaste: true, showLottery: true },
+  settings: { showBulkPaste: false, showLottery: false },
   currentTab: 'initial', // 'initial' | 'round' | 'master' | 'podium'
   activeRoundIndex: 0,
   searchFilter: '',
@@ -41,7 +41,7 @@ class BurracoApp {
         const parsed = JSON.parse(saved);
         // Ensure data consistency
         if (parsed.pairs && Array.isArray(parsed.pairs)) {
-          if (!parsed.settings) parsed.settings = { showBulkPaste: true, showLottery: true };
+          if (!parsed.settings) parsed.settings = { showBulkPaste: false, showLottery: false };
           return parsed;
         }
       }
@@ -214,6 +214,19 @@ class BurracoApp {
     // Settings actions inside modal
     document.getElementById('btn-modal-export-excel')?.addEventListener('click', () => {
       this.exportExcel();
+    });
+    document.getElementById('btn-modal-export-json')?.addEventListener('click', () => {
+      this.exportBackupJSON();
+    });
+    document.getElementById('btn-modal-import-json')?.addEventListener('click', () => {
+      document.getElementById('input-import-json')?.click();
+    });
+    document.getElementById('input-import-json')?.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (file) {
+        this.importBackupJSON(file);
+      }
+      e.target.value = '';
     });
     document.getElementById('btn-modal-clear-data')?.addEventListener('click', () => {
       this.closeModal('modalSettings');
@@ -422,13 +435,13 @@ class BurracoApp {
 
   syncSettingsUI() {
     if (!this.state.settings) {
-      this.state.settings = { showBulkPaste: true, showLottery: true };
+      this.state.settings = { showBulkPaste: false, showLottery: false };
     }
     if (this.settingToggleBulk) {
-      this.settingToggleBulk.checked = this.state.settings.showBulkPaste !== false;
+      this.settingToggleBulk.checked = this.state.settings.showBulkPaste === true;
     }
     if (this.settingToggleLottery) {
-      this.settingToggleLottery.checked = this.state.settings.showLottery !== false;
+      this.settingToggleLottery.checked = this.state.settings.showLottery === true;
     }
     if (this.settingRoundsCount) {
       this.settingRoundsCount.value = this.state.roundsCount;
@@ -437,13 +450,13 @@ class BurracoApp {
 
   applySettingsVisibility() {
     if (!this.state.settings) {
-      this.state.settings = { showBulkPaste: true, showLottery: true };
+      this.state.settings = { showBulkPaste: false, showLottery: false };
     }
     if (this.btnOpenBulkPaste) {
-      this.btnOpenBulkPaste.style.display = this.state.settings.showBulkPaste === false ? 'none' : 'inline-flex';
+      this.btnOpenBulkPaste.style.display = this.state.settings.showBulkPaste ? 'inline-flex' : 'none';
     }
     if (this.btnOpenLottery) {
-      this.btnOpenLottery.style.display = this.state.settings.showLottery === false ? 'none' : 'inline-flex';
+      this.btnOpenLottery.style.display = this.state.settings.showLottery ? 'inline-flex' : 'none';
     }
   }
 
@@ -1149,6 +1162,54 @@ class BurracoApp {
       console.error('Errore export Excel:', e);
       alert('Si è verificato un errore durante la generazione del file Excel.');
     }
+  }
+
+  exportBackupJSON() {
+    try {
+      const dataStr = JSON.stringify(this.state, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const safeTitle = (this.state.title || 'torneo').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      const dateStr = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `${safeTitle}_backup_${dateStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 200);
+    } catch (e) {
+      console.error('Errore export JSON:', e);
+      alert('Si è verificato un errore durante il salvataggio del backup.');
+    }
+  }
+
+  importBackupJSON(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const parsed = JSON.parse(e.target.result);
+        if (parsed && Array.isArray(parsed.pairs)) {
+          if (!parsed.settings) {
+            parsed.settings = { showBulkPaste: false, showLottery: false };
+          }
+          this.state = parsed;
+          this.saveState();
+          this.render();
+          this.closeModal('modalSettings');
+          alert('Backup caricato con successo! Dati del torneo ripristinati.');
+        } else {
+          alert('Il file selezionato non contiene dati validi per un torneo di Burraco.');
+        }
+      } catch (err) {
+        console.error('Errore lettura JSON:', err);
+        alert('Impossibile leggere il file: formato JSON non valido.');
+      }
+    };
+    reader.readAsText(file);
   }
 
   triggerPrint() {
