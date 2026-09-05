@@ -24,16 +24,40 @@ def build():
     # Ensure Windows multi-resolution icon.ico exists from icon.png
     ico_path = os.path.join(base_dir, "img", "icon.ico")
     png_path = os.path.join(base_dir, "img", "icon.png")
+    src_img_dir = os.path.join(src_dir, "img")
+    os.makedirs(src_img_dir, exist_ok=True)
+    src_ico_path = os.path.join(src_img_dir, "icon.ico")
+    src_png_path = os.path.join(src_img_dir, "icon.png")
+
     if os.path.exists(png_path):
         try:
             from PIL import Image
             img = Image.open(png_path)
             img.save(ico_path, format="ICO", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
-            print(f"Icona multi-risoluzione sincronizzata: {ico_path}")
+            shutil.copy2(ico_path, src_ico_path)
+            
+            # Keep web icon crisp and lightweight (256x256 instead of 4.8MB 2048x2048)
+            web_icon = img.resize((256, 256), Image.Resampling.LANCZOS)
+            web_icon.save(src_png_path, optimize=True)
+            print(f"Icone sincronizzate ed ottimizzate con successo.")
         except Exception as e:
-            print(f"Avviso generazione icon.ico: {e}")
+            print(f"Avviso generazione icon.ico/png: {e}")
 
-    img_dir = os.path.join(base_dir, "img")
+    # Exclude heavy unused modules from PyInstaller bundling to keep EXE lightweight
+    excluded_modules = [
+        "numpy",
+        "scipy",
+        "cryptography",
+        "PIL",
+        "Pillow",
+        "pygments",
+        "jinja2",
+        "mako",
+        "psutil",
+        "unittest",
+        "pydoc",
+        "tkinter"
+    ]
 
     # PyInstaller command for single standalone .exe
     cmd = [
@@ -45,12 +69,16 @@ def build():
         "--name", "BurracoPunti",
         "--icon", ico_path,
         "--add-data", f"{src_dir};src",
-        "--add-data", f"{img_dir};img",
+        "--add-data", f"{ico_path};img",
         "--hidden-import", "clr",
         "--hidden-import", "webview",
         "--hidden-import", "webview.platforms.winforms",
-        "main.py"
     ]
+
+    for mod in excluded_modules:
+        cmd.extend(["--exclude-module", mod])
+
+    cmd.append("main.py")
 
     print(f"Esecuzione comando: {' '.join(cmd)}")
     res = subprocess.run(cmd, cwd=base_dir)
