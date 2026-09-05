@@ -518,6 +518,20 @@ console.log('- Modale custom modal-confirm-clear e pulsanti presenti in index.ht
 console.log('- Dialog confirm nativo del browser rimosso e sostituito con la modale (OK)');
 console.log('>>> TEST 13 SUPERATO CON SUCCESSO! Gestione azzeramento dati conforme al 100%.');
 
+console.log('\n--- TEST 14: Verifica Consistenza Punti Default e Reset Banner a 0 Coppie ---');
+const defState = BurracoStorage.getDefaultState();
+const r1Sum = defState.pairs.reduce((sum, p) => sum + (p.scores[0]?.vp || 0), 0);
+if (r1Sum !== 40) {
+  throw new Error(`Test 14 fallito: la somma VP del Turno 1 nei dati di default deve essere esattamente 40, trovato ${r1Sum}!`);
+}
+console.log(`- Somma VP Turno 1 default corretta: ${r1Sum} VP per 4 squadre (OK)`);
+
+if (!js.includes('if (this.roundVpCheckBanner) this.roundVpCheckBanner.style.display = \'none\';')) {
+  throw new Error('Test 14 fallito: roundVpCheckBanner non viene nascosto a 0 coppie in app.js!');
+}
+console.log('- Reset banner e checkmark garantito quando non ci sono coppie (OK)');
+console.log('>>> TEST 14 SUPERATO CON SUCCESSO! Nessun falso allarme a tabellone vuoto.');
+
 console.log('\n=============================================');
 console.log('TUTTI I TEST MODULARI SONO PASSATI AL 100%!');
 console.log('=============================================');

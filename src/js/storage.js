@@ -26,7 +26,7 @@ const BurracoStorage = {
           pairs: [
             { id: 'p1', lotNumber: 1, name: 'Pietro - Paolo', scores: [{ mp: 1540, vp: 14 }, { mp: 980, vp: 11 }, { mp: 1200, vp: 13 }, { mp: null, vp: null }] },
             { id: 'p2', lotNumber: 2, name: 'Anna - Marco', scores: [{ mp: 620, vp: 6 }, { mp: 1420, vp: 16 }, { mp: 850, vp: 9 }, { mp: null, vp: null }] },
-            { id: 'p3', lotNumber: 3, name: 'Giovanni - Luca', scores: [{ mp: 1810, vp: 17 }, { mp: 750, vp: 8 }, { mp: 1650, vp: 15 }, { mp: null, vp: null }] },
+            { id: 'p3', lotNumber: 3, name: 'Giovanni - Luca', scores: [{ mp: 1810, vp: 11 }, { mp: 750, vp: 8 }, { mp: 1650, vp: 15 }, { mp: null, vp: null }] },
             { id: 'p4', lotNumber: 4, name: 'Maria - Elena', scores: [{ mp: 890, vp: 9 }, { mp: 1310, vp: 14 }, { mp: 1100, vp: 12 }, { mp: null, vp: null }] }
           ]
         }
@@ -40,7 +40,7 @@ const BurracoStorage = {
       pairs: [
         { id: 'p1', lotNumber: 1, name: 'Pietro - Paolo', scores: [{ mp: 1540, vp: 14 }, { mp: 980, vp: 11 }, { mp: 1200, vp: 13 }, { mp: null, vp: null }] },
         { id: 'p2', lotNumber: 2, name: 'Anna - Marco', scores: [{ mp: 620, vp: 6 }, { mp: 1420, vp: 16 }, { mp: 850, vp: 9 }, { mp: null, vp: null }] },
-        { id: 'p3', lotNumber: 3, name: 'Giovanni - Luca', scores: [{ mp: 1810, vp: 17 }, { mp: 750, vp: 8 }, { mp: 1650, vp: 15 }, { mp: null, vp: null }] },
+        { id: 'p3', lotNumber: 3, name: 'Giovanni - Luca', scores: [{ mp: 1810, vp: 11 }, { mp: 750, vp: 8 }, { mp: 1650, vp: 15 }, { mp: null, vp: null }] },
         { id: 'p4', lotNumber: 4, name: 'Maria - Elena', scores: [{ mp: 890, vp: 9 }, { mp: 1310, vp: 14 }, { mp: 1100, vp: 12 }, { mp: null, vp: null }] }
       ]
     };

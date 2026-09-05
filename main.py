@@ -75,6 +75,19 @@ def get_save_dir():
 def get_app_title():
     return get_config_value("appTitle", "Burraco - Gestione Torneo")
 
+def get_app_icon():
+    """ Find icon file (.ico or .png) in img or src/img """
+    for rel in [
+        os.path.join("img", "icon.ico"),
+        os.path.join("src", "img", "icon.ico"),
+        os.path.join("img", "icon.png"),
+        os.path.join("src", "img", "icon.png"),
+    ]:
+        p = get_resource_path(rel)
+        if os.path.exists(p):
+            return p
+    return None
+
 class BurracoApi:
     def __init__(self):
         self.save_dir = get_save_dir()
@@ -93,30 +106,21 @@ class BurracoApi:
             return {"success": False, "error": str(e)}
 
     def load_tournament_data(self):
-        """ Read saved tournament from Documents or migrate from legacy app directory """
-        target_path = self.save_path
-        if not os.path.exists(target_path):
-            # Fallback/migration from legacy app directory if present
-            legacy_path = os.path.join(get_app_dir(), self.filename)
-            if os.path.exists(legacy_path):
-                try:
-                    with open(legacy_path, "r", encoding="utf-8") as f_leg:
-                        legacy_data = json.load(f_leg)
-                    # Automatically migrate legacy data into the new Documents location
-                    with open(self.save_path, "w", encoding="utf-8") as f_new:
-                        json.dump(legacy_data, f_new, indent=2, ensure_ascii=False)
-                    print(f"Migrated {self.filename} from {legacy_path} to {self.save_path}")
-                    return legacy_data
-                except Exception as e_migrate:
-                    print(f"Error migrating legacy data: {e_migrate}")
-
-        if os.path.exists(target_path):
+        """ Read saved tournament from Documents or start clean without test data """
+        if os.path.exists(self.save_path):
             try:
-                with open(target_path, "r", encoding="utf-8") as f:
+                with open(self.save_path, "r", encoding="utf-8") as f:
                     return json.load(f)
             except Exception as e:
                 print(f"Error loading tournament data: {e}")
-        return None
+
+        # In Desktop/EXE mode, if no saved tournament exists on disk,
+        # return a clean tournament structure with NO test data!
+        default_title = get_config_value("defaultTournamentTitle", "Burraco Pezzo")
+        return {
+            "title": default_title,
+            "pairs": []
+        }
 
     def export_excel_native(self, default_filename, base64_content):
         """ Save Excel file using Windows native Save File Dialog """
@@ -149,7 +153,20 @@ class BurracoApi:
             print(f"Error exporting Excel: {e}")
             return {"success": False, "error": str(e)}
 
+def setup_windows_taskbar_icon(app_id="burracopezzo.burracopunti.tournamentmanager.1.0"):
+    """
+    On Windows, explicit AppUserModelID is required so that the taskbar groups
+    the window under this application identity rather than the generic python.exe interpreter,
+    allowing the custom window icon to be displayed on the Windows Taskbar.
+    """
+    try:
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
+    except Exception:
+        pass
+
 def main():
+    setup_windows_taskbar_icon()
     api = BurracoApi()
     
     html_path = get_resource_path(os.path.join("src", "index.html"))
@@ -169,7 +186,9 @@ def main():
         background_color='#0F172A',
         text_select=True
     )
-    webview.start(debug=False)
+
+    app_icon = get_app_icon()
+    webview.start(debug=False, icon=app_icon)
 
 if __name__ == "__main__":
     main()

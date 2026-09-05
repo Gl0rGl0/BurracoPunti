@@ -10,8 +10,8 @@ class BurracoApp {
     this.bindEvents();
     this.render();
 
-    // If PyWebView native API is ready, check and load disk tournament data
-    window.addEventListener('pywebviewready', () => {
+    // Helper per caricare lo stato salvato su disco da Python/PyWebView
+    const loadFromPython = () => {
       if (window.pywebview && window.pywebview.api && window.pywebview.api.load_tournament_data) {
         window.pywebview.api.load_tournament_data().then(diskData => {
           if (diskData) {
@@ -25,7 +25,13 @@ class BurracoApp {
           }
         }).catch(err => console.error('Errore lettura statistiche_tornei.json da Python:', err));
       }
-    });
+    };
+
+    if (window.pywebview && window.pywebview.api) {
+      loadFromPython();
+    } else {
+      window.addEventListener('pywebviewready', loadFromPython);
+    }
   }
 
   // ==========================================
@@ -1033,6 +1039,8 @@ class BurracoApp {
       });
 
     if (sortedPairs.length === 0) {
+      if (this.roundVpCheckBanner) this.roundVpCheckBanner.style.display = 'none';
+      if (this.roundTitleCheck) this.roundTitleCheck.style.display = 'none';
       const emptyRow = document.createElement('tr');
       emptyRow.innerHTML = `
         <td colspan="4" style="text-align:center; padding:32px; color:var(--text-muted); font-size:15px;">
@@ -1115,9 +1123,9 @@ class BurracoApp {
     const validPairs = this.state.pairs.filter(p => p.name && p.name.trim() !== '');
 
     if (this.roundTitleCheck) this.roundTitleCheck.style.display = 'none';
+    if (this.roundVpCheckBanner) this.roundVpCheckBanner.style.display = 'none';
 
     if (validPairs.length === 0) {
-      if (this.roundVpCheckBanner) this.roundVpCheckBanner.style.display = 'none';
       return;
     }
 
