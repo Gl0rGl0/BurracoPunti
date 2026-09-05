@@ -188,11 +188,15 @@ if (!BurracoConfig.labels || !BurracoConfig.labels.playersTab || !BurracoConfig.
 if (!BurracoConfig.export || !BurracoConfig.export.sheetLeaderboard) {
   throw new Error('Test Fallito: parametri export mancanti in BURRACO_CONFIG.export!');
 }
+if (!BurracoConfig.storage || !BurracoConfig.storage.directoryName) {
+  throw new Error('Test Fallito: storage.directoryName mancante in BURRACO_CONFIG!');
+}
 console.log(`- appTitle: "${BurracoConfig.appTitle}"`);
 console.log(`- brandName: "${BurracoConfig.brandName}"`);
 console.log(`- defaultTournamentTitle: "${BurracoConfig.defaultTournamentTitle}"`);
 console.log(`- defaultRounds: ${BurracoConfig.defaultRounds}`);
 console.log(`- labels.playersTab: "${BurracoConfig.labels.playersTab}"`);
+console.log(`- storage.directoryName: "${BurracoConfig.storage.directoryName}"`);
 console.log('>>> TEST 6 SUPERATO CON SUCCESSO! Configurazione centralizzata verificata.');
 
 console.log('\n--- TEST 7: Verifica Calcolo Montepremi e Premi (BurracoEngine.calculatePrizepool) ---');
@@ -496,6 +500,23 @@ if (freshEveningState.allGiornate['serata_040926'].checked !== true) {
 }
 console.log(`- Nuova Serata attiva correttamente la nuova data (${freshEveningState.currentGiornataKey}) e archivia la precedente (OK)`);
 console.log('>>> TEST 12 SUPERATO CON SUCCESSO! Persistenza data serata verificata al 100%.');
+
+console.log('\n--- TEST 13: Verifica Modale Custom per Azzeramento Dati Torneo (No Confirm Nativo) ---');
+if (!html.includes('id="modal-confirm-clear"')) {
+  throw new Error('Test 13 fallito: modal-confirm-clear mancante in index.html!');
+}
+if (!html.includes('id="btn-confirm-clear"') || !html.includes('id="btn-cancel-clear"')) {
+  throw new Error('Test 13 fallito: pulsanti di conferma/annullamento mancanti in modal-confirm-clear!');
+}
+if (js.includes("confirm('Sei sicuro di voler azzerare")) {
+  throw new Error('Test 13 fallito: confirm nativo del browser ancora presente per il reset dati!');
+}
+if (!js.includes('modalConfirmClear') || !js.includes('btnConfirmClear')) {
+  throw new Error('Test 13 fallito: controller app.js non gestisce modalConfirmClear o btnConfirmClear!');
+}
+console.log('- Modale custom modal-confirm-clear e pulsanti presenti in index.html (OK)');
+console.log('- Dialog confirm nativo del browser rimosso e sostituito con la modale (OK)');
+console.log('>>> TEST 13 SUPERATO CON SUCCESSO! Gestione azzeramento dati conforme al 100%.');
 
 console.log('\n=============================================');
 console.log('TUTTI I TEST MODULARI SONO PASSATI AL 100%!');

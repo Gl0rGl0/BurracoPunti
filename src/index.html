@@ -573,6 +573,30 @@
     </div>
   </div>
 
+  <!-- Modal 8: Conferma Pulizia Dati Torneo (Mini Modale) -->
+  <div class="modal-backdrop" id="modal-confirm-clear" style="z-index: 220;">
+    <div class="modal-dialog modal-sm">
+      <div class="modal-header">
+        <h3>🗑️ Conferma Azzeramento</h3>
+        <button class="modal-close" id="close-confirm-clear-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 14px; color: var(--text-main); margin-bottom: 8px;">
+          Sei sicuro di voler azzerare tutti i dati del torneo corrente?
+        </p>
+        <p class="form-hint" style="color: var(--danger, #EF4444); font-weight: 500; margin: 0;">
+          Tutte le coppie e i relativi punteggi inseriti verranno rimossi dal tabellone.
+        </p>
+      </div>
+      <div class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button type="button" class="btn btn-secondary" id="btn-cancel-clear">Annulla</button>
+        <button type="button" class="btn btn-danger" id="btn-confirm-clear">
+          <span class="btn-icon">🗑️</span> Pulisci Dati
+        </button>
+      </div>
+    </div>
+  </div>
+
 
   <!-- Modular JavaScript Engine & Utilities -->
   <script src="js/config.js?v=1.1"></script>

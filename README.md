@@ -10,7 +10,7 @@ Applicazione gestionale moderna, reattiva e portabile (per Windows, Web, iPad e 
 
 - Fai doppio clic su **`BurracoPunti.exe`**.
 - File singolo portatile da ~39 MB senza necessità di installazione o Python sul PC.
-- Salva automaticamente lo stato del torneo in locale su file **`statistiche_tornei.json`**.
+- Salva automaticamente lo stato del torneo in locale su file **`statistiche_tornei.json`** nella cartella `Documenti\BurracoPezzo` dell'utente (`C:\Users\[UTENTE]\Documents\BurracoPezzo`).
 
 ### 2. Versione Web / Mobile / iPad (100% Offline)
 

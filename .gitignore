@@ -3,4 +3,5 @@ __pycache__/
 statistiche_tornei.json
 *.spec
 *.exe
+!img/icon.png
 img/

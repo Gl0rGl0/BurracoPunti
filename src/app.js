@@ -87,6 +87,7 @@ class BurracoApp {
     this.modalBulkPaste = document.getElementById('modal-bulk-paste');
     this.modalLottery = document.getElementById('modal-lottery');
     this.modalConfirmDelete = document.getElementById('modal-confirm-delete');
+    this.modalConfirmClear = document.getElementById('modal-confirm-clear');
     this.modalNewTournament = document.getElementById('modal-new-tournament');
     this.modalExportImage = document.getElementById('modal-export-image');
 
@@ -105,6 +106,7 @@ class BurracoApp {
     this.inputEditLotNumber = document.getElementById('edit-lot-number');
     this.editPairId = document.getElementById('edit-pair-id');
     this.btnConfirmDelete = document.getElementById('btn-confirm-delete');
+    this.btnConfirmClear = document.getElementById('btn-confirm-clear');
     this.pendingDeletePairId = null;
 
     this.toggleBulkPaste = document.getElementById('setting-toggle-bulk') || document.getElementById('setting-bulk-paste');
@@ -419,14 +421,9 @@ class BurracoApp {
       }
     });
 
-    // Clear Tournament Data Button in Settings
+    // Clear Tournament Data Button in Settings (Apre mini modale personalizzata)
     document.getElementById('btn-modal-clear-data')?.addEventListener('click', () => {
-      if (confirm('Sei sicuro di voler azzerare tutti i dati del torneo corrente?')) {
-        this.state.pairs = [];
-        this.saveState();
-        this.render();
-        this.closeModal('modalSettings');
-      }
+      this.openModal('modalConfirmClear');
     });
 
     // Lottery Actions
@@ -531,6 +528,8 @@ class BurracoApp {
     document.getElementById('btn-cancel-delete')?.addEventListener('click', () => this.closeModal('modalConfirmDelete'));
     document.getElementById('close-export-image-modal')?.addEventListener('click', () => this.closeModal('modalExportImage'));
     document.getElementById('btn-close-export-modal')?.addEventListener('click', () => this.closeModal('modalExportImage'));
+    document.getElementById('close-confirm-clear-modal')?.addEventListener('click', () => this.closeModal('modalConfirmClear'));
+    document.getElementById('btn-cancel-clear')?.addEventListener('click', () => this.closeModal('modalConfirmClear'));
 
     this.btnCopyImageAgain?.addEventListener('click', () => {
       if (this.currentExportBlob && typeof navigator !== 'undefined' && navigator.clipboard && typeof ClipboardItem !== 'undefined') {
@@ -554,6 +553,14 @@ class BurracoApp {
         this.renderInitialTable();
         this.closeModal('modalConfirmDelete');
       }
+    });
+
+    this.btnConfirmClear?.addEventListener('click', () => {
+      this.state.pairs = [];
+      this.saveState();
+      this.render();
+      this.closeModal('modalConfirmClear');
+      this.closeModal('modalSettings');
     });
 
     // Close modals on backdrop click or Escape key

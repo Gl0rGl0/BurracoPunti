@@ -65,7 +65,17 @@ const BURRACO_CONFIG = {
     printSubtitle: "Classifica Finale Ufficiale",
     printRefereeSignature: "Firma Arbitro di Gara",
     printDirectorSignature: "Firma Direttore di Torneo"
-  }
+  },
+
+  // ==========================================
+  // DIRECTORY E PERSISTENZA FILE (Desktop)
+  // ==========================================
+  storage: {
+    directoryName: "BurracoPezzo",
+    statsFileName: "statistiche_tornei.json"
+  },
+  saveDirectory: "BurracoPezzo",
+  statsFileName: "statistiche_tornei.json"
 };
 
 // Esportazione per browser
