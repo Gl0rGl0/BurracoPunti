@@ -92,9 +92,19 @@ const BurracoEngine = {
   },
 
   /**
+   * Arrotonda un importo ai 0.5 Euro più vicini.
+   * Es: 4.2 -> 4; 4.3 -> 4.5; 4.7 -> 4.5; 4.8 -> 5
+   * @param {number} amount
+   * @returns {number}
+   */
+  roundPrize(amount) {
+    return Math.round((Number(amount) || 0) * 2) / 2;
+  },
+
+  /**
    * Calculate tournament prizepool and prize distribution for top pairs.
    * Total Pot = (valid pairs count) * 2 * (entry fee per player)
-   * Individual prizes are rounded to the nearest integer euro, team prize is single * 2.
+   * Individual prizes are rounded to the nearest 0.5 euro, team prize is single * 2.
    * Any rounding remainder (when percentages sum to ~100%) is reconciled on 1st place.
    *
    * @param {number} validPairsCount - Number of participating pairs
@@ -125,7 +135,7 @@ const BurracoEngine = {
       }
 
       const rawTeamPrize = (totalPot * pct) / 100;
-      const singlePrize = Math.round(rawTeamPrize / 2);
+      const singlePrize = Math.round((rawTeamPrize / 2) * 2) / 2;
       const teamPrize = singlePrize * 2;
 
       allocatedTotal += teamPrize;
@@ -141,7 +151,7 @@ const BurracoEngine = {
     const sumPct = pcts.reduce((sum, p) => sum + (Number(p) || 0), 0);
     if (sumPct >= 99 && sumPct <= 101 && prizes.length > 0 && prizes[0].teamPrize > 0) {
       const diff = totalPot - allocatedTotal;
-      if (diff !== 0 && diff % 2 === 0) {
+      if (diff !== 0) {
         prizes[0].teamPrize += diff;
         prizes[0].singlePrize = prizes[0].teamPrize / 2;
         prizes[0].text = prizes[0].teamPrize > 0 ? `${prizes[0].teamPrize}€ (${prizes[0].singlePrize}€)` : '—';

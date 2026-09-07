@@ -191,15 +191,32 @@ if (!BurracoConfig.export || !BurracoConfig.export.sheetLeaderboard) {
 if (!BurracoConfig.storage || !BurracoConfig.storage.directoryName) {
   throw new Error('Test Fallito: storage.directoryName mancante in BURRACO_CONFIG!');
 }
+if (BurracoConfig.defaultSettings.showPrizepool !== false) {
+  throw new Error('Test Fallito: defaultSettings.showPrizepool deve essere default false!');
+}
+if (BurracoConfig.prizepool.showColumn !== false) {
+  throw new Error('Test Fallito: prizepool.showColumn deve essere default false!');
+}
 console.log(`- appTitle: "${BurracoConfig.appTitle}"`);
 console.log(`- brandName: "${BurracoConfig.brandName}"`);
 console.log(`- defaultTournamentTitle: "${BurracoConfig.defaultTournamentTitle}"`);
 console.log(`- defaultRounds: ${BurracoConfig.defaultRounds}`);
+console.log(`- defaultSettings.showPrizepool: ${BurracoConfig.defaultSettings.showPrizepool} (default false OK)`);
+console.log(`- prizepool.showColumn: ${BurracoConfig.prizepool.showColumn} (default false OK)`);
 console.log(`- labels.playersTab: "${BurracoConfig.labels.playersTab}"`);
 console.log(`- storage.directoryName: "${BurracoConfig.storage.directoryName}"`);
 console.log('>>> TEST 6 SUPERATO CON SUCCESSO! Configurazione centralizzata verificata.');
 
 console.log('\n--- TEST 7: Verifica Calcolo Montepremi e Premi (BurracoEngine.calculatePrizepool) ---');
+
+// Verifica funzione roundPrize (arrotondamento a 0.5€)
+if (typeof BurracoEngine.roundPrize === 'function') {
+  if (BurracoEngine.roundPrize(4.2) !== 4.0) throw new Error('roundPrize(4.2) deve fare 4.0');
+  if (BurracoEngine.roundPrize(4.3) !== 4.5) throw new Error('roundPrize(4.3) deve fare 4.5');
+  if (BurracoEngine.roundPrize(4.7) !== 4.5) throw new Error('roundPrize(4.7) deve fare 4.5');
+  if (BurracoEngine.roundPrize(4.8) !== 5.0) throw new Error('roundPrize(4.8) deve fare 5.0');
+  console.log('- BurracoEngine.roundPrize helper a 0.5€: OK');
+}
 
 // Caso standard: 10 coppie (20 giocatori x 2€ = 40€) con quote 50, 30, 20
 const res10 = BurracoEngine.calculatePrizepool(10, 2, [50, 30, 20, 0, 0]);
@@ -209,6 +226,21 @@ if (res10.prizes[1].teamPrize !== 12 || res10.prizes[1].singlePrize !== 6) throw
 if (res10.prizes[2].teamPrize !== 8 || res10.prizes[2].singlePrize !== 4) throw new Error('Test 7 fallito su 3° premio');
 if (res10.prizes[0].text !== '20€ (10€)') throw new Error(`Test 7 testo errato: ${res10.prizes[0].text}`);
 console.log(`- 10 coppie (40€): 1°=${res10.prizes[0].text}, 2°=${res10.prizes[1].text}, 3°=${res10.prizes[2].text} (OK)`);
+
+// Caso con arrotondamenti a 0.5€ per singolo: 9 coppie (18 giocatori x 2€ = 36€) con quote 50, 30, 20
+// 50% = 18€ (singolo 9€)
+// 30% = 10.8€ -> singolo 5.4€ arrotondato a 0.5€ = 5.5€ -> coppia 11€
+// 20% = 7.2€ -> singolo 3.6€ arrotondato a 0.5€ = 3.5€ -> coppia 7€
+const res9 = BurracoEngine.calculatePrizepool(9, 2, [50, 30, 20, 0, 0]);
+if (res9.totalPot !== 36) throw new Error('Test 7 fallito montepremi 9 coppie');
+if (res9.prizes[0].teamPrize !== 18 || res9.prizes[0].singlePrize !== 9) throw new Error('Test 7 fallito 9 coppie 1° premio');
+if (res9.prizes[1].teamPrize !== 11 || res9.prizes[1].singlePrize !== 5.5) throw new Error('Test 7 fallito 9 coppie 2° premio');
+if (res9.prizes[2].teamPrize !== 7 || res9.prizes[2].singlePrize !== 3.5) throw new Error('Test 7 fallito 9 coppie 3° premio');
+if (res9.prizes[1].text !== '11€ (5.5€)') throw new Error(`Test 7 testo errato 9 coppie 2° premio: ${res9.prizes[1].text}`);
+if (res9.prizes[2].text !== '7€ (3.5€)') throw new Error(`Test 7 testo errato 9 coppie 3° premio: ${res9.prizes[2].text}`);
+const sum9 = res9.prizes.reduce((s, p) => s + p.teamPrize, 0);
+if (sum9 !== 36) throw new Error(`Test 7 somma 9 coppie errata: ${sum9} !== 36`);
+console.log(`- 9 coppie (36€ con quote mezze): 1°=${res9.prizes[0].text}, 2°=${res9.prizes[1].text}, 3°=${res9.prizes[2].text}, Totale=${sum9}€ (OK)`);
 
 // Caso con arrotondamenti e riassorbimento scarto: 7 coppie (14 giocatori x 2€ = 28€)
 const res7 = BurracoEngine.calculatePrizepool(7, 2, [50, 30, 20, 0, 0]);
@@ -226,7 +258,7 @@ console.log(`- 15 coppie (60€ con 4 premiati): 4°=${res15.prizes[3].text} (OK
 const res0 = BurracoEngine.calculatePrizepool(0, 2);
 if (res0.totalPot !== 0 || res0.prizes.length !== 0) throw new Error('Test 7 fallito su 0 coppie');
 
-console.log('>>> TEST 7 SUPERATO CON SUCCESSO! Logica montepremi, arrotondamento ad euro intero e pareggio verificati.');
+console.log('>>> TEST 7 SUPERATO CON SUCCESSO! Logica montepremi, arrotondamento a 0.5€ e pareggio verificati.');
 
 console.log('\n--- TEST 8: Verifica Validazione Serate (checked flag, null check) e Merge Backup (BurracoStorage) ---');
 

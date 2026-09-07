@@ -207,7 +207,7 @@ class BurracoApp {
     if (this.togglePrizepool) {
       const isPrizeVisible = (this.state.settings.showPrizepool !== undefined)
         ? !!this.state.settings.showPrizepool
-        : (cfgPrize.showColumn !== false);
+        : (cfgPrize.showColumn === true);
       this.togglePrizepool.checked = isPrizeVisible;
     }
 
@@ -873,7 +873,7 @@ class BurracoApp {
     const cfgPrize = (typeof BURRACO_CONFIG !== 'undefined' && BURRACO_CONFIG.prizepool) || {};
     const showPrizepool = (this.state.settings.showPrizepool !== undefined)
       ? !!this.state.settings.showPrizepool
-      : (cfgPrize.showColumn !== false);
+      : (cfgPrize.showColumn === true);
     const prizeColTitle = cfgPrize.columnHeader || 'Premio (€)';
 
     // 1. Ranked pairs e calcolo dinamico larghezza colonna "Coppia / Giocatori" (nome più lungo + 2 caratteri)

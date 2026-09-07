@@ -27,7 +27,7 @@ const BURRACO_CONFIG = {
     showBulkPaste: false,
     showLottery: false,
     showPodium: false,
-    showPrizepool: true,
+    showPrizepool: false,
     byePoints: 12
   },
 
@@ -35,7 +35,7 @@ const BURRACO_CONFIG = {
   // MONTEPREMI E PREMI CLASSIFICA
   // ==========================================
   prizepool: {
-    showColumn: true,
+    showColumn: false,
     entryFeePerPlayer: 2,
     percentages: [50, 30, 20, 0, 0],
     columnHeader: "Premio (€)"

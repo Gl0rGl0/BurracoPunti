@@ -15,7 +15,7 @@ const BurracoStorage = {
     const defaultTodayKey = `serata_${utils.getDateGGMMAA()}`;
     const defaultRounds = utils.DEFAULT_ROUNDS || cfg.defaultRounds || 4;
     const defaultTitle = cfg.defaultTournamentTitle || 'Torneo di Burraco';
-    const defaultSettings = cfg.defaultSettings || { showBulkPaste: false, showLottery: false, showPodium: false };
+    const defaultSettings = cfg.defaultSettings || { showBulkPaste: false, showLottery: false, showPodium: false, showPrizepool: false };
 
     return {
       title: defaultTitle,
@@ -66,7 +66,7 @@ const BurracoStorage = {
       }
     } catch (e) {}
 
-    const defaultSettings = cfg.defaultSettings || { showBulkPaste: false, showLottery: false, showPodium: false };
+    const defaultSettings = cfg.defaultSettings || { showBulkPaste: false, showLottery: false, showPodium: false, showPrizepool: false };
     const settings = {
       ...defaultSettings,
       ...(savedSettings || {}),
