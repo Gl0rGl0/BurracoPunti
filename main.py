@@ -153,7 +153,29 @@ class BurracoApi:
             print(f"Error exporting Excel: {e}")
             return {"success": False, "error": str(e)}
 
-def setup_windows_taskbar_icon(app_id="burracopezzo.burracopunti.tournamentmanager.1.0"):
+def get_app_version():
+    return get_config_value("version", "1.1.0")
+
+def get_remote_url():
+    return get_config_value("remoteUrl", "https://burracopunti.giust.workers.dev/")
+
+def is_remote_available(url, timeout=2.0):
+    """ Verifica se Cloudflare Workers è raggiungibile per auto-aggiornamento da remoto """
+    if not url:
+        return False
+    try:
+        import urllib.request
+        req = urllib.request.Request(
+            url,
+            headers={'User-Agent': 'BurracoDesktop/1.1'}
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status == 200
+    except Exception as e:
+        print(f"Info: Connessione remota non attiva ({e}). Caricamento versione locale.")
+        return False
+
+def setup_windows_taskbar_icon(app_id="burracopezzo.burracopunti.tournamentmanager.1.1.0"):
     """
     On Windows, explicit AppUserModelID is required so that the taskbar groups
     the window under this application identity rather than the generic python.exe interpreter,
@@ -166,7 +188,8 @@ def setup_windows_taskbar_icon(app_id="burracopezzo.burracopunti.tournamentmanag
         pass
 
 def main():
-    setup_windows_taskbar_icon()
+    version = get_app_version()
+    setup_windows_taskbar_icon(f"burracopezzo.burracopunti.tournamentmanager.{version}")
     api = BurracoApi()
     
     html_path = get_resource_path(os.path.join("src", "index.html"))
@@ -175,10 +198,20 @@ def main():
         html_path = get_resource_path("index.html")
 
     app_title = get_app_title()
+    remote_url = get_remote_url()
+
+    # Se c'è connessione internet, carica da Cloudflare per ricevere gli aggiornamenti live.
+    # Altrimenti, fa fallback istantaneo sui file locali del PC.
+    if remote_url and is_remote_available(remote_url, timeout=2.0):
+        print(f"Burraco Desktop v{version}: Avvio da Cloudflare ({remote_url}) con persistenza locale attiva.")
+        app_url = remote_url
+    else:
+        print(f"Burraco Desktop v{version}: Avvio offline da file locali ({html_path}).")
+        app_url = html_path
 
     window = webview.create_window(
         title=app_title,
-        url=html_path,
+        url=app_url,
         js_api=api,
         width=1280,
         height=820,

@@ -195,6 +195,11 @@ class BurracoApp {
         btnNew.innerHTML = `<span class="btn-icon">✨</span> ${BurracoUtils.escapeHtml(cfg.labels.newEveningBtn)}`;
       }
     }
+
+    if (cfg.version) {
+      const verEl = document.getElementById('app-version-text');
+      if (verEl) verEl.textContent = `v${cfg.version}`;
+    }
   }
 
   syncSettingsUI() {

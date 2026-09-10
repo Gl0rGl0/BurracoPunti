@@ -6,6 +6,12 @@
 
 const BURRACO_CONFIG = {
   // ==========================================
+  // VERSIONAMENTO E RETE
+  // ==========================================
+  version: "1.1.0",
+  remoteUrl: "https://burracopunti.giust.workers.dev/",
+
+  // ==========================================
   // TITOLI E IDENTITÀ
   // ==========================================
   appTitle: "Burraco - Scursai Pezzo",
