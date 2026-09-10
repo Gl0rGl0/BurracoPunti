@@ -168,6 +168,7 @@
               <tr>
                 <th class="col-lot">N°</th>
                 <th class="col-name">Coppia</th>
+                <th class="col-bye" id="th-round-bye" style="width:105px; text-align:center;">Riposo</th>
                 <th class="col-input">Match Points (MP)</th>
                 <th class="col-input">Victory Points (VP)</th>
               </tr>
@@ -385,6 +386,14 @@
                   <span class="toggle-slider"></span>
                 </label>
               </div>
+
+              <div class="setting-toggle-item">
+                <label for="setting-toggle-bye" class="toggle-text" style="cursor: pointer;">Colonna "Riposo (Bye)" nei Turni</label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="setting-toggle-bye">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
             </div>
 
             <div class="settings-group" style="margin-top: 20px; border-top: 1px solid var(--border-light); padding-top: 16px;">
@@ -482,7 +491,7 @@
       <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
         <span class="app-version-badge" style="font-size: 12.5px; color: var(--text-muted); font-weight: 500; display: inline-flex; align-items: center; gap: 6px;">
           <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: #10B981;"></span>
-          Versione <span id="app-version-text">v1.1.0</span>
+          Versione <span id="app-version-text">v1.1.1</span>
         </span>
         <button type="button" class="btn btn-secondary" id="btn-close-settings">Chiudi</button>
       </div>
@@ -622,7 +631,7 @@
 
   <!-- Service Worker Registration for PWA & Offline Support -->
   <script>
-    if ('serviceWorker' in navigator) {
+    if ('serviceWorker' in navigator && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
           .then((reg) => {

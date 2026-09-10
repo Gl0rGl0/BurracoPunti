@@ -34,6 +34,7 @@ const BURRACO_CONFIG = {
     showLottery: false,
     showPodium: false,
     showPrizepool: false,
+    showBye: true,
     byePoints: 12
   },
 

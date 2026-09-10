@@ -119,6 +119,8 @@ class BurracoApp {
     this.toggleLottery = document.getElementById('setting-toggle-lottery') || document.getElementById('setting-lottery');
     this.togglePodium = document.getElementById('setting-toggle-podium') || document.getElementById('setting-podium');
     this.togglePrizepool = document.getElementById('setting-toggle-prizepool');
+    this.toggleBye = document.getElementById('setting-toggle-bye');
+    this.thRoundBye = document.getElementById('th-round-bye');
     this.settingEntryFee = document.getElementById('setting-entry-fee');
     this.settingPrizePcts = [
       document.getElementById('setting-prize-pct-1'),
@@ -214,6 +216,13 @@ class BurracoApp {
         ? !!this.state.settings.showPrizepool
         : (cfgPrize.showColumn === true);
       this.togglePrizepool.checked = isPrizeVisible;
+    }
+
+    if (this.toggleBye) {
+      const isByeVisible = (this.state.settings.showBye !== undefined)
+        ? !!this.state.settings.showBye
+        : true;
+      this.toggleBye.checked = isByeVisible;
     }
 
     const curFee = (this.state.settings.entryFeePerPlayer !== undefined)
@@ -471,6 +480,12 @@ class BurracoApp {
       this.state.settings.showPrizepool = e.target.checked;
       this.saveState();
       this.renderMasterTable();
+    });
+
+    this.toggleBye?.addEventListener('change', (e) => {
+      this.state.settings.showBye = e.target.checked;
+      this.saveState();
+      this.renderRoundView();
     });
 
     this.settingEntryFee?.addEventListener('input', () => this.updatePrizePercentages());
@@ -1043,12 +1058,20 @@ class BurracoApp {
         return a.name.localeCompare(b.name);
       });
 
+    const showBye = (this.state.settings && this.state.settings.showBye !== undefined)
+      ? !!this.state.settings.showBye
+      : true;
+
+    if (this.thRoundBye) {
+      this.thRoundBye.style.display = showBye ? '' : 'none';
+    }
+
     if (sortedPairs.length === 0) {
       if (this.roundVpCheckBanner) this.roundVpCheckBanner.style.display = 'none';
       if (this.roundTitleCheck) this.roundTitleCheck.style.display = 'none';
       const emptyRow = document.createElement('tr');
       emptyRow.innerHTML = `
-        <td colspan="4" style="text-align:center; padding:32px; color:var(--text-muted); font-size:15px;">
+        <td colspan="${showBye ? 5 : 4}" style="text-align:center; padding:32px; color:var(--text-muted); font-size:15px;">
           Nessuna coppia registrata. Aggiungi prima le coppie dal Tabellone Iniziale.
         </td>
       `;
@@ -1056,16 +1079,35 @@ class BurracoApp {
       return;
     }
 
+    const cfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (window.BURRACO_CONFIG || {});
+    const defaultBye = cfg.defaultByePoints !== undefined ? cfg.defaultByePoints : 12;
+    const byePoints = (this.state.settings && this.state.settings.byePoints !== undefined)
+      ? Number(this.state.settings.byePoints)
+      : defaultBye;
+
     sortedPairs.forEach((pair) => {
       const sc = pair.scores[roundIdx] || { mp: null, vp: null };
       const mpVal = (sc.mp !== null && sc.mp !== undefined) ? sc.mp : '';
       const vpVal = (sc.vp !== null && sc.vp !== undefined) ? sc.vp : '';
+      const isBye = (sc.vp !== null && sc.vp !== undefined && Number(sc.vp) === byePoints);
 
       const tr = document.createElement('tr');
+
+      const byeCellHtml = showBye ? `
+        <td class="col-bye">
+          <button type="button" 
+                  class="btn btn-sm ${isBye ? 'btn-primary btn-bye-active' : 'btn-secondary'} btn-round-bye" 
+                  data-pair-id="${pair.id}" 
+                  title="${isBye ? 'Riposo attivo (clicca per rimuovere)' : `Assegna riposo (${byePoints} VP)`}">
+            ${isBye ? '✓ Riposo' : 'Riposo'}
+          </button>
+        </td>
+      ` : '';
 
       tr.innerHTML = `
         <td class="col-lot" style="font-size:16px; font-weight:600;">${pair.lotNumber || '—'}</td>
         <td class="col-name" style="font-size:16px; font-weight:600;">${BurracoUtils.escapeHtml(pair.name)}</td>
+        ${byeCellHtml}
         <td class="col-input">
           <input type="number" class="form-control tabular-nums round-score-input" 
                  data-pair-id="${pair.id}" data-field="mp" value="${mpVal}" 
@@ -1080,6 +1122,33 @@ class BurracoApp {
 
       this.roundTableBody.appendChild(tr);
     });
+
+    // Event listeners per il pulsante Riposo (Bye)
+    if (showBye) {
+      this.roundTableBody.querySelectorAll('.btn-round-bye').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const pairId = e.currentTarget.dataset.pairId;
+          const pair = this.state.pairs.find(p => p.id === pairId);
+          if (!pair) return;
+
+          if (!pair.scores[roundIdx]) pair.scores[roundIdx] = { mp: null, vp: null };
+          const sc = pair.scores[roundIdx];
+
+          if (sc.vp !== null && sc.vp !== undefined && Number(sc.vp) === byePoints) {
+            sc.vp = null;
+            if (sc.mp === 0) sc.mp = null;
+          } else {
+            sc.vp = byePoints;
+            if (sc.mp === null || sc.mp === undefined || sc.mp === '') {
+              sc.mp = 0;
+            }
+          }
+
+          this.saveState();
+          this.renderRoundView();
+        });
+      });
+    }
 
     // Event listeners for round inputs
     this.roundTableBody.querySelectorAll('.round-score-input').forEach(inp => {

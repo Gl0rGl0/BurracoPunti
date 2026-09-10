@@ -257,3 +257,31 @@
   white-space: nowrap;
 }
 
+.col-bye {
+  width: 105px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.btn-round-bye {
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-round-bye:hover {
+  transform: translateY(-1px);
+}
+
+.btn-bye-active {
+  background-color: var(--primary) !important;
+  color: #FFFFFF !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.35);
+}
+
+
