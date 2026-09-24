@@ -120,6 +120,7 @@ class BurracoApp {
     this.togglePodium = document.getElementById('setting-toggle-podium') || document.getElementById('setting-podium');
     this.togglePrizepool = document.getElementById('setting-toggle-prizepool');
     this.toggleBye = document.getElementById('setting-toggle-bye');
+    this.toggleScoreWarning = document.getElementById('setting-toggle-score-warning');
     this.thRoundBye = document.getElementById('th-round-bye');
     this.settingEntryFee = document.getElementById('setting-entry-fee');
     this.settingPrizePcts = [
@@ -223,6 +224,13 @@ class BurracoApp {
         ? !!this.state.settings.showBye
         : true;
       this.toggleBye.checked = isByeVisible;
+    }
+
+    if (this.toggleScoreWarning) {
+      const isScoreWarningVisible = (this.state.settings.showScoreWarning !== undefined)
+        ? !!this.state.settings.showScoreWarning
+        : true;
+      this.toggleScoreWarning.checked = isScoreWarningVisible;
     }
 
     const curFee = (this.state.settings.entryFeePerPlayer !== undefined)
@@ -486,6 +494,12 @@ class BurracoApp {
       this.state.settings.showBye = e.target.checked;
       this.saveState();
       this.renderRoundView();
+    });
+
+    this.toggleScoreWarning?.addEventListener('change', (e) => {
+      this.state.settings.showScoreWarning = e.target.checked;
+      this.saveState();
+      this.checkRoundVpSum(this.state.activeRoundIndex);
     });
 
     this.settingEntryFee?.addEventListener('input', () => this.updatePrizePercentages());
@@ -1242,17 +1256,25 @@ class BurracoApp {
 
     const res = BurracoEngine.validateRoundVpSum(vpScores, numPairs, byePoints);
 
+    const showWarning = (this.state.settings && this.state.settings.showScoreWarning !== undefined)
+      ? !!this.state.settings.showScoreWarning
+      : true;
+
     if (hasOutOfRangeScore || res.hasOutOfRange) {
       if (this.roundTitleCheck) this.roundTitleCheck.style.display = 'none';
       if (this.roundVpCheckBanner) {
-        this.roundVpCheckBanner.style.display = 'flex';
-        this.roundVpCheckBanner.style.background = '#FEF2F2';
-        this.roundVpCheckBanner.style.border = '1px solid #FECACA';
-        this.roundVpCheckBanner.style.color = '#991B1B';
-      }
-      if (this.roundVpCheckIcon) this.roundVpCheckIcon.textContent = '⚠️';
-      if (this.roundVpCheckMessage) {
-        this.roundVpCheckMessage.textContent = `Attenzione Turno ${roundIdx + 1}: I singoli punteggi VP devono essere compresi tra 0 e 20!`;
+        if (showWarning) {
+          this.roundVpCheckBanner.style.display = 'flex';
+          this.roundVpCheckBanner.style.background = '#FEF2F2';
+          this.roundVpCheckBanner.style.border = '1px solid #FECACA';
+          this.roundVpCheckBanner.style.color = '#991B1B';
+          if (this.roundVpCheckIcon) this.roundVpCheckIcon.textContent = '⚠️';
+          if (this.roundVpCheckMessage) {
+            this.roundVpCheckMessage.textContent = `Attenzione Turno ${roundIdx + 1}: I singoli punteggi VP devono essere compresi tra 0 e 20!`;
+          }
+        } else {
+          this.roundVpCheckBanner.style.display = 'none';
+        }
       }
       return;
     }
@@ -1272,17 +1294,21 @@ class BurracoApp {
     } else {
       if (this.roundTitleCheck) this.roundTitleCheck.style.display = 'none';
       if (this.roundVpCheckBanner) {
-        this.roundVpCheckBanner.style.display = 'flex';
-        this.roundVpCheckBanner.style.background = '#FEF2F2';
-        this.roundVpCheckBanner.style.border = '1px solid #FECACA';
-        this.roundVpCheckBanner.style.color = '#991B1B';
-      }
-      if (this.roundVpCheckIcon) this.roundVpCheckIcon.textContent = '⚠️';
-      if (this.roundVpCheckMessage) {
-        const detail = res.isOdd
-          ? `(attesi esattamente ${res.expectedVP} VP: ${res.completeTables} tavoli da 20 VP + ${res.byePoints} VP riposo)`
-          : `(attesi esattamente ${res.expectedVP} VP per ${res.completeTables} tavoli da 20 VP)`;
-        this.roundVpCheckMessage.textContent = `Attenzione Turno ${roundIdx + 1}: Totale inserito di ${totalVP} VP non corretto ${detail}. Verifica i punteggi inseriti nei tavoli.`;
+        if (showWarning) {
+          this.roundVpCheckBanner.style.display = 'flex';
+          this.roundVpCheckBanner.style.background = '#FEF2F2';
+          this.roundVpCheckBanner.style.border = '1px solid #FECACA';
+          this.roundVpCheckBanner.style.color = '#991B1B';
+          if (this.roundVpCheckIcon) this.roundVpCheckIcon.textContent = '⚠️';
+          if (this.roundVpCheckMessage) {
+            const detail = res.isOdd
+              ? `(attesi esattamente ${res.expectedVP} VP: ${res.completeTables} tavoli da 20 VP + ${res.byePoints} VP riposo)`
+              : `(attesi esattamente ${res.expectedVP} VP per ${res.completeTables} tavoli da 20 VP)`;
+            this.roundVpCheckMessage.textContent = `Attenzione Turno ${roundIdx + 1}: Totale inserito di ${totalVP} VP non corretto ${detail}. Verifica i punteggi inseriti nei tavoli.`;
+          }
+        } else {
+          this.roundVpCheckBanner.style.display = 'none';
+        }
       }
     }
   }

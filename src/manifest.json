@@ -1,7 +1,7 @@
 {
   "name": "Burraco - Gestione e Conteggio Torneo",
   "short_name": "Burraco",
-  "version": "1.1.1",
+  "version": "1.2.1",
   "description": "Gestione, calcolo punteggi VP/MP e classifiche per tornei di Burraco con supporto offline.",
   "start_url": "/",
   "scope": "/",
@@ -44,11 +44,7 @@
       "purpose": "any"
     }
   ],
-  "categories": [
-    "games",
-    "utilities",
-    "entertainment"
-  ],
+  "categories": ["games", "utilities", "entertainment"],
   "shortcuts": [
     {
       "name": "Tabellone Iniziale",

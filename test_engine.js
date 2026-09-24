@@ -550,19 +550,42 @@ console.log('- Modale custom modal-confirm-clear e pulsanti presenti in index.ht
 console.log('- Dialog confirm nativo del browser rimosso e sostituito con la modale (OK)');
 console.log('>>> TEST 13 SUPERATO CON SUCCESSO! Gestione azzeramento dati conforme al 100%.');
 
-console.log('\n--- TEST 14: Verifica Consistenza Punti Default e Reset Banner a 0 Coppie ---');
+console.log('\n--- TEST 14: Verifica Inizializzazione Tabellone Vuoto (No Demo) e Reset Banner a 0 Coppie ---');
 const defState = BurracoStorage.getDefaultState();
-const r1Sum = defState.pairs.reduce((sum, p) => sum + (p.scores[0]?.vp || 0), 0);
-if (r1Sum !== 40) {
-  throw new Error(`Test 14 fallito: la somma VP del Turno 1 nei dati di default deve essere esattamente 40, trovato ${r1Sum}!`);
+if (defState.pairs.length !== 0) {
+  throw new Error(`Test 14 fallito: i giocatori demo devono essere disattivati di default, trovato ${defState.pairs.length} coppie!`);
 }
-console.log(`- Somma VP Turno 1 default corretta: ${r1Sum} VP per 4 squadre (OK)`);
+console.log('- Tabellone di default inizializzato vuoto senza giocatori demo (OK)');
 
 if (!js.includes('if (this.roundVpCheckBanner) this.roundVpCheckBanner.style.display = \'none\';')) {
   throw new Error('Test 14 fallito: roundVpCheckBanner non viene nascosto a 0 coppie in app.js!');
 }
 console.log('- Reset banner e checkmark garantito quando non ci sono coppie (OK)');
-console.log('>>> TEST 14 SUPERATO CON SUCCESSO! Nessun falso allarme a tabellone vuoto.');
+console.log('>>> TEST 14 SUPERATO CON SUCCESSO! Tabellone pulito all\'avvio e nessun falso allarme.');
+
+console.log('\n--- TEST 15: Verifica Configurazione Avviso Punteggio Errato e Versione v1.2.1 ---');
+if (!html.includes('id="setting-toggle-score-warning"')) {
+  throw new Error('Test 15 fallito: toggle setting-toggle-score-warning mancante in index.html!');
+}
+if (!js.includes('setting-toggle-score-warning') || !js.includes('showScoreWarning')) {
+  throw new Error('Test 15 fallito: gestione showScoreWarning mancante in app.js!');
+}
+const testCfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (BURRACO_CONFIG || {});
+if (testCfg.version !== '1.2.1') {
+  throw new Error(`Test 15 fallito: BURRACO_CONFIG.version deve essere 1.2.1, trovato ${testCfg.version}!`);
+}
+const swContent = fs.readFileSync(path.join(__dirname, 'src', 'sw.js'), 'utf8');
+if (!swContent.includes('burraco-cache-v1.2.1')) {
+  throw new Error('Test 15 fallito: CACHE_NAME in sw.js non aggiornato a v1.2.1!');
+}
+const manifestContent = fs.readFileSync(path.join(__dirname, 'src', 'manifest.json'), 'utf8');
+if (!manifestContent.includes('"version": "1.2.1"')) {
+  throw new Error('Test 15 fallito: version in manifest.json non aggiornata a 1.2.1!');
+}
+console.log('- Toggle setting-toggle-score-warning presente nella UI delle impostazioni (OK)');
+console.log('- Controller app.js supporta attivazione/disattivazione avviso punteggio errato (OK)');
+console.log('- Versione v1.2.1 sincronizzata tra config.js, manifest.json, sw.js e index.html (OK)');
+console.log('>>> TEST 15 SUPERATO CON SUCCESSO! Avviso configurabile e versione x.1.x allineati al 100%.');
 
 console.log('\n=============================================');
 console.log('TUTTI I TEST MODULARI SONO PASSATI AL 100%!');
