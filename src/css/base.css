@@ -176,6 +176,64 @@ body {
   margin: 0 2px;
 }
 
+.font-zoom-group {
+  display: inline-flex;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-sm);
+  padding: 1px;
+  gap: 2px;
+}
+
+.btn-font-zoom {
+  background: transparent;
+  border: none;
+  color: #FFFFFF;
+  font-size: 17px;
+  font-weight: 700;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  line-height: 1;
+}
+
+.btn-font-zoom:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #60A5FA;
+}
+
+.btn-font-zoom:active {
+  transform: scale(0.95);
+}
+
+.btn-font-zoom:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.font-zoom-display {
+  font-size: 13px;
+  font-weight: 700;
+  color: #94A3B8;
+  padding: 0 4px;
+  min-width: 22px;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s ease;
+}
+
+.font-zoom-display:hover {
+  color: #FFFFFF;
+}
+
 /* ==========================================================================
    BUTTONS & CONTROLS
    ========================================================================== */
@@ -419,6 +477,8 @@ body {
   max-width: 1600px;
   width: 100%;
   margin: 0 auto;
+  zoom: var(--app-zoom, 1);
+  transition: zoom 0.1s ease;
 }
 
 .view-panel {

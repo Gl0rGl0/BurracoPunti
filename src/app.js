@@ -7,6 +7,7 @@ class BurracoApp {
   constructor() {
     this.state = BurracoStorage.loadState();
     this.initDOMElements();
+    this.initFontZoom();
     this.bindEvents();
     this.render();
 
@@ -46,14 +47,86 @@ class BurracoApp {
   }
 
   // ==========================================
+  // FONT ZOOM & ACCESSIBILITY CONTROLS
+  // ==========================================
+  initFontZoom() {
+    this.zoomLevels = [0.9, 1.0, 1.12, 1.25, 1.4];
+    this.currentZoomIndex = 1; // Default 1.0 (100%)
+    try {
+      const saved = localStorage.getItem('burraco_zoom_index');
+      if (saved !== null) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= 0 && parsed < this.zoomLevels.length) {
+          this.currentZoomIndex = parsed;
+        }
+      }
+    } catch (e) {}
+
+    this.applyFontZoom();
+
+    this.btnFontDecrease?.addEventListener('click', () => {
+      if (this.currentZoomIndex > 0) {
+        this.currentZoomIndex--;
+        this.applyFontZoom();
+      }
+    });
+
+    this.btnFontIncrease?.addEventListener('click', () => {
+      if (this.currentZoomIndex < this.zoomLevels.length - 1) {
+        this.currentZoomIndex++;
+        this.applyFontZoom();
+      }
+    });
+
+    this.fontZoomDisplay?.addEventListener('click', () => {
+      this.currentZoomIndex = 1; // Ripristina al 100%
+      this.applyFontZoom();
+    });
+  }
+
+  applyFontZoom() {
+    if (!this.zoomLevels) this.zoomLevels = [0.9, 1.0, 1.12, 1.25, 1.4];
+    const scale = this.zoomLevels[this.currentZoomIndex] || 1.0;
+    document.documentElement.style.setProperty('--app-zoom', scale);
+    const main = document.querySelector('.app-main');
+    if (main) main.style.zoom = scale;
+
+    if (this.btnFontDecrease) this.btnFontDecrease.disabled = (this.currentZoomIndex === 0);
+    if (this.btnFontIncrease) this.btnFontIncrease.disabled = (this.currentZoomIndex === this.zoomLevels.length - 1);
+
+    if (this.fontZoomDisplay) {
+      if (scale === 1.0) {
+        this.fontZoomDisplay.textContent = 'A';
+        this.fontZoomDisplay.style.color = '#94A3B8';
+        this.fontZoomDisplay.title = 'Dimensione 100% (Normale)';
+      } else if (scale > 1.0) {
+        this.fontZoomDisplay.textContent = (scale >= 1.25) ? 'A++' : 'A+';
+        this.fontZoomDisplay.style.color = '#60A5FA';
+        this.fontZoomDisplay.title = `Dimensione ${Math.round(scale * 100)}% (clicca per ripristinare 100%)`;
+      } else {
+        this.fontZoomDisplay.textContent = 'A−';
+        this.fontZoomDisplay.style.color = '#F59E0B';
+        this.fontZoomDisplay.title = `Dimensione ${Math.round(scale * 100)}% (clicca per ripristinare 100%)`;
+      }
+    }
+
+    try {
+      localStorage.setItem('burraco_zoom_index', String(this.currentZoomIndex));
+    } catch (e) {}
+  }
+
+  // ==========================================
   // DOM ELEMENT SELECTION
   // ==========================================
   initDOMElements() {
-    // Title
+    // Title & Accessibility
     this.titleInput = document.getElementById('tournament-title-input');
     this.podiumTitle = document.getElementById('podium-tournament-title');
     this.printTitle = document.getElementById('print-title');
     this.printDate = document.getElementById('print-date');
+    this.btnFontDecrease = document.getElementById('btn-font-decrease');
+    this.btnFontIncrease = document.getElementById('btn-font-increase');
+    this.fontZoomDisplay = document.getElementById('font-zoom-display');
 
     // Navigation Tabs
     this.tabsNav = document.getElementById('tabs-nav');
@@ -81,7 +154,10 @@ class BurracoApp {
     this.btnNextRound = document.getElementById('btn-next-round');
 
     // Toolbar / Stats
-    this.searchInput = document.getElementById('search-input');
+    this.initialSearchInput = document.getElementById('initial-search-input');
+    this.roundSearchInput = document.getElementById('round-search-input');
+    this.masterSearchInput = document.getElementById('master-search-input') || document.getElementById('search-input');
+    this.searchInput = this.masterSearchInput;
     this.statTotalPairs = document.getElementById('stat-total-pairs');
     this.statCurrentRound = document.getElementById('stat-current-round');
     this.badgeGiornata = document.getElementById('badge-giornata');
@@ -206,6 +282,15 @@ class BurracoApp {
     }
   }
 
+  isByeActive() {
+    const validPairs = (this.state.pairs || []).filter(p => p.name && p.name.trim() !== '');
+    const isOdd = (validPairs.length % 2 !== 0 && validPairs.length > 0);
+    if (this.state.settings && this.state.settings.showByeManual) {
+      return !!this.state.settings.showBye;
+    }
+    return isOdd;
+  }
+
   syncSettingsUI() {
     if (this.titleInput) this.titleInput.value = this.state.title;
     if (this.toggleLottery) this.toggleLottery.checked = !!this.state.settings.showLottery;
@@ -220,10 +305,7 @@ class BurracoApp {
     }
 
     if (this.toggleBye) {
-      const isByeVisible = (this.state.settings.showBye !== undefined)
-        ? !!this.state.settings.showBye
-        : true;
-      this.toggleBye.checked = isByeVisible;
+      this.toggleBye.checked = this.isByeActive();
     }
 
     if (this.toggleScoreWarning) {
@@ -387,9 +469,14 @@ class BurracoApp {
     this.btnOpenSettings?.addEventListener('click', () => this.openModal('modalSettings'));
 
     // Search filters
-    this.searchInput?.addEventListener('input', (e) => {
+    this.masterSearchInput?.addEventListener('input', (e) => {
       this.state.searchFilter = e.target.value.trim().toLowerCase();
       this.renderMasterTable();
+    });
+
+    this.roundSearchInput?.addEventListener('input', (e) => {
+      this.roundSearchFilter = e.target.value.trim().toLowerCase();
+      this.renderRoundView();
     });
 
     this.initialSearchInput?.addEventListener('input', (e) => {
@@ -477,6 +564,7 @@ class BurracoApp {
 
     this.toggleBye?.addEventListener('change', (e) => {
       this.state.settings.showBye = e.target.checked;
+      this.state.settings.showByeManual = true;
       this.saveState();
       this.renderRoundView();
     });
@@ -484,7 +572,7 @@ class BurracoApp {
     this.toggleScoreWarning?.addEventListener('change', (e) => {
       this.state.settings.showScoreWarning = e.target.checked;
       this.saveState();
-      this.checkRoundVpSum(this.state.activeRoundIndex);
+      this.checkRoundScoreConsistency();
     });
 
     this.settingEntryFee?.addEventListener('input', () => this.updatePrizePercentages());
@@ -1078,9 +1166,16 @@ class BurracoApp {
         return a.name.localeCompare(b.name);
       });
 
-    const showBye = (this.state.settings && this.state.settings.showBye !== undefined)
-      ? !!this.state.settings.showBye
-      : true;
+    const filter = (this.roundSearchFilter || '').trim().toLowerCase();
+    const displayPairs = filter
+      ? sortedPairs.filter(p => {
+          const matchesName = (p.name || '').toLowerCase().includes(filter);
+          const matchesLot = String(p.lotNumber || '').includes(filter);
+          return matchesName || matchesLot;
+        })
+      : sortedPairs;
+
+    const showBye = this.isByeActive();
 
     if (this.thRoundBye) {
       this.thRoundBye.style.display = showBye ? '' : 'none';
@@ -1099,13 +1194,25 @@ class BurracoApp {
       return;
     }
 
+    if (displayPairs.length === 0) {
+      const emptyRow = document.createElement('tr');
+      emptyRow.innerHTML = `
+        <td colspan="${showBye ? 5 : 4}" style="text-align:center; padding:32px; color:var(--text-muted); font-size:15px;">
+          Nessuna coppia trovata per "${BurracoUtils.escapeHtml(this.roundSearchFilter)}".
+        </td>
+      `;
+      this.roundTableBody.appendChild(emptyRow);
+      this.checkRoundScoreConsistency();
+      return;
+    }
+
     const cfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (window.BURRACO_CONFIG || {});
     const defaultBye = cfg.defaultByePoints !== undefined ? cfg.defaultByePoints : 12;
     const byePoints = (this.state.settings && this.state.settings.byePoints !== undefined)
       ? Number(this.state.settings.byePoints)
       : defaultBye;
 
-    sortedPairs.forEach((pair) => {
+    displayPairs.forEach((pair) => {
       const sc = pair.scores[roundIdx] || { mp: null, vp: null };
       const mpVal = (sc.mp !== null && sc.mp !== undefined) ? sc.mp : '';
       const vpVal = (sc.vp !== null && sc.vp !== undefined) ? sc.vp : '';
@@ -1556,6 +1663,9 @@ class BurracoApp {
   // ==========================================
   startNewEvening() {
     BurracoStorage.startNewEvening(this.state);
+    if (this.state.settings) {
+      delete this.state.settings.showByeManual;
+    }
     this.render();
     this.closeModal('modalNewTournament');
   }

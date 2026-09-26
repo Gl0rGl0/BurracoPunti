@@ -37,6 +37,16 @@
 
     <div class="header-right">
       <div class="header-actions">
+        <div class="font-zoom-group" title="Regola dimensione caratteri per una migliore leggibilità">
+          <button type="button" id="btn-font-decrease" class="btn-font-zoom" title="Riduci dimensione caratteri (−)" aria-label="Riduci testo">
+            <span class="zoom-symbol">−</span>
+          </button>
+          <span id="font-zoom-display" class="font-zoom-display" title="Dimensione attuale (clicca per ripristinare 100%)">A</span>
+          <button type="button" id="btn-font-increase" class="btn-font-zoom" title="Ingrandisci dimensione caratteri (+)" aria-label="Ingrandisci testo">
+            <span class="zoom-symbol">+</span>
+          </button>
+        </div>
+        <span class="header-divider" aria-hidden="true"></span>
         <button id="btn-print" class="btn btn-secondary" title="Salva e copia immagine della classifica per WhatsApp">
           <span class="btn-icon">🖼️</span> Salva Immagine
         </button>
@@ -154,10 +164,13 @@
             </h2>
             <!-- <p class="subtitle">Inserisci Match Point (MP) e Ventesimi (VP) per ciascuna coppia.</p> -->
           </div>
-          <div class="round-header-actions">
-            <button id="btn-prev-round" class="btn btn-secondary btn-sm">◀ Turno Precedente</button>
-            <span class="round-indicator-badge" id="current-round-badge">Turno 1 di 4</span>
-            <button id="btn-next-round" class="btn btn-secondary btn-sm">Turno Successivo ▶</button>
+          <div class="card-header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="round-search-input" class="search-input" placeholder="🔍 Cerca coppia per nome o n°...">
+            <div class="round-header-actions">
+              <button id="btn-prev-round" class="btn btn-secondary btn-sm">◀ Turno Precedente</button>
+              <span class="round-indicator-badge" id="current-round-badge">Turno 1 di 4</span>
+              <button id="btn-next-round" class="btn btn-secondary btn-sm">Turno Successivo ▶</button>
+            </div>
           </div>
         </div>
 
@@ -338,7 +351,7 @@
               
 
               <div class="setting-toggle-item">
-                <label for="setting-toggle-lottery" class="toggle-text" style="cursor: pointer;">Pulsante "Sorteggio / Numeri"</label>
+                <label for="setting-toggle-lottery" class="toggle-text" style="cursor: pointer;">Pulsante "Sorteggio"</label>
                 <label class="toggle-switch">
                   <input type="checkbox" id="setting-toggle-lottery">
                   <span class="toggle-slider"></span>
@@ -362,7 +375,10 @@
               </div>
 
               <div class="setting-toggle-item">
-                <label for="setting-toggle-bye" class="toggle-text" style="cursor: pointer;">Colonna "Riposo" nei Turni</label>
+                <div>
+                  <label for="setting-toggle-bye" class="toggle-text" style="cursor: pointer;">Colonna "Riposo" nei Turni</label>
+                  <small class="form-hint">Attiva automaticamente se le squadre sono dispari</small>
+                </div>
                 <label class="toggle-switch">
                   <input type="checkbox" id="setting-toggle-bye">
                   <span class="toggle-slider"></span>
@@ -409,7 +425,7 @@
               <div class="setting-toggle-item" style="padding-bottom: 8px;">
                 <div>
                   <span class="toggle-text">Quota a Persona (€)</span>
-                  <small class="form-hint">Costo ingresso per singolo giocatore (default 2€)</small>
+                  <small class="form-hint">Costo ingresso per singolo giocatore</small>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <input type="number" id="setting-entry-fee" class="form-control tabular-nums" style="width: 75px; text-align: center; font-weight: bold; font-size: 15px;" min="0" step="0.5" value="2">
