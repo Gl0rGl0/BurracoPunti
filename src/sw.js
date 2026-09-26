@@ -1,4 +1,4 @@
-const CACHE_NAME = 'burraco-cache-v1.2.1';
+const CACHE_NAME = 'burraco-cache-v1.2.2';
 
 const ASSETS_TO_CACHE = [
   './',
@@ -25,8 +25,20 @@ const ASSETS_TO_CACHE = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+    caches.open(CACHE_NAME).then(async (cache) => {
+      // Salva tutte le risorse individualmente per tolleranza ad errori di rete
+      await Promise.all(
+        ASSETS_TO_CACHE.map(async (url) => {
+          try {
+            const res = await fetch(url, { cache: 'reload' });
+            if (res && (res.ok || res.type === 'opaque')) {
+              await cache.put(url, res);
+            }
+          } catch (err) {
+            console.warn('Burraco PWA: impossibile pre-caricare ' + url, err);
+          }
+        })
+      );
     })
   );
   self.skipWaiting();
@@ -48,50 +60,68 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests and http/https scheme
+  // Gestisci solo richieste GET con protocollo http o https
   if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) {
     return;
   }
 
-  // Network-first for navigation requests: pull latest version from Cloudflare when online,
-  // fallback to cached index.html when offline.
+  // 1. Richieste di navigazione (HTML principale)
+  // Online: scarica la versione più recente. Offline: usa index.html memorizzato in cache
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
           }
           return networkResponse;
         })
-        .catch(() => {
-          return caches.match(event.request).then((cached) => {
-            return cached || caches.match('./index.html');
-          });
+        .catch(async () => {
+          const cached = await caches.match(event.request, { ignoreSearch: true });
+          if (cached) return cached;
+          const indexCached = await caches.match('./index.html', { ignoreSearch: true });
+          if (indexCached) return indexCached;
+          return await caches.match('./', { ignoreSearch: true });
         })
     );
     return;
   }
 
-  // Stale-While-Revalidate for all assets: fast cached load with background sync
+  // 2. Risorse statiche (CSS, JS, immagini, font, libreria XLSX)
+  // Strategia Cache-First: restituisce istantaneamente la versione in cache (indispensabile per funzionare offline senza connessione).
+  // Se la connessione è attiva, sincronizza in background per la sessione successiva.
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request)
+    caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
+      if (cachedResponse) {
+        if (navigator.onLine) {
+          fetch(event.request)
+            .then((networkResponse) => {
+              if (networkResponse && networkResponse.status === 200) {
+                const copy = networkResponse.clone();
+                caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+              }
+            })
+            .catch(() => {});
+        }
+        return cachedResponse;
+      }
+
+      // Se non in cache, prova dalla rete e memorizza
+      return fetch(event.request)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
           }
           return networkResponse;
         })
-        .catch(() => cachedResponse);
-
-      return cachedResponse || fetchPromise;
+        .catch(async () => {
+          // Fallback offline di sicurezza: prova il match ignorando query string
+          const fallback = await caches.match(event.request, { ignoreSearch: true });
+          if (fallback) return fallback;
+          return new Response('Risorsa non disponibile offline', { status: 503, statusText: 'Offline Unavailable' });
+        });
     })
   );
 });

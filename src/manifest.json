@@ -1,11 +1,11 @@
 {
   "name": "Burraco - Gestione e Conteggio Torneo",
   "short_name": "Burraco",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Gestione, calcolo punteggi VP/MP e classifiche per tornei di Burraco con supporto offline.",
-  "start_url": "/",
-  "scope": "/",
-  "id": "/",
+  "start_url": "./",
+  "scope": "./",
+  "id": "./",
   "lang": "it",
   "dir": "ltr",
   "display": "standalone",
@@ -50,7 +50,7 @@
       "name": "Tabellone Iniziale",
       "short_name": "Tabellone",
       "description": "Visualizza e gestisci le coppie del torneo",
-      "url": "/?tab=initial",
+      "url": "./?tab=initial",
       "icons": [
         {
           "src": "img/pwa-192x192.png",
@@ -63,7 +63,7 @@
       "name": "Classifica Generale",
       "short_name": "Classifica",
       "description": "Visualizza la classifica generale e i punteggi",
-      "url": "/?tab=master",
+      "url": "./?tab=master",
       "icons": [
         {
           "src": "img/pwa-192x192.png",
@@ -76,7 +76,7 @@
       "name": "Podio e Premi",
       "short_name": "Podio",
       "description": "Visualizza i vincitori e il montepremi",
-      "url": "/?tab=podium",
+      "url": "./?tab=podium",
       "icons": [
         {
           "src": "img/pwa-192x192.png",
