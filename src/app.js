@@ -712,6 +712,14 @@ class BurracoApp {
       }
     });
 
+    // Disabilita pull-to-refresh e rimbalzo elastico di pagina su iOS Safari / PWA
+    document.addEventListener('touchmove', (e) => {
+      const scrollable = e.target.closest('.table-container, .modal-dialog, .podium-card, .table-card');
+      if (!scrollable) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
     // Keyboard navigation in Round Table
     this.roundTable?.addEventListener('keydown', (e) => this.handleRoundTableKeyboard(e));
   }

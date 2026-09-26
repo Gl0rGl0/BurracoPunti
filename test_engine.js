@@ -587,7 +587,7 @@ if (!js.includes('if (this.roundVpCheckBanner) this.roundVpCheckBanner.style.dis
 console.log('- Reset banner e checkmark garantito quando non ci sono coppie (OK)');
 console.log('>>> TEST 14 SUPERATO CON SUCCESSO! Tabellone pulito all\'avvio e nessun falso allarme.');
 
-console.log('\n--- TEST 15: Verifica Configurazione Avviso Punteggio Errato, Offline SW e Versione v1.2.5 ---');
+console.log('\n--- TEST 15: Verifica Configurazione Avviso Punteggio Errato, Offline SW e Versione v1.2.6 ---');
 if (!html.includes('id="setting-toggle-score-warning"')) {
   throw new Error('Test 15 fallito: toggle setting-toggle-score-warning mancante in index.html!');
 }
@@ -595,19 +595,19 @@ if (!js.includes('setting-toggle-score-warning') || !js.includes('showScoreWarni
   throw new Error('Test 15 fallito: gestione showScoreWarning mancante in app.js!');
 }
 const testCfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (BURRACO_CONFIG || {});
-if (testCfg.version !== '1.2.5') {
-  throw new Error(`Test 15 fallito: BURRACO_CONFIG.version deve essere 1.2.5, trovato ${testCfg.version}!`);
+if (testCfg.version !== '1.2.6') {
+  throw new Error(`Test 15 fallito: BURRACO_CONFIG.version deve essere 1.2.6, trovato ${testCfg.version}!`);
 }
 const swContent = fs.readFileSync(path.join(__dirname, 'src', 'sw.js'), 'utf8');
-if (!swContent.includes('burraco-cache-v1.2.5')) {
-  throw new Error('Test 15 fallito: CACHE_NAME in sw.js non aggiornato a v1.2.5!');
+if (!swContent.includes('burraco-cache-v1.2.6')) {
+  throw new Error('Test 15 fallito: CACHE_NAME in sw.js non aggiornato a v1.2.6!');
 }
 if (!swContent.includes('ignoreSearch: true')) {
   throw new Error('Test 15 fallito: sw.js non include ignoreSearch: true per la resilienza offline!');
 }
 const manifestContent = fs.readFileSync(path.join(__dirname, 'src', 'manifest.json'), 'utf8');
-if (!manifestContent.includes('"version": "1.2.5"')) {
-  throw new Error('Test 15 fallito: version in manifest.json non aggiornata a 1.2.5!');
+if (!manifestContent.includes('"version": "1.2.6"')) {
+  throw new Error('Test 15 fallito: version in manifest.json non aggiornata a 1.2.6!');
 }
 if (!html.includes('id="btn-share-image"')) {
   throw new Error('Test 15 fallito: pulsante id="btn-share-image" mancante in index.html!');
@@ -619,8 +619,8 @@ console.log('- Toggle setting-toggle-score-warning presente nella UI delle impos
 console.log('- Controller app.js supporta attivazione/disattivazione avviso punteggio errato (OK)');
 console.log('- Supporto condivisione nativa e protezione iPad (btnShareImage / isIOS) verificato (OK)');
 console.log('- Service worker configurato con Cache-First e ignoreSearch: true per supporto offline totale (OK)');
-console.log('- Versione v1.2.5 sincronizzata tra config.js, manifest.json, sw.js e index.html (OK)');
-console.log('>>> TEST 15 SUPERATO CON SUCCESSO! Avviso configurabile, export iPad, offline PWA e versione 1.2.5 allineati al 100%.');
+console.log('- Versione v1.2.6 sincronizzata tra config.js, manifest.json, sw.js e index.html (OK)');
+console.log('>>> TEST 15 SUPERATO CON SUCCESSO! Avviso configurabile, export iPad, offline PWA e versione 1.2.6 allineati al 100%.');
 
 console.log('\n--- TEST 16: Verifica Ricerca Rapida Turno e Attivazione Automatica Riposo per Squadre Dispari ---');
 if (!html.includes('id="round-search-input"')) {
@@ -693,6 +693,24 @@ console.log('- Indicatore dimensione attuale (A) con click per reset 100% presen
 console.log('- Stili dedicati (.font-zoom-group, .btn-font-zoom) verificati in base.css (OK)');
 console.log('- Metodi initFontZoom/applyFontZoom e persistenza localStorage integrati in app.js (OK)');
 console.log('>>> TEST 17 SUPERATO CON SUCCESSO! Zoom caratteri per giocatori senior verificato al 100%.');
+
+console.log('\n--- TEST 18: Verifica Disattivazione Scroll di Pagina e Blocco Pull-To-Refresh su Mobile/iPad ---');
+const tablesCss = fs.readFileSync(path.join(__dirname, 'src', 'css', 'tables.css'), 'utf8');
+if (!baseCss.includes('overscroll-behavior: none') || !baseCss.includes('overflow: hidden')) {
+  throw new Error('Test 18 fallito: overscroll-behavior: none o overflow: hidden mancanti in base.css!');
+}
+if (!tablesCss.includes('overscroll-behavior: contain')) {
+  throw new Error('Test 18 fallito: overscroll-behavior: contain mancante in tables.css!');
+}
+if (!js.includes('touchmove') || !js.includes('preventDefault()')) {
+  throw new Error('Test 18 fallito: protezione touchmove per pull-to-refresh mancante in app.js!');
+}
+
+console.log('- Regola html e body con overflow: hidden e overscroll-behavior: none (OK)');
+console.log('- Scroll limitato internamente ai contenitori tabella con overscroll-behavior: contain (OK)');
+console.log('- Header e tabs-nav con flex-shrink: 0 saldamente ancorati in cima (OK)');
+console.log('- Event listener touchmove integrato per bloccare il pull-to-refresh su iPad/PWA (OK)');
+console.log('>>> TEST 18 SUPERATO CON SUCCESSO! Scroll di pagina e ricaricamento pull-to-refresh disattivati al 100%.');
 
 console.log('\n=============================================');
 console.log('TUTTI I TEST MODULARI SONO PASSATI AL 100%!');

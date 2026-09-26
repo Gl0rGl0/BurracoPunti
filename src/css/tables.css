@@ -4,8 +4,12 @@
    ========================================================================== */
 
 .table-container {
+  flex: 1;
   overflow-x: auto;
-  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .data-table {
