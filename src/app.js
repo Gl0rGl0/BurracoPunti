@@ -90,7 +90,6 @@ class BurracoApp {
     this.modalSettings = document.getElementById('modal-settings');
     this.modalAddPair = document.getElementById('modal-add-pair');
     this.modalEditPair = document.getElementById('modal-edit-pair');
-    this.modalBulkPaste = document.getElementById('modal-bulk-paste');
     this.modalLottery = document.getElementById('modal-lottery');
     this.modalConfirmDelete = document.getElementById('modal-confirm-delete');
     this.modalConfirmClear = document.getElementById('modal-confirm-clear');
@@ -119,7 +118,6 @@ class BurracoApp {
     this.btnConfirmClear = document.getElementById('btn-confirm-clear');
     this.pendingDeletePairId = null;
 
-    this.toggleBulkPaste = document.getElementById('setting-toggle-bulk') || document.getElementById('setting-bulk-paste');
     this.toggleLottery = document.getElementById('setting-toggle-lottery') || document.getElementById('setting-lottery');
     this.togglePodium = document.getElementById('setting-toggle-podium') || document.getElementById('setting-podium');
     this.togglePrizepool = document.getElementById('setting-toggle-prizepool');
@@ -142,7 +140,6 @@ class BurracoApp {
     this.roundVpCheckBanner = document.getElementById('round-vp-check-banner');
     this.roundVpCheckIcon = document.getElementById('round-vp-check-icon');
     this.roundVpCheckMessage = document.getElementById('round-vp-check-message');
-    this.btnBulkPasteToolbar = document.getElementById('btn-open-bulk-paste');
     this.btnLotteryToolbar = document.getElementById('btn-open-lottery');
     this.tabBtnPodium = document.getElementById('tab-btn-podium');
     this.btnOpenNewTournament = document.getElementById('btn-open-new-tournament');
@@ -211,7 +208,6 @@ class BurracoApp {
 
   syncSettingsUI() {
     if (this.titleInput) this.titleInput.value = this.state.title;
-    if (this.toggleBulkPaste) this.toggleBulkPaste.checked = !!this.state.settings.showBulkPaste;
     if (this.toggleLottery) this.toggleLottery.checked = !!this.state.settings.showLottery;
     if (this.togglePodium) this.togglePodium.checked = !!this.state.settings.showPodium;
 
@@ -260,9 +256,6 @@ class BurracoApp {
   }
 
   applySettingsVisibility() {
-    if (this.btnBulkPasteToolbar) {
-      this.btnBulkPasteToolbar.style.display = this.state.settings.showBulkPaste ? 'inline-flex' : 'none';
-    }
     if (this.btnLotteryToolbar) {
       this.btnLotteryToolbar.style.display = this.state.settings.showLottery ? 'inline-flex' : 'none';
     }
@@ -407,7 +400,6 @@ class BurracoApp {
     // Toolbar and Quick Action Buttons
     const btnAddPair = document.getElementById('btn-add-pair-row') || document.getElementById('btn-add-pair');
     btnAddPair?.addEventListener('click', () => this.addNewPairRow());
-    this.btnBulkPasteToolbar?.addEventListener('click', () => this.openModal('modalBulkPaste'));
     this.btnLotteryToolbar?.addEventListener('click', () => this.openModal('modalLottery'));
 
     // Export Buttons (Toolbar & Settings Modal)
@@ -464,17 +456,6 @@ class BurracoApp {
 
     const btnDrawSeq = document.getElementById('btn-run-sequential-lottery') || document.getElementById('btn-draw-sequential-lottery');
     btnDrawSeq?.addEventListener('click', () => this.runSequentialLottery());
-
-    // Bulk Paste Actions
-    const btnConfirmBulk = document.getElementById('btn-confirm-bulk') || document.getElementById('btn-confirm-bulk-paste');
-    btnConfirmBulk?.addEventListener('click', () => this.processBulkPaste());
-
-    // Settings Toggle Listeners
-    this.toggleBulkPaste?.addEventListener('change', (e) => {
-      this.state.settings.showBulkPaste = e.target.checked;
-      this.applySettingsVisibility();
-      this.saveState();
-    });
 
     this.toggleLottery?.addEventListener('change', (e) => {
       this.state.settings.showLottery = e.target.checked;
@@ -564,8 +545,6 @@ class BurracoApp {
     document.getElementById('btn-cancel-add-pair')?.addEventListener('click', () => this.closeModal('modalAddPair'));
     document.getElementById('close-edit-pair-modal')?.addEventListener('click', () => this.closeModal('modalEditPair'));
     document.getElementById('btn-cancel-edit-pair')?.addEventListener('click', () => this.closeModal('modalEditPair'));
-    document.getElementById('close-bulk-paste-modal')?.addEventListener('click', () => this.closeModal('modalBulkPaste'));
-    document.getElementById('btn-cancel-bulk')?.addEventListener('click', () => this.closeModal('modalBulkPaste'));
     document.getElementById('close-lottery-modal')?.addEventListener('click', () => this.closeModal('modalLottery'));
     document.getElementById('btn-close-lottery')?.addEventListener('click', () => this.closeModal('modalLottery'));
     document.getElementById('close-confirm-delete-modal')?.addEventListener('click', () => this.closeModal('modalConfirmDelete'));
@@ -1507,34 +1486,6 @@ class BurracoApp {
     this.closeModal('modalLottery');
   }
 
-  // ==========================================
-  // BULK PASTE IMPORT
-  // ==========================================
-  processBulkPaste() {
-    const textarea = document.getElementById('bulk-paste-textarea');
-    const text = textarea?.value?.trim() || '';
-    if (!text) {
-      alert('Incolla del testo prima di confermare.');
-      return;
-    }
-
-    const autoNumber = document.getElementById('bulk-auto-number')?.checked || false;
-    const currentMaxLot = this.state.pairs.reduce((max, p) => Math.max(max, p.lotNumber || 0), 0);
-
-    const newPairs = BurracoExcel.parseBulkPaste(text, autoNumber, currentMaxLot + 1, this.state.roundsCount);
-    if (newPairs.length === 0) {
-      alert('Nessun nome rilevato.');
-      return;
-    }
-
-    this.state.pairs.push(...newPairs);
-    this.saveState();
-    this.render();
-
-    if (textarea) textarea.value = '';
-    this.closeModal('modalBulkPaste');
-    alert(`Importate con successo ${newPairs.length} coppie!`);
-  }
 
   // ==========================================
   // EXCEL & PRINT

@@ -86,9 +86,6 @@
           </div>
           <div class="card-header-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <input type="text" id="initial-search-input" class="search-input" placeholder="🔍 Cerca coppia per nome o n°...">
-            <button id="btn-open-bulk-paste" class="btn btn-secondary btn-sm" style="display: none;">
-              <span class="btn-icon">📝</span> Incolla da Excel
-            </button>
             <button id="btn-open-lottery" class="btn btn-secondary btn-sm" style="display: none;">
               <span class="btn-icon">🎲</span> Sorteggio
             </button>
@@ -296,29 +293,6 @@
     </div>
   </div>
 
-  <!-- Modal 2: Bulk Paste from Excel / Text -->
-  <div class="modal-backdrop" id="modal-bulk-paste">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-header">
-        <h3>Incolla Elenco Coppie da Excel o Testo</h3>
-        <button class="modal-close" id="close-bulk-paste-modal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <p class="subtitle">Incolla qui sotto la colonna o le righe dal tuo foglio Excel o dagli appunti. Verrà creata una coppia per ogni riga.</p>
-        <textarea id="bulk-paste-textarea" class="bulk-textarea" rows="10" placeholder="Pietro - Paolo&#10;Anna - Marco&#10;Giovanni e Luca&#10;Tavolo 4: Maria + Elena"></textarea>
-        <div class="bulk-options">
-          <label class="checkbox-label">
-            <input type="checkbox" id="bulk-auto-number" checked> Assegna automaticamente numeri di sorteggio crescenti (1, 2, 3...)
-          </label>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" id="btn-cancel-bulk">Annulla</button>
-        <button type="button" class="btn btn-primary" id="btn-confirm-bulk">Importa Coppie</button>
-      </div>
-    </div>
-  </div>
-
   <!-- Modal 3: Lottery & Number Assignment -->
   <div class="modal-backdrop" id="modal-lottery">
     <div class="modal-dialog">
@@ -362,13 +336,6 @@
               <h4 class="settings-group-title">Visibilità Strumenti Barra</h4>
               <p class="form-hint" style="margin-bottom: 12px;">Scegli quali pulsanti visualizzare nella barra degli strumenti:</p>
               
-              <div class="setting-toggle-item">
-                <label for="setting-toggle-bulk" class="toggle-text" style="cursor: pointer;">Pulsante "Incolla Elenco da Excel"</label>
-                <label class="toggle-switch">
-                  <input type="checkbox" id="setting-toggle-bulk">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
 
               <div class="setting-toggle-item">
                 <label for="setting-toggle-lottery" class="toggle-text" style="cursor: pointer;">Pulsante "Sorteggio / Numeri"</label>
@@ -416,7 +383,7 @@
               <div class="setting-toggle-item">
                 <div>
                   <span class="toggle-text">Numero di Turni</span>
-                  <small class="form-hint">Imposta i turni di gioco (default 4)</small>
+                  <small class="form-hint">Imposta i turni di gioco</small>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <input type="number" id="setting-rounds-count" class="form-control tabular-nums" style="width: 70px; text-align: center; font-weight: bold; font-size: 15px;" min="1" max="12" value="4">
@@ -426,7 +393,7 @@
               <div class="setting-toggle-item" style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border-light);">
                 <div>
                   <span class="toggle-text">Punti Riposo (VP)</span>
-                  <small class="form-hint">Punti assegnati se una coppia non gioca (default 12)</small>
+                  <small class="form-hint">Punti assegnati se una coppia non gioca</small>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <input type="number" id="setting-bye-points" class="form-control tabular-nums" style="width: 70px; text-align: center; font-weight: bold; font-size: 15px;" min="0" max="20" step="1" value="12">
@@ -506,7 +473,7 @@
       <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
         <span class="app-version-badge" style="font-size: 12.5px; color: var(--text-muted); font-weight: 500; display: inline-flex; align-items: center; gap: 6px;">
           <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: #10B981;"></span>
-          Versione <span id="app-version-text">v1.2.2</span>
+          Versione <span id="app-version-text">v1.2.3</span>
         </span>
         <button type="button" class="btn btn-secondary" id="btn-close-settings">Chiudi</button>
       </div>
@@ -588,7 +555,7 @@
             <span>File salvato: <code id="export-modal-filename" class="export-code-badge">Classifica.png</code></span>
           </div>
           <div class="instruction-row" id="instruction-ios" style="display: none;">
-            <span class="instruction-badge">📲 iPad / Touch</span>
+            <span class="instruction-badge">📲 iPad</span>
             <span>Tocca <strong>Condividi / Salva</strong> per inviarla su WhatsApp o salvarla nelle Foto (oppure tieni premuto sull'anteprima).</span>
           </div>
         </div>

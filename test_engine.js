@@ -107,27 +107,23 @@ if (ranked[2].name !== 'Coppia Alfa') {
 }
 console.log('>>> TEST 2 SUPERATO CON SUCCESSO! Spareggio MP e somme VP verificate.');
 
-console.log('\n--- TEST 3: Verifica Parser Incolla Rapido da Excel/Testo (BurracoExcel) ---');
-const sampleRawPaste = `
-Tavolo 1: Mario Rossi + Luigi Bianchi
-2. Anna Verdi - Carla Neri
-Giovanni & Marco
-Elena e Sofia
-15 - Paolo Bruni + Roberto Fabbri
-`;
+console.log('\n--- TEST 3: Verifica Rimozione Funzionalità Incolla Elenco da Excel ---');
+const freshHtml = fs.readFileSync(path.join(__dirname, 'src', 'index.html'), 'utf8');
+const freshJs = fs.readFileSync(path.join(__dirname, 'src', 'app.js'), 'utf8');
 
-const parsedPairs = BurracoExcel.parseBulkPaste(sampleRawPaste, true, 1, 4);
-console.log('Nomi estratti puliti:', parsedPairs.map(p => p.name));
-if (parsedPairs.length !== 5) {
-  throw new Error(`Test Fallito: Attese 5 coppie, estratte ${parsedPairs.length}`);
+if (freshHtml.includes('id="btn-open-bulk-paste"') || freshHtml.includes('id="modal-bulk-paste"') || freshHtml.includes('id="setting-toggle-bulk"')) {
+  throw new Error('Test 3 fallito: elementi UI per Incolla da Excel ancora presenti in index.html!');
 }
-if (parsedPairs[0].name !== 'Mario Rossi + Luigi Bianchi' || parsedPairs[1].name !== 'Anna Verdi - Carla Neri') {
-  throw new Error('Test Fallito: Pulizia prefisso errata');
+if (freshJs.includes('processBulkPaste') || freshJs.includes('modalBulkPaste') || freshJs.includes('toggleBulkPaste') || freshJs.includes('btnBulkPasteToolbar')) {
+  throw new Error('Test 3 fallito: controller app.js contiene ancora riferimenti a bulk paste!');
 }
-if (parsedPairs[0].lotNumber !== 1 || parsedPairs[4].lotNumber !== 5) {
-  throw new Error('Test Fallito: Assegnazione automatica numeri sorteggio errata');
+if (typeof BurracoExcel.parseBulkPaste !== 'undefined') {
+  throw new Error('Test 3 fallito: parseBulkPaste è ancora presente in BurracoExcel!');
 }
-console.log('>>> TEST 3 SUPERATO CON SUCCESSO! Parser Excel e numerazione automatica verificati.');
+console.log('- Toggle impostazioni, pulsante toolbar e modale rimossi da index.html (OK)');
+console.log('- Metodi, proprietà e listener rimossi da app.js (OK)');
+console.log('- Funzione parseBulkPaste rimossa dal modulo BurracoExcel (OK)');
+console.log('>>> TEST 3 SUPERATO CON SUCCESSO! Funzionalità Incolla da Excel rimossa al 100%.');
 
 console.log('\n--- TEST 4: Verifica Sorteggio Casuale (BurracoEngine.generateRandomLots) ---');
 const draw = BurracoEngine.generateRandomLots(20);
@@ -563,7 +559,7 @@ if (!js.includes('if (this.roundVpCheckBanner) this.roundVpCheckBanner.style.dis
 console.log('- Reset banner e checkmark garantito quando non ci sono coppie (OK)');
 console.log('>>> TEST 14 SUPERATO CON SUCCESSO! Tabellone pulito all\'avvio e nessun falso allarme.');
 
-console.log('\n--- TEST 15: Verifica Configurazione Avviso Punteggio Errato, Offline SW e Versione v1.2.2 ---');
+console.log('\n--- TEST 15: Verifica Configurazione Avviso Punteggio Errato, Offline SW e Versione v1.2.3 ---');
 if (!html.includes('id="setting-toggle-score-warning"')) {
   throw new Error('Test 15 fallito: toggle setting-toggle-score-warning mancante in index.html!');
 }
@@ -571,19 +567,19 @@ if (!js.includes('setting-toggle-score-warning') || !js.includes('showScoreWarni
   throw new Error('Test 15 fallito: gestione showScoreWarning mancante in app.js!');
 }
 const testCfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (BURRACO_CONFIG || {});
-if (testCfg.version !== '1.2.2') {
-  throw new Error(`Test 15 fallito: BURRACO_CONFIG.version deve essere 1.2.2, trovato ${testCfg.version}!`);
+if (testCfg.version !== '1.2.3') {
+  throw new Error(`Test 15 fallito: BURRACO_CONFIG.version deve essere 1.2.3, trovato ${testCfg.version}!`);
 }
 const swContent = fs.readFileSync(path.join(__dirname, 'src', 'sw.js'), 'utf8');
-if (!swContent.includes('burraco-cache-v1.2.2')) {
-  throw new Error('Test 15 fallito: CACHE_NAME in sw.js non aggiornato a v1.2.2!');
+if (!swContent.includes('burraco-cache-v1.2.3')) {
+  throw new Error('Test 15 fallito: CACHE_NAME in sw.js non aggiornato a v1.2.3!');
 }
 if (!swContent.includes('ignoreSearch: true')) {
   throw new Error('Test 15 fallito: sw.js non include ignoreSearch: true per la resilienza offline!');
 }
 const manifestContent = fs.readFileSync(path.join(__dirname, 'src', 'manifest.json'), 'utf8');
-if (!manifestContent.includes('"version": "1.2.2"')) {
-  throw new Error('Test 15 fallito: version in manifest.json non aggiornata a 1.2.2!');
+if (!manifestContent.includes('"version": "1.2.3"')) {
+  throw new Error('Test 15 fallito: version in manifest.json non aggiornata a 1.2.3!');
 }
 if (!html.includes('id="btn-share-image"')) {
   throw new Error('Test 15 fallito: pulsante id="btn-share-image" mancante in index.html!');
@@ -595,8 +591,8 @@ console.log('- Toggle setting-toggle-score-warning presente nella UI delle impos
 console.log('- Controller app.js supporta attivazione/disattivazione avviso punteggio errato (OK)');
 console.log('- Supporto condivisione nativa e protezione iPad (btnShareImage / isIOS) verificato (OK)');
 console.log('- Service worker configurato con Cache-First e ignoreSearch: true per supporto offline totale (OK)');
-console.log('- Versione v1.2.2 sincronizzata tra config.js, manifest.json, sw.js e index.html (OK)');
-console.log('>>> TEST 15 SUPERATO CON SUCCESSO! Avviso configurabile, export iPad, offline PWA e versione 1.2.2 allineati al 100%.');
+console.log('- Versione v1.2.3 sincronizzata tra config.js, manifest.json, sw.js e index.html (OK)');
+console.log('>>> TEST 15 SUPERATO CON SUCCESSO! Avviso configurabile, export iPad, offline PWA e versione 1.2.3 allineati al 100%.');
 
 console.log('\n=============================================');
 console.log('TUTTI I TEST MODULARI SONO PASSATI AL 100%!');

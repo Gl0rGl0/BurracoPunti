@@ -1,40 +1,9 @@
 /**
  * BURRACO - EXCEL & DATA I/O MODULE
- * Import from raw text/Excel paste, export to formatted XLSX, and JSON backups.
+ * Export to formatted XLSX, WhatsApp image generation, and JSON backups.
  */
 
 const BurracoExcel = {
-  /**
-   * Parse multiline text pasted from Excel, Word, or plain text.
-   * Strips table/row prefixes like "Tavolo 1: ", "1. ", "1 - "
-   */
-  parseBulkPaste(text = '', autoNumber = false, startLot = 1, roundsCount = 4) {
-    if (!text || typeof text !== 'string') return [];
-
-    const lines = text.split(/\r?\n/);
-    let currentLot = startLot;
-    const result = [];
-
-    lines.forEach((rawLine, idx) => {
-      let line = rawLine.trim();
-      if (!line) return;
-
-      // Clean up leading numbers or table prefixes like "Tavolo 1: ", "1. ", "1 - "
-      line = line.replace(/^(?:Tavolo\s*\d+[\s:\-]+|\d+[\s\.\)\-:]+)/i, '').trim();
-      if (!line) return;
-
-      const newPair = {
-        id: 'p_' + Date.now() + '_' + Math.floor(Math.random() * 10000) + '_' + idx,
-        lotNumber: autoNumber ? currentLot++ : null,
-        name: line,
-        scores: Array.from({ length: roundsCount }, () => ({ mp: null, vp: null }))
-      };
-
-      result.push(newPair);
-    });
-
-    return result;
-  },
 
   _getConfig() {
     if (typeof window !== 'undefined' && window.BURRACO_CONFIG) return window.BURRACO_CONFIG;
