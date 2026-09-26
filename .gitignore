@@ -7,3 +7,5 @@ img/*
 !img/icon.png
 !img/icon.ico
 downl/
+*.zip
+*.apk

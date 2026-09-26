@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "dev.workers.giust.burracopunti.twa",
+    "sha256_cert_fingerprints": ["E1:29:3C:4C:89:48:7C:F6:FD:95:FE:EE:FC:0C:5F:F4:C1:DD:85:71:CA:56:26:E8:43:AA:81:C6:6C:A2:8E:64"]
+  }
+}]
