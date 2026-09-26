@@ -395,7 +395,7 @@
               </div>
 
               <div class="setting-toggle-item">
-                <label for="setting-toggle-bye" class="toggle-text" style="cursor: pointer;">Colonna "Riposo (Bye)" nei Turni</label>
+                <label for="setting-toggle-bye" class="toggle-text" style="cursor: pointer;">Colonna "Riposo" nei Turni</label>
                 <label class="toggle-switch">
                   <input type="checkbox" id="setting-toggle-bye">
                   <span class="toggle-slider"></span>
@@ -583,9 +583,13 @@
             <span class="instruction-badge">📋 Appunti</span>
             <span>Apri la chat su <strong>WhatsApp Web</strong> e premi <kbd class="kbd-shortcut">Ctrl + V</kbd> per incollarla.</span>
           </div>
-          <div class="instruction-row">
+          <div class="instruction-row" id="instruction-download">
             <span class="instruction-badge">💾 Download</span>
             <span>File salvato: <code id="export-modal-filename" class="export-code-badge">Classifica.png</code></span>
+          </div>
+          <div class="instruction-row" id="instruction-ios" style="display: none;">
+            <span class="instruction-badge">📲 iPad / Touch</span>
+            <span>Tocca <strong>Condividi / Salva</strong> per inviarla su WhatsApp o salvarla nelle Foto (oppure tieni premuto sull'anteprima).</span>
           </div>
         </div>
 
@@ -600,11 +604,14 @@
       </div>
       <div class="modal-footer" style="display: flex; justify-content: flex-end; align-items: center;">
         <div style="display: flex; gap: 10px;">
+          <button type="button" class="btn btn-primary" id="btn-share-image" style="display: none;">
+            <span class="btn-icon">📲</span> Condividi / Salva
+          </button>
           <button type="button" class="btn btn-secondary" id="btn-copy-image-again" style="display: none;">
             <span class="btn-icon">📋</span> Ricopia
           </button>
-          <button type="button" class="btn btn-primary" id="btn-close-export-modal">
-            Ho capito
+          <button type="button" class="btn btn-secondary" id="btn-close-export-modal">
+            Chiudi
           </button>
         </div>
       </div>

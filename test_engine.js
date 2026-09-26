@@ -582,10 +582,17 @@ const manifestContent = fs.readFileSync(path.join(__dirname, 'src', 'manifest.js
 if (!manifestContent.includes('"version": "1.2.1"')) {
   throw new Error('Test 15 fallito: version in manifest.json non aggiornata a 1.2.1!');
 }
+if (!html.includes('id="btn-share-image"')) {
+  throw new Error('Test 15 fallito: pulsante id="btn-share-image" mancante in index.html!');
+}
+if (!js.includes('btnShareImage') || !js.includes('isIOS')) {
+  throw new Error('Test 15 fallito: gestione btnShareImage o isIOS mancante in app.js!');
+}
 console.log('- Toggle setting-toggle-score-warning presente nella UI delle impostazioni (OK)');
 console.log('- Controller app.js supporta attivazione/disattivazione avviso punteggio errato (OK)');
+console.log('- Supporto condivisione nativa e protezione iPad (btnShareImage / isIOS) verificato (OK)');
 console.log('- Versione v1.2.1 sincronizzata tra config.js, manifest.json, sw.js e index.html (OK)');
-console.log('>>> TEST 15 SUPERATO CON SUCCESSO! Avviso configurabile e versione x.1.x allineati al 100%.');
+console.log('>>> TEST 15 SUPERATO CON SUCCESSO! Avviso configurabile, export iPad e versione allineati al 100%.');
 
 console.log('\n=============================================');
 console.log('TUTTI I TEST MODULARI SONO PASSATI AL 100%!');

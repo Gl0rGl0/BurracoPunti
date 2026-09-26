@@ -583,31 +583,40 @@ const BurracoExcel = {
       const safeTitle = tournamentTitle.replace(/[^a-z0-9]/gi, '_');
       const fileName = `Classifica_${safeTitle}_${dateStr}.png`;
 
-      // Download automatico del file PNG
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 200);
+      // Rilevamento iOS / iPadOS (incluso iPad con Safari Desktop mode che ha MacIntel + maxTouchPoints > 1)
+      const isIOS = (typeof navigator !== 'undefined') && (
+        /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+      );
+
+      // Su Desktop avviamo il download automatico del file PNG.
+      // Su iOS / iPadOS NON usiamo a.click() con blob URL perché Safari navigherebbe verso una schermata nera.
+      if (!isIOS) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 1000);
+      }
 
       let called = false;
       const notifyDone = (copied) => {
         if (called) return;
         called = true;
         if (typeof onComplete === 'function') {
-          onComplete({ success: true, blob, fileName, copiedToClipboard: copied });
+          onComplete({ success: true, blob, fileName, copiedToClipboard: copied, isIOS });
         } else if (typeof window !== 'undefined' && window.app && typeof window.app.showExportImageModal === 'function') {
-          window.app.showExportImageModal({ blob, fileName, copiedToClipboard: copied });
+          window.app.showExportImageModal({ blob, fileName, copiedToClipboard: copied, isIOS });
         }
       };
 
-      // Copia contestuale negli appunti per incolla diretto su WhatsApp Web (Ctrl+V)
-      if (typeof navigator !== 'undefined' && navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+      // Su Desktop, copia contestuale negli appunti per incolla diretto su WhatsApp Web (Ctrl+V)
+      if (!isIOS && typeof navigator !== 'undefined' && navigator.clipboard && typeof ClipboardItem !== 'undefined') {
         try {
           const item = new ClipboardItem({ 'image/png': blob });
           const safetyTimer = setTimeout(() => notifyDone(false), 800);

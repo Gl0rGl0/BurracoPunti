@@ -103,9 +103,13 @@ class BurracoApp {
     this.exportStatusTitle = document.getElementById('export-status-title');
     this.exportStatusDesc = document.getElementById('export-status-desc');
     this.instructionClipboard = document.getElementById('instruction-clipboard');
+    this.instructionDownload = document.getElementById('instruction-download');
+    this.instructionIos = document.getElementById('instruction-ios');
     this.btnCopyImageAgain = document.getElementById('btn-copy-image-again');
+    this.btnShareImage = document.getElementById('btn-share-image');
     this.currentExportBlob = null;
     this.currentExportBlobUrl = null;
+    this.currentExportFileName = null;
     this.inputPairName = document.getElementById('input-pair-name');
     this.inputLotNumber = document.getElementById('input-lot-number');
     this.inputEditPairName = document.getElementById('edit-pair-name');
@@ -582,6 +586,29 @@ class BurracoApp {
             }, 2000);
           }
         }).catch(err => console.warn('Errore ricopia immagine:', err));
+      }
+    });
+
+    this.btnShareImage?.addEventListener('click', async () => {
+      if (!this.currentExportBlob) return;
+      try {
+        const fileName = this.currentExportFileName || 'Classifica_Burraco.png';
+        const file = new File([this.currentExportBlob], fileName, { type: 'image/png' });
+        if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'Classifica Burraco'
+          });
+        } else if (typeof navigator !== 'undefined' && navigator.share) {
+          await navigator.share({
+            title: 'Classifica Burraco',
+            text: 'Classifica del torneo di Burraco'
+          });
+        }
+      } catch (err) {
+        if (err && err.name !== 'AbortError') {
+          console.warn('Condivisione non riuscita:', err);
+        }
       }
     });
 
@@ -1137,7 +1164,7 @@ class BurracoApp {
       this.roundTableBody.appendChild(tr);
     });
 
-    // Event listeners per il pulsante Riposo (Bye)
+    // Event listeners per il pulsante Riposo
     if (showBye) {
       this.roundTableBody.querySelectorAll('.btn-round-bye').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -1526,12 +1553,13 @@ class BurracoApp {
     });
   }
 
-  showExportImageModal({ blob, fileName, copiedToClipboard }) {
+  showExportImageModal({ blob, fileName, copiedToClipboard, isIOS }) {
     if (this.currentExportBlobUrl) {
       URL.revokeObjectURL(this.currentExportBlobUrl);
       this.currentExportBlobUrl = null;
     }
     this.currentExportBlob = blob;
+    this.currentExportFileName = fileName;
     this.currentExportBlobUrl = URL.createObjectURL(blob);
 
     if (this.exportPreviewImg) {
@@ -1540,15 +1568,32 @@ class BurracoApp {
     if (this.exportModalFilename) {
       this.exportModalFilename.textContent = fileName;
     }
-    if (copiedToClipboard) {
+
+    const canNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+
+    if (isIOS) {
+      if (this.exportStatusTitle) this.exportStatusTitle.textContent = 'Classifica Pronta!';
+      if (this.exportStatusDesc) this.exportStatusDesc.textContent = "Tocca 'Condividi / Salva' per inviarla su WhatsApp o salvarla nelle Foto del tuo iPad.";
+      if (this.instructionClipboard) this.instructionClipboard.style.display = 'none';
+      if (this.instructionDownload) this.instructionDownload.style.display = 'none';
+      if (this.instructionIos) this.instructionIos.style.display = 'flex';
+      if (this.btnShareImage) this.btnShareImage.style.display = 'inline-flex';
+      if (this.btnCopyImageAgain) this.btnCopyImageAgain.style.display = 'none';
+    } else if (copiedToClipboard) {
       if (this.exportStatusTitle) this.exportStatusTitle.textContent = 'Pronta per WhatsApp!';
       if (this.exportStatusDesc) this.exportStatusDesc.textContent = "L'immagine è stata copiata negli appunti e scaricata sul tuo computer.";
       if (this.instructionClipboard) this.instructionClipboard.style.display = 'flex';
+      if (this.instructionDownload) this.instructionDownload.style.display = 'flex';
+      if (this.instructionIos) this.instructionIos.style.display = 'none';
+      if (this.btnShareImage) this.btnShareImage.style.display = canNativeShare ? 'inline-flex' : 'none';
       if (this.btnCopyImageAgain) this.btnCopyImageAgain.style.display = 'inline-flex';
     } else {
       if (this.exportStatusTitle) this.exportStatusTitle.textContent = 'Immagine Scaricata!';
       if (this.exportStatusDesc) this.exportStatusDesc.textContent = "Il file PNG è pronto: puoi allegarlo direttamente su WhatsApp dalla cartella Download.";
       if (this.instructionClipboard) this.instructionClipboard.style.display = 'none';
+      if (this.instructionDownload) this.instructionDownload.style.display = 'flex';
+      if (this.instructionIos) this.instructionIos.style.display = 'none';
+      if (this.btnShareImage) this.btnShareImage.style.display = canNativeShare ? 'inline-flex' : 'none';
       if (this.btnCopyImageAgain) this.btnCopyImageAgain.style.display = 'none';
     }
 
