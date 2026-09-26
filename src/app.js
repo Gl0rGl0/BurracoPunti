@@ -794,7 +794,7 @@ class BurracoApp {
           <input type="text" class="form-control initial-name-input" 
                  data-pair-id="${pair.id}" data-row-idx="${rowIdx}"
                  value="${BurracoUtils.escapeHtml(pair.name)}" 
-                 placeholder="Nome Coppia / Giocatori (es. Pietro - Paolo)"
+                 placeholder="Nome Giocatori (es. Pietro - Paolo)"
                  style="width:100%; font-size:16px; font-weight:600; padding:8px 12px;">
         </td>
         <td style="text-align:center; width:150px;">
@@ -916,9 +916,9 @@ class BurracoApp {
       : (cfgPrize.showColumn === true);
     const prizeColTitle = cfgPrize.columnHeader || 'Premio (€)';
 
-    // 1. Ranked pairs e calcolo dinamico larghezza colonna "Coppia / Giocatori" (nome più lungo + 2 caratteri)
+    // 1. Ranked pairs e calcolo dinamico larghezza colonna "Giocatori" (nome più lungo + 2 caratteri)
     const ranked = this.getRankedPairs().filter(p => p.name && p.name.trim() !== '');
-    let maxNameLen = 19; // Intestazione "Coppia / Giocatori"
+    let maxNameLen = 19; // Intestazione "Giocatori"
     ranked.forEach(pair => {
       const len = pair.name ? pair.name.trim().length : 0;
       if (len > maxNameLen) maxNameLen = len;
@@ -946,7 +946,7 @@ class BurracoApp {
       thead.innerHTML = `
         <tr id="master-table-head-row">
           <th rowspan="2" class="col-rank">Pos.</th>
-          <th rowspan="2" class="col-name" style="width:${colNameWidth}; max-width:${colNameWidth}; white-space:nowrap;">Coppia / Giocatori</th>
+          <th rowspan="2" class="col-name" style="width:${colNameWidth}; max-width:${colNameWidth}; white-space:nowrap;">Giocatori</th>
           <th rowspan="2" class="col-lot" title="Numero identificativo">N°</th>
           ${roundColsHtml}
           <th rowspan="2" class="col-tot-vp">Totale VP</th>

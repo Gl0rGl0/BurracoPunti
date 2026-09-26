@@ -13,6 +13,10 @@ const BurracoExcel = {
   /**
    * Generate and download Excel workbook (.xlsx) with Classifica and Tabellone Turni.
    */
+  /**
+   * Genera e scarica il file Excel (.xlsx) con un unico foglio completo e ordinato:
+   * Classifica, N° tavolo, tutti i turni disputati (MP e VP), totali ed eventuale premio.
+   */
   exportToExcel(state, rankedPairs = []) {
     if (typeof XLSX === 'undefined') {
       alert('Libreria Excel non ancora caricata. Riprova tra qualche istante.');
@@ -22,74 +26,249 @@ const BurracoExcel = {
     try {
       const cfg = this._getConfig();
       const expCfg = cfg.export || {};
-      const sheetLeaderboard = expCfg.sheetLeaderboard || 'Classifica';
-      const sheetMaster = expCfg.sheetMaster || 'Tabellone Completo';
-      const headerLeaderboard = expCfg.headerLeaderboard || 'BURRACO - CLASSIFICA GENERALE UFFICIALE';
-      const headerMaster = expCfg.headerMaster || 'BURRACO - TABELLONE COMPLETO DI TUTTI I TURNI';
+      const sheetName = expCfg.sheetLeaderboard || 'Classifica';
+      const headerTitle = expCfg.headerLeaderboard || 'BURRACO - CLASSIFICA GENERALE TORNEO';
       const defaultTitle = cfg.defaultTournamentTitle || 'Torneo di Burraco';
+      const tournamentTitle = state.title || defaultTitle;
+      const roundsCount = state.roundsCount || 4;
 
       const wb = XLSX.utils.book_new();
 
-      // Sheet 1: Classifica Generale
-      const leaderboardData = [
-        [headerLeaderboard],
-        ['Torneo:', state.title || defaultTitle],
-        ['Data:', (function() {
-          if (state.currentGiornataKey) {
-            const m = state.currentGiornataKey.match(/^serata_(\d{2})(\d{2})(\d{2})/);
-            if (m) return `${m[1]}/${m[2]}/20${m[3]}`;
+      // Verifica se la colonna montepremi è abilitata
+      const cfgPrize = (cfg && cfg.prizepool) || {};
+      const showPrizepool = (state.settings && state.settings.showPrizepool !== undefined)
+        ? !!state.settings.showPrizepool
+        : (cfgPrize.showColumn === true);
+
+      const prizeMap = {};
+      if (showPrizepool) {
+        const fee = (state.settings && state.settings.entryFeePerPlayer !== undefined)
+          ? state.settings.entryFeePerPlayer
+          : (cfgPrize.entryFeePerPlayer !== undefined ? cfgPrize.entryFeePerPlayer : 2);
+
+        const pcts = (state.settings && state.settings.prizePercentages)
+          ? state.settings.prizePercentages
+          : (cfgPrize.percentages || [50, 30, 20, 0, 0]);
+
+        const engine = (typeof window !== 'undefined' && window.BurracoEngine)
+          ? window.BurracoEngine
+          : (typeof require !== 'undefined' ? require('./engine') : null);
+
+        if (engine && engine.calculatePrizepool) {
+          const res = engine.calculatePrizepool(rankedPairs.length, fee, pcts);
+          if (res && res.prizes) {
+            res.prizes.forEach(p => {
+              prizeMap[p.rank] = p.text;
+            });
           }
-          return new Date().toLocaleDateString('it-IT');
-        })()],
-        [],
-        ['Posizione', 'Coppia / Giocatori', 'N° Estratto', 'Totale VP', 'Totale MP', 'Distacco 1°']
-      ];
-
-      const leaderVP = rankedPairs[0]?.totVP || 0;
-      rankedPairs.forEach((p, idx) => {
-        leaderboardData.push([
-          idx + 1,
-          p.name,
-          p.lotNumber || '',
-          p.totVP,
-          p.totMP,
-          idx === 0 ? '—' : `-${leaderVP - p.totVP}`
-        ]);
-      });
-
-      const wsLeaderboard = XLSX.utils.aoa_to_sheet(leaderboardData);
-      XLSX.utils.book_append_sheet(wb, wsLeaderboard, sheetLeaderboard);
-
-      // Sheet 2: Tabellone Completo Turni
-      const masterHeader = ['Pos.', 'Coppia', 'N°'];
-      for (let r = 0; r < state.roundsCount; r++) {
-        masterHeader.push(`T${r + 1} MP`, `T${r + 1} VP`);
-      }
-      masterHeader.push('Totale VP', 'Totale MP');
-
-      const masterData = [
-        [headerMaster],
-        ['Torneo:', state.title || defaultTitle],
-        [],
-        masterHeader
-      ];
-
-      rankedPairs.forEach((p, idx) => {
-        const row = [idx + 1, p.name, p.lotNumber || ''];
-        for (let r = 0; r < state.roundsCount; r++) {
-          const sc = (p.scores && p.scores[r]) || {};
-          row.push(sc.mp !== null && sc.mp !== undefined ? sc.mp : '', sc.vp !== null && sc.vp !== undefined ? sc.vp : '');
         }
-        row.push(p.totVP, p.totMP);
-        masterData.push(row);
+      }
+
+      // Costruzione intestazione colonne
+      const tableHeaders = ['Pos.', 'Coppia / Giocatori', 'N° Tavolo'];
+      for (let r = 0; r < roundsCount; r++) {
+        tableHeaders.push(`Turno ${r + 1} MP`, `Turno ${r + 1} VP`);
+      }
+      tableHeaders.push('Totale VP', 'Totale MP');
+      if (showPrizepool) {
+        tableHeaders.push('Premio (€)');
+      }
+
+      const totalCols = tableHeaders.length;
+
+      // Data formattata per sottotitolo
+      const formattedDate = (function() {
+        if (state.currentGiornataKey) {
+          const m = state.currentGiornataKey.match(/^serata_(\d{2})(\d{2})(\d{2})/);
+          if (m) return `${m[1]}/${m[2]}/20${m[3]}`;
+        }
+        return new Date().toLocaleDateString('it-IT');
+      })();
+
+      const subtitle = `Torneo: ${tournamentTitle}   |   Data: ${formattedDate}   |   Turni Disputati: ${roundsCount}   |   Coppie Totali: ${rankedPairs.length}`;
+
+      const sheetData = [
+        [headerTitle],
+        [subtitle],
+        [],
+        tableHeaders
+      ];
+
+      // Righe dati per ciascuna coppia classificata
+      rankedPairs.forEach((p, idx) => {
+        const rank = idx + 1;
+        const row = [
+          `${rank}°`,
+          p.name || '—',
+          (p.lotNumber !== null && p.lotNumber !== undefined) ? p.lotNumber : '—'
+        ];
+
+        for (let r = 0; r < roundsCount; r++) {
+          const sc = (p.scores && p.scores[r]) || {};
+          const mpVal = (sc.mp !== null && sc.mp !== undefined) ? sc.mp : '—';
+          const vpVal = (sc.vp !== null && sc.vp !== undefined) ? sc.vp : '—';
+          row.push(mpVal, vpVal);
+        }
+
+        row.push(
+          (p.totVP !== null && p.totVP !== undefined) ? p.totVP : 0,
+          (p.totMP !== null && p.totMP !== undefined) ? p.totMP : 0
+        );
+
+        if (showPrizepool) {
+          row.push(prizeMap[rank] || '—');
+        }
+
+        sheetData.push(row);
       });
 
-      const wsMaster = XLSX.utils.aoa_to_sheet(masterData);
-      XLSX.utils.book_append_sheet(wb, wsMaster, sheetMaster);
+      const ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+      // Unione celle per il banner del titolo e il sottotitolo
+      ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: totalCols - 1 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: totalCols - 1 } }
+      ];
+
+      // Larghezze colonne personalizzate
+      const colWidths = [
+        { wch: 8 },  // Pos.
+        { wch: 32 }, // Coppia / Giocatori
+        { wch: 12 }  // N° Tavolo
+      ];
+      for (let r = 0; r < roundsCount; r++) {
+        colWidths.push({ wch: 14 }, { wch: 14 }); // Turno X MP, Turno X VP
+      }
+      colWidths.push({ wch: 13 }, { wch: 14 }); // Totale VP, Totale MP
+      if (showPrizepool) {
+        colWidths.push({ wch: 15 }); // Premio (€)
+      }
+      ws['!cols'] = colWidths;
+
+      // Abilita griglia visibile e filtri automatici Excel sull'intestazione
+      ws['!views'] = [{ showGridLines: true }];
+      if (rankedPairs.length > 0) {
+        ws['!autofilter'] = {
+          ref: XLSX.utils.encode_range({
+            s: { r: 3, c: 0 },
+            e: { r: 3 + rankedPairs.length, c: totalCols - 1 }
+          })
+        };
+      }
+
+      // Stile visivo: colori raffinati, font, evidenziazione podio e bordi
+      try {
+        const thinBorder = {
+          top: { style: 'thin', color: { rgb: 'CBD5E1' } },
+          bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
+          left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+          right: { style: 'thin', color: { rgb: 'CBD5E1' } }
+        };
+
+        // Banner Titolo (Riga 1 - A1)
+        if (ws['A1']) {
+          ws['A1'].s = {
+            fill: { fgColor: { rgb: '0F172A' } },
+            font: { name: 'Calibri', sz: 14, bold: true, color: { rgb: 'FFFFFF' } },
+            alignment: { horizontal: 'center', vertical: 'center' }
+          };
+        }
+
+        // Sottotitolo (Riga 2 - A2)
+        if (ws['A2']) {
+          ws['A2'].s = {
+            fill: { fgColor: { rgb: 'F1F5F9' } },
+            font: { name: 'Calibri', sz: 10, italic: true, color: { rgb: '475569' } },
+            alignment: { horizontal: 'center', vertical: 'center' }
+          };
+        }
+
+        // Intestazione Tabella (Riga 4 - indice 3)
+        for (let c = 0; c < totalCols; c++) {
+          const headerRef = XLSX.utils.encode_cell({ r: 3, c: c });
+          if (ws[headerRef]) {
+            ws[headerRef].s = {
+              fill: { fgColor: { rgb: '1D4ED8' } },
+              font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: 'FFFFFF' } },
+              alignment: { horizontal: 'center', vertical: 'center' },
+              border: {
+                top: { style: 'medium', color: { rgb: '1E40AF' } },
+                bottom: { style: 'medium', color: { rgb: '1E40AF' } },
+                left: { style: 'thin', color: { rgb: '60A5FA' } },
+                right: { style: 'thin', color: { rgb: '60A5FA' } }
+              }
+            };
+          }
+        }
+
+        const colTotVpIdx = 3 + (roundsCount * 2);
+        const colTotMpIdx = colTotVpIdx + 1;
+        const colPrizeIdx = showPrizepool ? colTotMpIdx + 1 : -1;
+
+        // Righe Dati Giocatori (dalla riga 5 in poi)
+        for (let r = 4; r < sheetData.length; r++) {
+          const rank = r - 3;
+          const isEven = (r % 2 === 0);
+          let rowBg = isEven ? 'F8FAFC' : 'FFFFFF';
+
+          // Evidenziazione podio per le prime 3 coppie
+          if (rank === 1) rowBg = 'FEF3C7'; // Oro chiaro
+          else if (rank === 2) rowBg = 'F1F5F9'; // Argento chiaro
+          else if (rank === 3) rowBg = 'FFEDD5'; // Bronzo chiaro
+
+          for (let c = 0; c < totalCols; c++) {
+            const cellRef = XLSX.utils.encode_cell({ r: r, c: c });
+            if (!ws[cellRef]) continue;
+
+            let cellFill = rowBg;
+            let fontColor = '0F172A';
+            let isBold = false;
+            let align = 'center';
+
+            if (c === 1) { // Nome coppia
+              align = 'left';
+              if (rank <= 3) isBold = true;
+            } else if (c === colTotVpIdx) { // Colonna Totale VP
+              cellFill = 'EFF6FF';
+              fontColor = '1D4ED8';
+              isBold = true;
+            } else if (c === colTotMpIdx) { // Colonna Totale MP
+              cellFill = isEven ? 'F1F5F9' : 'F8FAFC';
+              isBold = true;
+            } else if (c === colPrizeIdx) { // Colonna Premio (€)
+              if (ws[cellRef].v && ws[cellRef].v !== '—') {
+                cellFill = 'ECFDF5';
+                fontColor = '047857';
+                isBold = true;
+              }
+            }
+
+            ws[cellRef].s = {
+              fill: { fgColor: { rgb: cellFill } },
+              font: { name: 'Calibri', sz: 11, bold: isBold, color: { rgb: fontColor } },
+              alignment: { horizontal: align, vertical: 'center' },
+              border: thinBorder
+            };
+          }
+        }
+
+        // Altezze righe personalizzate per leggibilità
+        ws['!rows'] = [
+          { hpt: 26 }, // Titolo
+          { hpt: 18 }, // Sottotitolo
+          { hpt: 8 },  // Spaziatura
+          { hpt: 24 }  // Intestazione tabella
+        ];
+      } catch (styleErr) {
+        console.warn('Avviso: impossibile applicare alcuni stili alle celle Excel:', styleErr);
+      }
+
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
       const filePrefix = expCfg.excelFilePrefix || 'torneo';
-      const safeTitle = (state.title || filePrefix).replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      const fileName = `${safeTitle}_risultati.xlsx`;
+      const safeTitle = (tournamentTitle || filePrefix).replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      const dateSuffix = (state.currentGiornataKey && state.currentGiornataKey.replace(/^serata_/, '')) || '';
+      const fileName = dateSuffix ? `${safeTitle}_classifica_${dateSuffix}.xlsx` : `${safeTitle}_classifica.xlsx`;
 
       // Native PyWebView file dialog or browser fallback
       if (typeof window !== 'undefined' && window.pywebview && window.pywebview.api && window.pywebview.api.export_excel_native) {
@@ -209,7 +388,7 @@ const BurracoExcel = {
       const textWidth = testCtx.measureText(p.name).width;
       if (textWidth > maxNamePx) maxNamePx = textWidth;
     });
-    const headerNameWidth = testCtx.measureText('Coppia / Giocatori').width;
+    const headerNameWidth = testCtx.measureText('Giocatori').width;
     if (headerNameWidth > maxNamePx) maxNamePx = headerNameWidth;
 
     const colNameWidth = Math.min(380, Math.ceil(maxNamePx + 32));
@@ -302,9 +481,9 @@ const BurracoExcel = {
     // Pos.
     ctx.fillText('POS.', tableX + (colRankWidth / 2), tableY + (tableHeaderHeight / 2));
 
-    // Coppia / Giocatori
+    // Giocatori
     ctx.textAlign = 'left';
-    ctx.fillText('COPPIA / GIOCATORI', tableX + colRankWidth + 14, tableY + (tableHeaderHeight / 2));
+    ctx.fillText('Giocatori', tableX + colRankWidth + 14, tableY + (tableHeaderHeight / 2));
 
     // N°
     ctx.textAlign = 'center';

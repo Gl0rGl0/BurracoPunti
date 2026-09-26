@@ -30,7 +30,7 @@ Applicazione gestionale moderna, reattiva e portabile (per Windows, Web, iPad e 
 
 - **Compilazione rapida stile Excel**:
   - **Counter a sinistra (`#`)**: numerazione progressiva delle righe inserite (1, 2, 3...).
-  - **Colonna Coppia / Giocatori**: campo editabile direttamente sulla riga per scrivere i nomi dei partecipanti.
+  - **Colonna Giocatori**: campo editabile direttamente sulla riga per scrivere i nomi dei partecipanti.
   - **Colonna Numero Squadra**: casella numerica dedicata a destra per inserire il numero di tavolo/sorteggio assegnato alla coppia.
   - **Pulsante `➕ Aggiungi Coppia` sotto la tabella**: aggiunge una nuova riga con focus automatico sul campo nome.
   - **Inserimento con <kbd>Invio</kbd>**: premi Invio mentre scrivi per creare e passare automaticamente alla riga successiva.
