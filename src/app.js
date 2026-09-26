@@ -476,6 +476,10 @@ class BurracoApp {
 
     this.roundSearchInput?.addEventListener('input', (e) => {
       this.roundSearchFilter = e.target.value.trim().toLowerCase();
+      if (typeof CSS === 'undefined' || !CSS.supports || !CSS.supports('field-sizing', 'content')) {
+        const len = e.target.value.length;
+        e.target.style.width = len > 12 ? Math.min(250, 130 + (len - 12) * 8) + 'px' : '';
+      }
       this.renderRoundView();
     });
 
