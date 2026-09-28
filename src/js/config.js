@@ -8,15 +8,13 @@ const BURRACO_CONFIG = {
   // ==========================================
   // VERSIONAMENTO E RETE
   // ==========================================
-  version: "1.2.7",
+  version: "1.3.1",
   remoteUrl: "https://burracopunti.giust.workers.dev/",
 
   // ==========================================
   // TITOLI E IDENTITÀ
   // ==========================================
-  appTitle: "Burraco - Scursai Pezzo",
-  brandName: "Burraco Pezzo",
-  defaultTournamentTitle: "Burraco Pezzo",
+  appTitle: "Burraco Pezzo",
 
   // ==========================================
   // PARAMETRI DI GARA PREDEFINITI
@@ -68,9 +66,9 @@ const BURRACO_CONFIG = {
     excelFilePrefix: "torneo",
     sheetLeaderboard: "Classifica",
     sheetMaster: "Tabellone Completo",
-    headerLeaderboard: "BURRACO - CLASSIFICA GENERALE UFFICIALE",
+    headerLeaderboard: "BURRACO - CLASSIFICA GENERALE",
     headerMaster: "BURRACO - TABELLONE COMPLETO DI TUTTI I TURNI",
-    printSubtitle: "Classifica Finale Ufficiale",
+    printSubtitle: "Classifica Finale",
     printRefereeSignature: "Firma Arbitro di Gara",
     printDirectorSignature: "Firma Direttore di Torneo"
   },
@@ -79,10 +77,10 @@ const BURRACO_CONFIG = {
   // DIRECTORY E PERSISTENZA FILE (Desktop)
   // ==========================================
   storage: {
-    directoryName: "BurracoPezzo",
+    directoryName: "BurracoPunti",
     statsFileName: "statistiche_tornei.json"
   },
-  saveDirectory: "BurracoPezzo",
+  saveDirectory: "BurracoPunti",
   statsFileName: "statistiche_tornei.json"
 };
 

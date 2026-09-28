@@ -12,7 +12,9 @@ class BurracoApp {
     this.render();
 
     // Helper per caricare lo stato salvato su disco da Python/PyWebView
+    let pythonLoaded = false;
     const loadFromPython = () => {
+      pythonLoaded = true;
       if (window.pywebview && window.pywebview.api && window.pywebview.api.load_tournament_data) {
         window.pywebview.api.load_tournament_data().then(diskData => {
           if (diskData) {
@@ -24,14 +26,38 @@ class BurracoApp {
               this.render();
             }
           }
-        }).catch(err => console.error('Errore lettura statistiche_tornei.json da Python:', err));
+          this.checkInitialConfigPrompt();
+        }).catch(err => {
+          console.error('Errore lettura statistiche_tornei.json da Python:', err);
+          this.checkInitialConfigPrompt();
+        });
+      } else {
+        this.checkInitialConfigPrompt();
       }
     };
 
+    const isDesktopEnvironment = typeof window !== 'undefined' && Boolean(
+      (window.pywebview && window.pywebview.api) ||
+      (window.chrome && window.chrome.webview) ||
+      window.__PYWEBVIEW__
+    );
+
     if (window.pywebview && window.pywebview.api) {
       loadFromPython();
-    } else {
+    } else if (isDesktopEnvironment) {
       window.addEventListener('pywebviewready', loadFromPython);
+      setTimeout(() => {
+        if (!pythonLoaded) {
+          loadFromPython();
+        }
+      }, 500);
+    } else {
+      // Browser Web / PWA standard
+      setTimeout(() => {
+        if (!pythonLoaded) {
+          this.checkInitialConfigPrompt();
+        }
+      }, 100);
     }
   }
 
@@ -171,6 +197,8 @@ class BurracoApp {
     this.modalConfirmClear = document.getElementById('modal-confirm-clear');
     this.modalNewTournament = document.getElementById('modal-new-tournament');
     this.modalExportImage = document.getElementById('modal-export-image');
+    this.modalCustomConfig = document.getElementById('modal-custom-config');
+    this.modalSelectEvening = document.getElementById('modal-select-evening');
 
     // Form inputs & export preview elements
     this.exportPreviewImg = document.getElementById('export-preview-img');
@@ -234,18 +262,23 @@ class BurracoApp {
     const cfg = typeof window !== 'undefined' && window.BURRACO_CONFIG ? window.BURRACO_CONFIG : null;
     if (!cfg) return;
 
+    if (this.state && this.state.config) {
+      if (this.state.config.appTitle) cfg.appTitle = this.state.config.appTitle;
+      if (this.state.config.directoryName) {
+        if (!cfg.storage) cfg.storage = {};
+        cfg.storage.directoryName = this.state.config.directoryName;
+        cfg.saveDirectory = this.state.config.directoryName;
+      }
+    }
+
     if (cfg.appTitle) {
       document.title = cfg.appTitle;
-    }
-
-    const brandEl = document.getElementById('brand-title');
-    if (brandEl && cfg.brandName) {
-      brandEl.textContent = cfg.brandName;
-    }
-
-    if (cfg.defaultTournamentTitle) {
-      if (!this.state.title || this.state.title === 'Torneo di Burraco') {
-        this.state.title = cfg.defaultTournamentTitle;
+      const brandEl = document.getElementById('brand-title');
+      if (brandEl) {
+        brandEl.textContent = cfg.appTitle;
+      }
+      if (!this.state.title || this.state.title === 'Torneo di Burraco' || this.state.title === 'Burraco Pezzo') {
+        this.state.title = cfg.appTitle;
       }
     }
 
@@ -279,6 +312,16 @@ class BurracoApp {
     if (cfg.version) {
       const verEl = document.getElementById('app-version-text');
       if (verEl) verEl.textContent = `v${cfg.version}`;
+    }
+  }
+
+  checkInitialConfigPrompt() {
+    if (this._initialConfigChecked) return;
+    this._initialConfigChecked = true;
+
+    // Se non è presente una configurazione salvata nello storage (localStorage o file), mostra la modale di personalizzazione
+    if (!BurracoStorage.hasStoredConfig(this.state)) {
+      this.openModal('modalCustomConfig');
     }
   }
 
@@ -325,7 +368,7 @@ class BurracoApp {
       if (inp) inp.value = (curPcts[idx] !== undefined && curPcts[idx] !== null) ? curPcts[idx] : 0;
     });
 
-    this.updatePrizePercentages();
+    this.updatePrizePercentages(null, false);
 
     if (this.settingRoundsCount) this.settingRoundsCount.value = this.state.roundsCount;
 
@@ -353,7 +396,7 @@ class BurracoApp {
     }
   }
 
-  updatePrizePercentages(activeInput = null) {
+  updatePrizePercentages(activeInput = null, shouldSave = true) {
     if (!this.settingPrizePcts) return;
 
     if (activeInput) {
@@ -419,8 +462,10 @@ class BurracoApp {
     const fee = Math.max(0, parseFloat(this.settingEntryFee?.value) || 0);
     this.state.settings.entryFeePerPlayer = fee;
     this.state.settings.prizePercentages = pcts;
-    this.saveState();
-    this.renderMasterTable();
+    if (shouldSave) {
+      this.saveState();
+      this.renderMasterTable();
+    }
   }
 
   // ==========================================
@@ -500,6 +545,35 @@ class BurracoApp {
 
     const btnExportJson = document.getElementById('btn-modal-export-json') || document.getElementById('btn-export-json');
     btnExportJson?.addEventListener('click', () => BurracoExcel.exportBackupJSON(this.state));
+
+    document.getElementById('btn-modal-open-config')?.addEventListener('click', () => {
+      this.openModal('modalCustomConfig');
+    });
+    document.getElementById('btn-save-config')?.addEventListener('click', () => {
+      this.saveCustomConfig();
+    });
+    document.getElementById('btn-cancel-config')?.addEventListener('click', () => {
+      this.closeModal('modalCustomConfig');
+    });
+    document.getElementById('close-config-modal')?.addEventListener('click', () => {
+      this.closeModal('modalCustomConfig');
+    });
+    document.getElementById('config-input-tournament-name')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        this.saveCustomConfig();
+      }
+    });
+
+    document.getElementById('btn-modal-open-evenings')?.addEventListener('click', () => {
+      this.openModal('modalSelectEvening');
+    });
+    document.getElementById('btn-close-evenings-modal')?.addEventListener('click', () => {
+      this.closeModal('modalSelectEvening');
+    });
+    document.getElementById('close-select-evening-modal')?.addEventListener('click', () => {
+      this.closeModal('modalSelectEvening');
+    });
 
     // Import JSON File
     const fileInput = document.getElementById('input-import-json');
@@ -1650,7 +1724,6 @@ class BurracoApp {
       if (this.btnShareImage) this.btnShareImage.style.display = 'inline-flex';
       if (this.btnCopyImageAgain) this.btnCopyImageAgain.style.display = 'none';
     } else if (copiedToClipboard) {
-      if (this.exportStatusTitle) this.exportStatusTitle.textContent = 'Pronta per WhatsApp!';
       if (this.exportStatusDesc) this.exportStatusDesc.textContent = "L'immagine è stata copiata negli appunti e scaricata sul tuo computer.";
       if (this.instructionClipboard) this.instructionClipboard.style.display = 'flex';
       if (this.instructionDownload) this.instructionDownload.style.display = 'flex';
@@ -1706,6 +1779,17 @@ class BurracoApp {
         label.textContent = `${dd}/${mm}/${yy}`;
       }
     }
+    if (modalKey === 'modalCustomConfig') {
+      const savedConfig = (this.state && this.state.config) || {};
+      const nameInput = document.getElementById('config-input-tournament-name');
+      if (nameInput) {
+        nameInput.value = savedConfig.appTitle || '';
+        setTimeout(() => nameInput.focus(), 60);
+      }
+    }
+    if (modalKey === 'modalSelectEvening') {
+      this.renderEveningsList();
+    }
     if (this[modalKey]) {
       this[modalKey].classList.add('active');
     }
@@ -1714,6 +1798,103 @@ class BurracoApp {
   closeModal(modalKey) {
     if (this[modalKey]) {
       this[modalKey].classList.remove('active');
+    }
+  }
+
+  saveCustomConfig() {
+    const nameInput = document.getElementById('config-input-tournament-name');
+    const name = nameInput ? nameInput.value.trim() : '';
+
+    if (!name) {
+      alert('Inserisci un nome per il torneo o circolo.');
+      return;
+    }
+
+    const appTitle = name;
+    const directoryName = 'BurracoPunti';
+
+    const cfg = typeof window !== 'undefined' && window.BURRACO_CONFIG ? window.BURRACO_CONFIG : {};
+    cfg.appTitle = appTitle;
+    if (!cfg.storage) cfg.storage = {};
+    cfg.storage.directoryName = directoryName;
+    cfg.saveDirectory = directoryName;
+
+    this.state.config = {
+      appTitle,
+      directoryName
+    };
+
+    this.state.title = appTitle;
+    if (this.titleInput) this.titleInput.value = appTitle;
+
+    this.applyConfig();
+    this.saveState();
+    this.closeModal('modalCustomConfig');
+    alert('Nome torneo aggiornato con successo!');
+  }
+
+  renderEveningsList() {
+    const container = document.getElementById('evenings-list-container');
+    if (!container) return;
+    const evenings = BurracoStorage.getSavedEvenings(this.state);
+    if (!evenings || evenings.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 30px 10px; color: var(--text-muted); font-size: 14.5px;">
+          Nessuna serata trovata in memoria.
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = evenings.map(ev => {
+      const activeBadge = ev.isActive
+        ? `<span class="badge-evening-active">Attiva</span>`
+        : '';
+      const actionBtn = ev.isActive
+        ? `<button type="button" class="btn btn-secondary btn-sm" disabled style="opacity: 0.6; cursor: default;">In Uso</button>`
+        : `<button type="button" class="btn btn-primary btn-sm btn-load-evening" data-key="${ev.key}">
+             <span class="btn-icon">📂</span> Carica
+           </button>`;
+
+      return `
+        <div class="evening-card ${ev.isActive ? 'active' : ''}">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-weight: 700; font-size: 15px; color: var(--text-main);">Serata del ${ev.dateLabel}</span>
+              ${activeBadge}
+            </div>
+            <div style="font-size: 13px; color: var(--text-muted); display: flex; gap: 12px;">
+              <span>👥 <strong>${ev.pairsCount}</strong> coppie</span>
+              <span>🎯 <strong>${ev.roundsCount}</strong> turni</span>
+            </div>
+          </div>
+          <div>
+            ${actionBtn}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    container.querySelectorAll('.btn-load-evening').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const key = e.currentTarget.dataset.key;
+        if (key) {
+          this.loadEvening(key);
+        }
+      });
+    });
+  }
+
+  loadEvening(key) {
+    const updated = BurracoStorage.loadEvening(this.state, key);
+    if (updated) {
+      if (this.titleInput) this.titleInput.value = this.state.title;
+      this.syncSettingsUI();
+      this.render();
+      this.closeModal('modalSelectEvening');
+      this.closeModal('modalSettings');
+      const dateText = BurracoUtils.formatGiornataLabel(key);
+      alert(`Serata del ${dateText} caricata con successo!`);
     }
   }
 }

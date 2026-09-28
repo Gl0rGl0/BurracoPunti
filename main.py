@@ -37,18 +37,25 @@ def get_config_value(key, default=""):
     return default
 
 def get_save_folder_name():
-    """ Read target save folder from config.js with fallback to BurracoPezzo """
+    """ Read target save folder from config.js with fallback to BurracoPunti """
     folder = get_config_value("directoryName")
     if not folder:
-        folder = get_config_value("saveDirectory", "BurracoPezzo")
+        folder = get_config_value("saveDirectory", "BurracoPunti")
     return folder
 
 def get_stats_filename():
     """ Read stats filename from config.js with fallback to statistiche_tornei.json """
     return get_config_value("statsFileName", "statistiche_tornei.json")
 
+_DOCS_DIR_CACHE = None
+
 def get_user_documents_dir():
     """ Get path to user's Documents folder (e.g. C:\\Users\\[UTENTE]\\Documents) """
+    global _DOCS_DIR_CACHE
+    if _DOCS_DIR_CACHE:
+        return _DOCS_DIR_CACHE
+
+    docs = None
     try:
         import ctypes.wintypes
         CSIDL_PERSONAL = 5  # My Documents
@@ -56,13 +63,16 @@ def get_user_documents_dir():
         buf = ctypes.create_unicode_buffer(ctypes.wintypes.MAX_PATH)
         ctypes.windll.shell32.SHGetFolderPathW(None, CSIDL_PERSONAL, None, SHGFP_TYPE_CURRENT, buf)
         if buf.value and os.path.exists(buf.value):
-            return buf.value
+            docs = buf.value
     except Exception:
         pass
     
     # Fallback to standard USERPROFILE / ~ Documents
-    user_home = os.environ.get('USERPROFILE') or os.path.expanduser('~')
-    docs = os.path.join(user_home, "Documents")
+    if not docs:
+        user_home = os.environ.get('USERPROFILE') or os.path.expanduser('~')
+        docs = os.path.join(user_home, "Documents")
+
+    _DOCS_DIR_CACHE = docs
     return docs
 
 def get_save_dir():
@@ -97,6 +107,18 @@ class BurracoApi:
     def save_tournament_data(self, json_data):
         """ Auto-save tournament state to local JSON file in user Documents directory """
         try:
+            try:
+                data = json.loads(json_data)
+                if isinstance(data, dict) and "config" in data and isinstance(data["config"], dict):
+                    custom_dir = data["config"].get("directoryName")
+                    if custom_dir and isinstance(custom_dir, str) and custom_dir.strip():
+                        new_save_dir = os.path.join(get_user_documents_dir(), custom_dir.strip())
+                        if new_save_dir != self.save_dir:
+                            self.save_dir = new_save_dir
+                            self.save_path = os.path.join(self.save_dir, self.filename)
+            except Exception:
+                pass
+
             os.makedirs(self.save_dir, exist_ok=True)
             with open(self.save_path, "w", encoding="utf-8") as f:
                 f.write(json_data)
@@ -114,9 +136,22 @@ class BurracoApi:
             except Exception as e:
                 print(f"Error loading tournament data: {e}")
 
+        # In Desktop/EXE mode, check for legacy BurracoPezzo directory migration
+        legacy_path = os.path.join(get_user_documents_dir(), "BurracoPezzo", self.filename)
+        if not os.path.exists(self.save_path) and os.path.exists(legacy_path):
+            try:
+                with open(legacy_path, "r", encoding="utf-8") as f:
+                    legacy_data = json.load(f)
+                os.makedirs(self.save_dir, exist_ok=True)
+                with open(self.save_path, "w", encoding="utf-8") as f:
+                    json.dump(legacy_data, f, indent=2, ensure_ascii=False)
+                return legacy_data
+            except Exception as e:
+                print(f"Error migrating legacy tournament data: {e}")
+
         # In Desktop/EXE mode, if no saved tournament exists on disk,
         # return a clean tournament structure with NO test data!
-        default_title = get_config_value("defaultTournamentTitle", "Burraco Pezzo")
+        default_title = get_config_value("appTitle", "Burraco Pezzo")
         return {
             "title": default_title,
             "pairs": []
@@ -200,14 +235,22 @@ def main():
     app_title = get_app_title()
     remote_url = get_remote_url()
 
-    # Se c'è connessione internet, carica da Cloudflare per ricevere gli aggiornamenti live.
-    # Altrimenti, fa fallback istantaneo sui file locali del PC.
-    if remote_url and is_remote_available(remote_url, timeout=2.0):
+    is_dev = "--dev" in sys.argv or "--local" in sys.argv
+
+    from pathlib import Path
+    file_uri = Path(html_path).resolve().as_uri()
+
+    # Se viene specificata la flag --dev o --local, carica direttamente i file locali del computer.
+    # Altrimenti, se c'è connessione internet, carica da Cloudflare per ricevere gli aggiornamenti live.
+    if is_dev:
+        print(f"Burraco Desktop v{version}: Avvio DEV da file locali ({file_uri}).")
+        app_url = file_uri
+    elif remote_url and is_remote_available(remote_url, timeout=2.0):
         print(f"Burraco Desktop v{version}: Avvio da Cloudflare ({remote_url}) con persistenza locale attiva.")
         app_url = remote_url
     else:
-        print(f"Burraco Desktop v{version}: Avvio offline da file locali ({html_path}).")
-        app_url = html_path
+        print(f"Burraco Desktop v{version}: Avvio offline da file locali ({file_uri}).")
+        app_url = file_uri
 
     window = webview.create_window(
         title=app_title,
@@ -221,7 +264,7 @@ def main():
     )
 
     app_icon = get_app_icon()
-    webview.start(debug=False, icon=app_icon)
+    webview.start(debug=False, icon=app_icon, private_mode=False) #Imposta True per Debug webview
 
 if __name__ == "__main__":
     main()

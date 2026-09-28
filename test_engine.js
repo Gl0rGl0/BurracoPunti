@@ -175,8 +175,8 @@ console.log('\n--- TEST 6: Verifica File di Configurazione Centralizzato (BURRAC
 if (!BurracoConfig || typeof BurracoConfig !== 'object') {
   throw new Error('Test Fallito: BURRACO_CONFIG non esportato!');
 }
-if (!BurracoConfig.appTitle || !BurracoConfig.brandName || !BurracoConfig.defaultTournamentTitle) {
-  throw new Error('Test Fallito: titoli e identità mancanti in BURRACO_CONFIG!');
+if (!BurracoConfig.appTitle) {
+  throw new Error('Test Fallito: appTitle mancante in BURRACO_CONFIG!');
 }
 if (!BurracoConfig.labels || !BurracoConfig.labels.playersTab || !BurracoConfig.labels.masterTab) {
   throw new Error('Test Fallito: etichette mancanti in BURRACO_CONFIG.labels!');
@@ -194,8 +194,6 @@ if (BurracoConfig.prizepool.showColumn !== false) {
   throw new Error('Test Fallito: prizepool.showColumn deve essere default false!');
 }
 console.log(`- appTitle: "${BurracoConfig.appTitle}"`);
-console.log(`- brandName: "${BurracoConfig.brandName}"`);
-console.log(`- defaultTournamentTitle: "${BurracoConfig.defaultTournamentTitle}"`);
 console.log(`- defaultRounds: ${BurracoConfig.defaultRounds}`);
 console.log(`- defaultSettings.showPrizepool: ${BurracoConfig.defaultSettings.showPrizepool} (default false OK)`);
 console.log(`- prizepool.showColumn: ${BurracoConfig.prizepool.showColumn} (default false OK)`);
@@ -587,7 +585,7 @@ if (!js.includes('if (this.roundVpCheckBanner) this.roundVpCheckBanner.style.dis
 console.log('- Reset banner e checkmark garantito quando non ci sono coppie (OK)');
 console.log('>>> TEST 14 SUPERATO CON SUCCESSO! Tabellone pulito all\'avvio e nessun falso allarme.');
 
-console.log('\n--- TEST 15: Verifica Configurazione Avviso Punteggio Errato, Offline SW e Versione v1.2.7 ---');
+console.log('\n--- TEST 15: Verifica Configurazione Avviso Punteggio Errato, Offline SW e Versione v1.3.1 ---');
 if (!html.includes('id="setting-toggle-score-warning"')) {
   throw new Error('Test 15 fallito: toggle setting-toggle-score-warning mancante in index.html!');
 }
@@ -595,19 +593,19 @@ if (!js.includes('setting-toggle-score-warning') || !js.includes('showScoreWarni
   throw new Error('Test 15 fallito: gestione showScoreWarning mancante in app.js!');
 }
 const testCfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (BURRACO_CONFIG || {});
-if (testCfg.version !== '1.2.7') {
-  throw new Error(`Test 15 fallito: BURRACO_CONFIG.version deve essere 1.2.7, trovato ${testCfg.version}!`);
+if (testCfg.version !== '1.3.1') {
+  throw new Error(`Test 15 fallito: BURRACO_CONFIG.version deve essere 1.3.1, trovato ${testCfg.version}!`);
 }
 const swContent = fs.readFileSync(path.join(__dirname, 'src', 'sw.js'), 'utf8');
-if (!swContent.includes('burraco-cache-v1.2.7')) {
-  throw new Error('Test 15 fallito: CACHE_NAME in sw.js non aggiornato a v1.2.7!');
+if (!swContent.includes('burraco-cache-v1.3.1')) {
+  throw new Error('Test 15 fallito: CACHE_NAME in sw.js non aggiornato a v1.3.1!');
 }
 if (!swContent.includes('ignoreSearch: true')) {
   throw new Error('Test 15 fallito: sw.js non include ignoreSearch: true per la resilienza offline!');
 }
 const manifestContent = fs.readFileSync(path.join(__dirname, 'src', 'manifest.json'), 'utf8');
-if (!manifestContent.includes('"version": "1.2.7"')) {
-  throw new Error('Test 15 fallito: version in manifest.json non aggiornata a 1.2.7!');
+if (!manifestContent.includes('"version": "1.3.1"')) {
+  throw new Error('Test 15 fallito: version in manifest.json non aggiornata a 1.3.1!');
 }
 if (!html.includes('id="btn-share-image"')) {
   throw new Error('Test 15 fallito: pulsante id="btn-share-image" mancante in index.html!');
@@ -619,8 +617,8 @@ console.log('- Toggle setting-toggle-score-warning presente nella UI delle impos
 console.log('- Controller app.js supporta attivazione/disattivazione avviso punteggio errato (OK)');
 console.log('- Supporto condivisione nativa e protezione iPad (btnShareImage / isIOS) verificato (OK)');
 console.log('- Service worker configurato con Cache-First e ignoreSearch: true per supporto offline totale (OK)');
-console.log('- Versione v1.2.7 sincronizzata tra config.js, manifest.json, sw.js e index.html (OK)');
-console.log('>>> TEST 15 SUPERATO CON SUCCESSO! Avviso configurabile, export iPad, offline PWA e versione 1.2.7 allineati al 100%.');
+console.log('- Versione v1.3.1 sincronizzata tra config.js, manifest.json, sw.js e index.html (OK)');
+console.log('>>> TEST 15 SUPERATO CON SUCCESSO! Avviso configurabile, export iPad, offline PWA e versione 1.3.1 allineati al 100%.');
 
 console.log('\n--- TEST 16: Verifica Ricerca Rapida Turno e Attivazione Automatica Riposo per Squadre Dispari ---');
 if (!html.includes('id="round-search-input"')) {
@@ -711,6 +709,92 @@ console.log('- Scroll limitato internamente ai contenitori tabella con overscrol
 console.log('- Header e tabs-nav con flex-shrink: 0 saldamente ancorati in cima (OK)');
 console.log('- Event listener touchmove integrato per bloccare il pull-to-refresh su iPad/PWA (OK)');
 console.log('>>> TEST 18 SUPERATO CON SUCCESSO! Scroll di pagina e ricaricamento pull-to-refresh disattivati al 100%.');
+
+console.log('\n--- TEST 19: Verifica Personalizzazione Configurazione e Selezione Serata dalla Memoria ---');
+if (!html.includes('id="btn-modal-open-config"') || !html.includes('id="btn-modal-open-evenings"')) {
+  throw new Error('Test 19 fallito: pulsanti btn-modal-open-config o btn-modal-open-evenings mancanti in index.html!');
+}
+if (!html.includes('id="modal-custom-config"') || !html.includes('id="modal-select-evening"')) {
+  throw new Error('Test 19 fallito: modali modal-custom-config o modal-select-evening mancanti in index.html!');
+}
+if (!html.includes('id="config-input-tournament-name"')) {
+  throw new Error('Test 19 fallito: campo input config-input-tournament-name mancante in index.html!');
+}
+if (!html.includes('id="evenings-list-container"')) {
+  throw new Error('Test 19 fallito: evenings-list-container mancante in index.html!');
+}
+if (!js.includes('saveCustomConfig') || !js.includes('renderEveningsList') || !js.includes('loadEvening')) {
+  throw new Error('Test 19 fallito: metodi di gestione configurazione o serate mancanti in app.js!');
+}
+if (!js.includes('checkInitialConfigPrompt') || !js.includes('hasStoredConfig')) {
+  throw new Error('Test 19 fallito: checkInitialConfigPrompt o hasStoredConfig mancanti in app.js!');
+}
+
+// Verifica hasStoredConfig per stato di default (false) e personalizzato (true)
+if (BurracoStorage.hasStoredConfig(BurracoStorage.getDefaultState()) !== false) {
+  throw new Error('Test 19 fallito: hasStoredConfig deve restituire false per lo stato di default non configurato!');
+}
+
+// Verifica getSavedEvenings e loadEvening in BurracoStorage
+const testMultiEveningState = {
+  title: 'Burraco Pezzo',
+  config: {
+    appTitle: 'Burraco Milano',
+    directoryName: 'BurracoPunti'
+  },
+  currentGiornataKey: 'serata_040926',
+  roundsCount: 4,
+  pairs: [{ id: 'p1', name: 'Coppia Uno', scores: [{ mp: 1000, vp: 10 }, { mp: 1000, vp: 10 }, { mp: 1000, vp: 10 }, { mp: 1000, vp: 10 }] }],
+  allGiornate: {
+    serata_040926: {
+      roundsCount: 4,
+      pairs: [{ id: 'p1', name: 'Coppia Uno', scores: [{ mp: 1000, vp: 10 }, { mp: 1000, vp: 10 }, { mp: 1000, vp: 10 }, { mp: 1000, vp: 10 }] }]
+    },
+    serata_050926: {
+      roundsCount: 3,
+      pairs: [
+        { id: 'p2', name: 'Coppia Due', scores: [{ mp: 800, vp: 8 }, { mp: 800, vp: 8 }, { mp: 800, vp: 8 }] },
+        { id: 'p3', name: 'Coppia Tre', scores: [{ mp: 1200, vp: 12 }, { mp: 1200, vp: 12 }, { mp: 1200, vp: 12 }] }
+      ]
+    }
+  }
+};
+
+if (BurracoStorage.hasStoredConfig(testMultiEveningState) !== true) {
+  throw new Error('Test 19 fallito: hasStoredConfig deve restituire true per uno stato con config personalizzato!');
+}
+console.log('- Verifica hasStoredConfig per primo avvio (false) e configurato (true) (OK)');
+
+const eveningsList = BurracoStorage.getSavedEvenings(testMultiEveningState);
+if (!Array.isArray(eveningsList) || eveningsList.length !== 2) {
+  throw new Error(`Test 19 fallito: getSavedEvenings deve restituire 2 serate, trovate ${eveningsList.length}`);
+}
+if (eveningsList[0].key !== 'serata_050926' || eveningsList[1].key !== 'serata_040926') {
+  throw new Error('Test 19 fallito: ordinamento temporale decrescente errato in getSavedEvenings!');
+}
+if (eveningsList[1].isActive !== true || eveningsList[0].isActive !== false) {
+  throw new Error('Test 19 fallito: flag isActive non coerente con currentGiornataKey!');
+}
+console.log('- getSavedEvenings con ordinamento decrescente e metadata verificato (OK)');
+
+// Verifica salvataggio config in JSON
+const savedJsonStr = BurracoStorage.saveState(testMultiEveningState);
+const parsedSavedJson = JSON.parse(savedJsonStr);
+if (!parsedSavedJson.config || parsedSavedJson.config.appTitle !== 'Burraco Milano' || parsedSavedJson.config.directoryName !== 'BurracoPunti') {
+  throw new Error('Test 19 fallito: chiave config non salvata correttamente alla radice del JSON!');
+}
+console.log('- Salvataggio oggetto config personalizzato alla radice di statistiche_tornei.json (OK)');
+
+// Verifica caricamento serata precedente tramite loadEvening
+BurracoStorage.loadEvening(testMultiEveningState, 'serata_050926');
+if (testMultiEveningState.currentGiornataKey !== 'serata_050926') {
+  throw new Error(`Test 19 fallito: currentGiornataKey non aggiornato a serata_050926, trovato ${testMultiEveningState.currentGiornataKey}`);
+}
+if (testMultiEveningState.roundsCount !== 3 || testMultiEveningState.pairs.length !== 2) {
+  throw new Error(`Test 19 fallito: dati turno/coppie non ripristinati per serata_050926 (rounds=${testMultiEveningState.roundsCount}, pairs=${testMultiEveningState.pairs.length})`);
+}
+console.log('- loadEvening carica correttamente coppie, turni e imposta la data attiva (OK)');
+console.log('>>> TEST 19 SUPERATO CON SUCCESSO! Personalizzazione configurazione e switch serata da memoria verificati al 100%.');
 
 console.log('\n=============================================');
 console.log('TUTTI I TEST MODULARI SONO PASSATI AL 100%!');

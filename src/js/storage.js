@@ -14,7 +14,7 @@ const BurracoStorage = {
     const cfg = this._getConfig();
     const defaultTodayKey = `serata_${utils.getDateGGMMAA()}`;
     const defaultRounds = utils.DEFAULT_ROUNDS || cfg.defaultRounds || 4;
-    const defaultTitle = cfg.defaultTournamentTitle || 'Torneo di Burraco';
+    const defaultTitle = cfg.appTitle || 'Burraco Pezzo';
     const defaultSettings = cfg.defaultSettings || { showLottery: false, showPodium: false, showPrizepool: false, showBye: true, showScoreWarning: true };
 
     const demoPairs = (cfg && cfg.loadDemoPairs) ? [
@@ -26,6 +26,7 @@ const BurracoStorage = {
 
     return {
       title: defaultTitle,
+      config: null,
       currentGiornataKey: defaultTodayKey,
       allGiornate: {
         [defaultTodayKey]: {
@@ -43,12 +44,19 @@ const BurracoStorage = {
     };
   },
 
+  hasStoredConfig(state) {
+    if (!state) return false;
+    const cfg = state.config;
+    if (!cfg || typeof cfg !== 'object') return false;
+    return Boolean(cfg.appTitle);
+  },
+
   parseLoadedData(data) {
     if (!data || typeof data !== 'object') return null;
 
     const utils = typeof window !== 'undefined' ? window.BurracoUtils : require('./utils');
     const cfg = this._getConfig();
-    const defaultTitle = cfg.defaultTournamentTitle || 'Torneo di Burraco';
+    const defaultTitle = cfg.appTitle || 'Burraco Pezzo';
     const title = (!data.title || data.title === 'Torneo di Burraco') ? defaultTitle : data.title;
 
     // Retrieve existing settings from localStorage if data doesn't provide them
@@ -106,6 +114,18 @@ const BurracoStorage = {
       }
     }
 
+    const configData = (data.config && typeof data.config === 'object') ? data.config : null;
+    if (configData && typeof window !== 'undefined' && window.BURRACO_CONFIG) {
+      if (configData.appTitle) {
+        window.BURRACO_CONFIG.appTitle = configData.appTitle;
+      }
+      if (configData.directoryName) {
+        if (!window.BURRACO_CONFIG.storage) window.BURRACO_CONFIG.storage = {};
+        window.BURRACO_CONFIG.storage.directoryName = configData.directoryName;
+        window.BURRACO_CONFIG.saveDirectory = configData.directoryName;
+      }
+    }
+
     if (giornataKeys.length > 0) {
       // Target active key: if data specified one and exists, use it; otherwise use last chronological
       let activeKey = data.currentGiornataKey;
@@ -126,6 +146,7 @@ const BurracoStorage = {
       return {
         title,
         settings,
+        config: configData,
         currentGiornataKey: activeKey,
         allGiornate,
         roundsCount,
@@ -146,6 +167,7 @@ const BurracoStorage = {
       return {
         title,
         settings,
+        config: configData,
         currentGiornataKey: todayKey,
         allGiornate,
         roundsCount,
@@ -242,6 +264,10 @@ const BurracoStorage = {
         title: state.title
       };
 
+      if (state.config) {
+        fileData.config = state.config;
+      }
+
       const sortedKeys = Object.keys(state.allGiornate)
         .filter(k => /^serata_/i.test(k))
         .sort((a, b) => utils.parseSortKey(a).localeCompare(utils.parseSortKey(b)));
@@ -249,9 +275,12 @@ const BurracoStorage = {
       sortedKeys.forEach(k => {
         const ev = state.allGiornate[k];
         if (ev && Array.isArray(ev.pairs) && ev.pairs.length > 0) {
+          const needsEnrich = (k === curKey) || (ev.pairs[0] && ev.pairs[0].rank === undefined);
           fileData[k] = {
             ...ev,
-            pairs: this.enrichPairsWithStats(ev.pairs, ev.roundsCount || state.roundsCount, state.settings)
+            pairs: needsEnrich
+              ? this.enrichPairsWithStats(ev.pairs, ev.roundsCount || state.roundsCount, state.settings)
+              : ev.pairs
           };
         } else {
           fileData[k] = ev;
@@ -415,6 +444,55 @@ const BurracoStorage = {
       addedCount,
       totalCount
     };
+  },
+
+  getSavedEvenings(state) {
+    if (!state || !state.allGiornate) return [];
+    const utils = typeof window !== 'undefined' ? window.BurracoUtils : require('./utils');
+    const keys = Object.keys(state.allGiornate)
+      .filter(k => /^serata_/i.test(k))
+      .sort((a, b) => utils.parseSortKey(b).localeCompare(utils.parseSortKey(a))); // Più recenti prima
+
+    return keys.map(k => {
+      const g = state.allGiornate[k] || {};
+      const pairs = Array.isArray(g.pairs) ? g.pairs : [];
+      const validPairsCount = pairs.filter(p => p && p.name && p.name.trim() !== '').length;
+      return {
+        key: k,
+        dateLabel: utils.formatGiornataLabel(k),
+        pairsCount: validPairsCount,
+        roundsCount: g.roundsCount || state.roundsCount || 4,
+        isActive: k === state.currentGiornataKey
+      };
+    });
+  },
+
+  loadEvening(state, targetKey) {
+    if (!state || !state.allGiornate || !state.allGiornate[targetKey]) {
+      return null;
+    }
+    const utils = typeof window !== 'undefined' ? window.BurracoUtils : require('./utils');
+    const curKey = state.currentGiornataKey || `serata_${utils.getDateGGMMAA()}`;
+
+    // Salva lo stato della serata corrente prima di passare a un'altra
+    const enrichedCurrent = this.enrichPairsWithStats(
+      JSON.parse(JSON.stringify(state.pairs || [])),
+      state.roundsCount,
+      state.settings
+    );
+    state.allGiornate[curKey] = {
+      roundsCount: state.roundsCount,
+      pairs: enrichedCurrent
+    };
+
+    // Passa alla serata selezionata
+    const target = state.allGiornate[targetKey];
+    state.currentGiornataKey = targetKey;
+    state.roundsCount = target.roundsCount || state.roundsCount || 4;
+    state.pairs = JSON.parse(JSON.stringify(target.pairs || []));
+
+    this.saveState(state);
+    return state;
   }
 };
 
