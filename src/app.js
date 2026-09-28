@@ -277,8 +277,15 @@ class BurracoApp {
       if (brandEl) {
         brandEl.textContent = cfg.appTitle;
       }
-      if (!this.state.title || this.state.title === 'Torneo di Burraco' || this.state.title === 'Burraco Pezzo') {
-        this.state.title = cfg.appTitle;
+      this.state.title = cfg.appTitle;
+      if (this.podiumTitle) {
+        this.podiumTitle.textContent = cfg.appTitle;
+      }
+      if (this.printTitle) {
+        this.printTitle.textContent = cfg.appTitle;
+      }
+      if (this.titleInput) {
+        this.titleInput.value = cfg.appTitle;
       }
     }
 
@@ -1828,6 +1835,7 @@ class BurracoApp {
     if (this.titleInput) this.titleInput.value = appTitle;
 
     this.applyConfig();
+    this.render();
     this.saveState();
     this.closeModal('modalCustomConfig');
     alert('Nome torneo aggiornato con successo!');

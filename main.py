@@ -116,6 +116,12 @@ class BurracoApi:
                         if new_save_dir != self.save_dir:
                             self.save_dir = new_save_dir
                             self.save_path = os.path.join(self.save_dir, self.filename)
+                    new_title = data["config"].get("appTitle")
+                    if new_title and webview.windows:
+                        try:
+                            webview.windows[0].set_title(new_title)
+                        except Exception:
+                            pass
             except Exception:
                 pass
 
@@ -136,22 +142,9 @@ class BurracoApi:
             except Exception as e:
                 print(f"Error loading tournament data: {e}")
 
-        # In Desktop/EXE mode, check for legacy BurracoPezzo directory migration
-        legacy_path = os.path.join(get_user_documents_dir(), "BurracoPezzo", self.filename)
-        if not os.path.exists(self.save_path) and os.path.exists(legacy_path):
-            try:
-                with open(legacy_path, "r", encoding="utf-8") as f:
-                    legacy_data = json.load(f)
-                os.makedirs(self.save_dir, exist_ok=True)
-                with open(self.save_path, "w", encoding="utf-8") as f:
-                    json.dump(legacy_data, f, indent=2, ensure_ascii=False)
-                return legacy_data
-            except Exception as e:
-                print(f"Error migrating legacy tournament data: {e}")
-
         # In Desktop/EXE mode, if no saved tournament exists on disk,
         # return a clean tournament structure with NO test data!
-        default_title = get_config_value("appTitle", "Burraco Pezzo")
+        default_title = get_config_value("appTitle", "Burraco Punti")
         return {
             "title": default_title,
             "pairs": []
@@ -210,7 +203,7 @@ def is_remote_available(url, timeout=2.0):
         print(f"Info: Connessione remota non attiva ({e}). Caricamento versione locale.")
         return False
 
-def setup_windows_taskbar_icon(app_id="burracopezzo.burracopunti.tournamentmanager.1.1.0"):
+def setup_windows_taskbar_icon(app_id="burracopunti.tournamentmanager.1.3.1"):
     """
     On Windows, explicit AppUserModelID is required so that the taskbar groups
     the window under this application identity rather than the generic python.exe interpreter,
@@ -224,7 +217,7 @@ def setup_windows_taskbar_icon(app_id="burracopezzo.burracopunti.tournamentmanag
 
 def main():
     version = get_app_version()
-    setup_windows_taskbar_icon(f"burracopezzo.burracopunti.tournamentmanager.{version}")
+    setup_windows_taskbar_icon(f"burracopunti.tournamentmanager.{version}")
     api = BurracoApi()
     
     html_path = get_resource_path(os.path.join("src", "index.html"))

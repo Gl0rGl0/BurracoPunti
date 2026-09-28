@@ -8,13 +8,13 @@ const BURRACO_CONFIG = {
   // ==========================================
   // VERSIONAMENTO E RETE
   // ==========================================
-  version: "1.3.1",
+  version: "1.3.2",
   remoteUrl: "https://burracopunti.giust.workers.dev/",
 
   // ==========================================
   // TITOLI E IDENTITÀ
   // ==========================================
-  appTitle: "Burraco Pezzo",
+  appTitle: "Burraco Punti",
 
   // ==========================================
   // PARAMETRI DI GARA PREDEFINITI

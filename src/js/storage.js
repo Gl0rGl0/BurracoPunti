@@ -14,7 +14,7 @@ const BurracoStorage = {
     const cfg = this._getConfig();
     const defaultTodayKey = `serata_${utils.getDateGGMMAA()}`;
     const defaultRounds = utils.DEFAULT_ROUNDS || cfg.defaultRounds || 4;
-    const defaultTitle = cfg.appTitle || 'Burraco Pezzo';
+    const defaultTitle = cfg.appTitle || 'Burraco Punti';
     const defaultSettings = cfg.defaultSettings || { showLottery: false, showPodium: false, showPrizepool: false, showBye: true, showScoreWarning: true };
 
     const demoPairs = (cfg && cfg.loadDemoPairs) ? [
@@ -56,7 +56,7 @@ const BurracoStorage = {
 
     const utils = typeof window !== 'undefined' ? window.BurracoUtils : require('./utils');
     const cfg = this._getConfig();
-    const defaultTitle = cfg.appTitle || 'Burraco Pezzo';
+    const defaultTitle = cfg.appTitle || 'Burraco Punti';
     const title = (!data.title || data.title === 'Torneo di Burraco') ? defaultTitle : data.title;
 
     // Retrieve existing settings from localStorage if data doesn't provide them
@@ -185,7 +185,7 @@ const BurracoStorage = {
   loadState() {
     const utils = typeof window !== 'undefined' ? window.BurracoUtils : require('./utils');
     try {
-      const saved = localStorage.getItem(utils.STORAGE_KEY) || localStorage.getItem('burraco_Pezzo_tournament_v1');
+      const saved = localStorage.getItem(utils.STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         const state = this.parseLoadedData(parsed);

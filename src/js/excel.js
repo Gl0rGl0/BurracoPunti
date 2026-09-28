@@ -28,7 +28,7 @@ const BurracoExcel = {
       const expCfg = cfg.export || {};
       const sheetName = expCfg.sheetLeaderboard || 'Classifica';
       const headerTitle = expCfg.headerLeaderboard || 'BURRACO - CLASSIFICA GENERALE TORNEO';
-      const defaultTitle = cfg.appTitle || 'Burraco Pezzo';
+      const defaultTitle = cfg.appTitle || 'Burraco Punti';
       const tournamentTitle = state.title || defaultTitle;
       const roundsCount = state.roundsCount || 4;
 
@@ -352,7 +352,7 @@ const BurracoExcel = {
 
     const utils = typeof window !== 'undefined' ? window.BurracoUtils : require('./utils');
     const cfg = this._getConfig();
-    const defaultTitle = cfg.appTitle || 'Burraco Pezzo';
+    const defaultTitle = cfg.appTitle || 'Burraco Punti';
     const tournamentTitle = (state.title && state.title !== 'Torneo di Burraco') ? state.title : defaultTitle;
     const roundsCount = state.roundsCount || 4;
 
