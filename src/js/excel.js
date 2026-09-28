@@ -17,9 +17,13 @@ const BurracoExcel = {
    * Genera e scarica il file Excel (.xlsx) con un unico foglio completo e ordinato:
    * Classifica, N° tavolo, tutti i turni disputati (MP e VP), totali ed eventuale premio.
    */
-  exportToExcel(state, rankedPairs = []) {
+  exportToExcel(state, rankedPairs = [], callback = null) {
     if (typeof XLSX === 'undefined') {
-      alert('Libreria Excel non ancora caricata. Riprova tra qualche istante.');
+      if (typeof callback === 'function') {
+        callback({ success: false, error: 'Libreria Excel non ancora caricata. Riprova tra qualche istante.' });
+      } else {
+        console.error('Libreria Excel non ancora caricata.');
+      }
       return;
     }
 
@@ -275,22 +279,31 @@ const BurracoExcel = {
         const base64Data = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
         window.pywebview.api.export_excel_native(fileName, base64Data).then(res => {
           if (res && res.success) {
-            alert(`File Excel salvato con successo: ${res.path}`);
+            if (callback) callback({ success: true, fileName, path: res.path });
+          } else if (res && res.error) {
+            if (callback) callback({ success: false, error: res.error });
           }
+        }).catch(err => {
+          if (callback) callback({ success: false, error: String(err) });
         });
       } else {
         XLSX.writeFile(wb, fileName);
+        if (callback) callback({ success: true, fileName, isBrowserDownload: true });
       }
     } catch (e) {
       console.error('Errore export Excel:', e);
-      alert('Si è verificato un errore durante la generazione del file Excel.');
+      if (callback) callback({ success: false, error: 'Si è verificato un errore durante la generazione del file Excel.' });
     }
   },
 
   /**
-   * Export JSON Backup to disk.
+   * Export JSON Backup to disk (native dialog in desktop or browser download).
    */
-  exportBackupJSON(state) {
+  exportBackupJSON(state, customFilename = null, callback = null) {
+    if (typeof customFilename === 'function') {
+      callback = customFilename;
+      customFilename = null;
+    }
     const utils = typeof window !== 'undefined' ? window.BurracoUtils : require('./utils');
     try {
       if (!state.allGiornate) state.allGiornate = {};
@@ -303,6 +316,9 @@ const BurracoExcel = {
       const fileData = {
         title: state.title
       };
+      if (state.config) {
+        fileData.config = state.config;
+      }
 
       const sortedKeys = Object.keys(state.allGiornate)
         .filter(k => /^serata_/i.test(k))
@@ -313,22 +329,39 @@ const BurracoExcel = {
       });
 
       const dataStr = JSON.stringify(fileData, null, 2);
-      const blob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
       const safeTitle = (state.title || 'torneo').replace(/[^a-z0-9]/gi, '_').toLowerCase();
       const dateStr = (state.currentGiornataKey && state.currentGiornataKey.replace(/^serata_/, '')) || utils.getDateGGMMAA();
-      a.href = url;
-      a.download = `${safeTitle}_backup_${dateStr}.json`;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 200);
+      const defaultFileName = customFilename || `${safeTitle}_backup_${dateStr}.json`;
+
+      if (typeof window !== 'undefined' && window.pywebview && window.pywebview.api && window.pywebview.api.save_tournament_data_as) {
+        window.pywebview.api.save_tournament_data_as(defaultFileName, dataStr).then(res => {
+          if (res && res.success) {
+            if (callback) callback({ success: true, fileName: defaultFileName, path: res.path });
+          } else if (res && res.cancelled) {
+            if (callback) callback({ cancelled: true });
+          } else if (res && res.error) {
+            if (callback) callback({ success: false, error: res.error });
+          }
+        }).catch(err => {
+          if (callback) callback({ success: false, error: String(err) });
+        });
+      } else {
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = defaultFileName;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 200);
+        if (callback) callback({ success: true, fileName: defaultFileName, isBrowserDownload: true });
+      }
     } catch (e) {
       console.error('Errore export JSON:', e);
-      alert('Si è verificato un errore durante il salvataggio del backup.');
+      if (callback) callback({ success: false, error: 'Si è verificato un errore durante il salvataggio del backup.' });
     }
   },
 

@@ -199,6 +199,10 @@ class BurracoApp {
     this.modalExportImage = document.getElementById('modal-export-image');
     this.modalCustomConfig = document.getElementById('modal-custom-config');
     this.modalSelectEvening = document.getElementById('modal-select-evening');
+    this.modalConfirmLoadEvening = document.getElementById('modal-confirm-load-evening');
+    this.modalSaveCustomLocation = document.getElementById('modal-save-custom-location');
+    this.modalFeedback = document.getElementById('modal-feedback');
+    this.pendingLoadEveningKey = null;
 
     // Form inputs & export preview elements
     this.exportPreviewImg = document.getElementById('export-preview-img');
@@ -551,7 +555,59 @@ class BurracoApp {
     document.getElementById('btn-export-excel-round')?.addEventListener('click', () => this.exportExcel());
 
     const btnExportJson = document.getElementById('btn-modal-export-json') || document.getElementById('btn-export-json');
-    btnExportJson?.addEventListener('click', () => BurracoExcel.exportBackupJSON(this.state));
+    btnExportJson?.addEventListener('click', () => {
+      const utils = typeof window !== 'undefined' ? window.BurracoUtils : null;
+      const safeTitle = (this.state.title || 'torneo').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      const dateStr = (this.state.currentGiornataKey && this.state.currentGiornataKey.replace(/^serata_/, '')) || (utils ? utils.getDateGGMMAA() : 'backup');
+      const filenameInput = document.getElementById('input-custom-save-filename');
+      if (filenameInput) {
+        filenameInput.value = `${safeTitle}_backup_${dateStr}.json`;
+      }
+      this.openModal('modalSaveCustomLocation');
+    });
+
+    document.getElementById('btn-cancel-save-custom')?.addEventListener('click', () => this.closeModal('modalSaveCustomLocation'));
+    document.getElementById('close-save-custom-modal')?.addEventListener('click', () => this.closeModal('modalSaveCustomLocation'));
+    document.getElementById('btn-execute-save-custom')?.addEventListener('click', () => {
+      const filenameInput = document.getElementById('input-custom-save-filename');
+      let customFilename = filenameInput ? filenameInput.value.trim() : '';
+      if (!customFilename) {
+        customFilename = 'statistiche_tornei_backup.json';
+      }
+      if (!customFilename.toLowerCase().endsWith('.json')) {
+        customFilename += '.json';
+      }
+
+      BurracoExcel.exportBackupJSON(this.state, customFilename, (res) => {
+        this.closeModal('modalSaveCustomLocation');
+        if (res && res.success) {
+          if (res.path) {
+            this.showFeedbackModal({
+              title: 'Copia Salvata',
+              message: 'Copia del torneo salvata con successo nella posizione scelta.',
+              detail: `Percorso: ${res.path}`,
+              icon: '💾'
+            });
+          } else {
+            this.showFeedbackModal({
+              title: 'Copia Scaricata',
+              message: 'Copia del torneo salvata con successo.',
+              detail: `File: ${res.fileName}`,
+              icon: '💾'
+            });
+          }
+        } else if (res && res.cancelled) {
+          // Dialog annullato dall'utente
+        } else if (res && res.error) {
+          this.showFeedbackModal({
+            title: 'Errore Salvataggio',
+            message: 'Si è verificato un errore durante il salvataggio della copia.',
+            detail: res.error,
+            icon: '❌'
+          });
+        }
+      });
+    });
 
     document.getElementById('btn-modal-open-config')?.addEventListener('click', () => {
       this.openModal('modalCustomConfig');
@@ -599,16 +655,35 @@ class BurracoApp {
               this.render();
               this.closeModal('modalSettings');
               if (res.addedCount > 0) {
-                alert(`Backup unito con successo!\nAggiunte ${res.addedCount} nuove serate allo storico (totale serate archiviate: ${res.totalCount}).`);
+                this.showFeedbackModal({
+                  title: 'Backup Unito',
+                  message: 'Backup unito con successo allo storico!',
+                  detail: `Aggiunte ${res.addedCount} nuove serate allo storico (totale serate archiviate: ${res.totalCount}).`,
+                  icon: '✅'
+                });
               } else {
-                alert(`Nessuna nuova serata aggiunta.\nLe serate nel file erano già presenti nello storico o non contenevano dati completi (totale serate archiviate: ${res.totalCount}).`);
+                this.showFeedbackModal({
+                  title: 'Nessuna Nuova Serata',
+                  message: 'Nessuna nuova serata aggiunta allo storico.',
+                  detail: `Le serate nel file erano già presenti nello storico o non contenevano dati completi (totale serate archiviate: ${res.totalCount}).`,
+                  icon: 'ℹ️'
+                });
               }
             } else {
-              alert('File JSON non valido o privo di dati compatibili per il torneo.');
+              this.showFeedbackModal({
+                title: 'File Non Valido',
+                message: 'Il file JSON selezionato non contiene dati compatibili per il torneo.',
+                icon: '⚠️'
+              });
             }
           } catch (err) {
             console.error('Errore lettura JSON:', err);
-            alert('Formato del file JSON non valido.');
+            this.showFeedbackModal({
+              title: 'Errore Lettura Backup',
+              message: 'Il formato del file selezionato non è un JSON valido.',
+              detail: String(err && err.message ? err.message : err),
+              icon: '❌'
+            });
           } finally {
             fileInput.value = '';
           }
@@ -726,6 +801,26 @@ class BurracoApp {
     document.getElementById('btn-close-export-modal')?.addEventListener('click', () => this.closeModal('modalExportImage'));
     document.getElementById('close-confirm-clear-modal')?.addEventListener('click', () => this.closeModal('modalConfirmClear'));
     document.getElementById('btn-cancel-clear')?.addEventListener('click', () => this.closeModal('modalConfirmClear'));
+
+    document.getElementById('close-confirm-load-evening-modal')?.addEventListener('click', () => {
+      this.pendingLoadEveningKey = null;
+      this.closeModal('modalConfirmLoadEvening');
+    });
+    document.getElementById('btn-cancel-load-evening')?.addEventListener('click', () => {
+      this.pendingLoadEveningKey = null;
+      this.closeModal('modalConfirmLoadEvening');
+    });
+    document.getElementById('btn-confirm-load-evening')?.addEventListener('click', () => {
+      const key = this.pendingLoadEveningKey;
+      this.pendingLoadEveningKey = null;
+      this.closeModal('modalConfirmLoadEvening');
+      if (key) {
+        this.loadEvening(key);
+      }
+    });
+
+    document.getElementById('close-feedback-modal')?.addEventListener('click', () => this.closeModal('modalFeedback'));
+    document.getElementById('btn-close-feedback')?.addEventListener('click', () => this.closeModal('modalFeedback'));
 
     this.btnCopyImageAgain?.addEventListener('click', () => {
       if (this.currentExportBlob && typeof navigator !== 'undefined' && navigator.clipboard && typeof ClipboardItem !== 'undefined') {
@@ -1691,7 +1786,31 @@ class BurracoApp {
   // EXCEL & PRINT
   // ==========================================
   exportExcel() {
-    BurracoExcel.exportToExcel(this.state, this.getRankedPairs());
+    BurracoExcel.exportToExcel(this.state, this.getRankedPairs(), (res) => {
+      if (res && res.success) {
+        if (res.path) {
+          this.showFeedbackModal({
+            title: 'Excel Esportato',
+            message: 'Classifica esportata con successo!',
+            detail: `File salvato in: ${res.path}`,
+            icon: '📊'
+          });
+        } else {
+          this.showFeedbackModal({
+            title: 'Excel Esportato',
+            message: 'Classifica esportata con successo!',
+            detail: `File scaricato: ${res.fileName}`,
+            icon: '📊'
+          });
+        }
+      } else if (res && res.error) {
+        this.showFeedbackModal({
+          title: 'Errore Export Excel',
+          message: res.error,
+          icon: '❌'
+        });
+      }
+    });
   }
 
   exportLeaderboardImage() {
@@ -1699,7 +1818,11 @@ class BurracoApp {
       if (res && res.success) {
         this.showExportImageModal(res);
       } else if (res && res.error) {
-        alert(res.error);
+        this.showFeedbackModal({
+          title: 'Esportazione Immagine',
+          message: res.error,
+          icon: '⚠️'
+        });
       }
     });
   }
@@ -1808,12 +1931,39 @@ class BurracoApp {
     }
   }
 
+  showFeedbackModal({ title = 'Notifica', message = '', detail = '', icon = 'ℹ️' } = {}) {
+    const iconEl = document.getElementById('feedback-modal-icon');
+    const titleEl = document.getElementById('feedback-modal-title');
+    const messageEl = document.getElementById('feedback-modal-message');
+    const detailEl = document.getElementById('feedback-modal-detail');
+
+    if (iconEl) iconEl.textContent = icon;
+    if (titleEl) titleEl.textContent = title;
+    if (messageEl) messageEl.textContent = message;
+
+    if (detailEl) {
+      if (detail) {
+        detailEl.textContent = detail;
+        detailEl.style.display = 'block';
+      } else {
+        detailEl.textContent = '';
+        detailEl.style.display = 'none';
+      }
+    }
+
+    this.openModal('modalFeedback');
+  }
+
   saveCustomConfig() {
     const nameInput = document.getElementById('config-input-tournament-name');
     const name = nameInput ? nameInput.value.trim() : '';
 
     if (!name) {
-      alert('Inserisci un nome per il torneo o circolo.');
+      this.showFeedbackModal({
+        title: 'Campo Obbligatorio',
+        message: 'Inserisci un nome per il torneo o circolo prima di salvare.',
+        icon: '⚠️'
+      });
       return;
     }
 
@@ -1838,7 +1988,12 @@ class BurracoApp {
     this.render();
     this.saveState();
     this.closeModal('modalCustomConfig');
-    alert('Nome torneo aggiornato con successo!');
+    this.showFeedbackModal({
+      title: 'Nome Aggiornato',
+      message: 'Nome del torneo aggiornato con successo!',
+      detail: `Nuovo titolo: "${appTitle}"`,
+      icon: '✅'
+    });
   }
 
   renderEveningsList() {
@@ -1887,7 +2042,12 @@ class BurracoApp {
       btn.addEventListener('click', (e) => {
         const key = e.currentTarget.dataset.key;
         if (key) {
-          this.loadEvening(key);
+          this.pendingLoadEveningKey = key;
+          const labelEl = document.getElementById('confirm-load-evening-date');
+          if (labelEl) {
+            labelEl.textContent = BurracoUtils.formatGiornataLabel(key);
+          }
+          this.openModal('modalConfirmLoadEvening');
         }
       });
     });
@@ -1902,7 +2062,11 @@ class BurracoApp {
       this.closeModal('modalSelectEvening');
       this.closeModal('modalSettings');
       const dateText = BurracoUtils.formatGiornataLabel(key);
-      alert(`Serata del ${dateText} caricata con successo!`);
+      this.showFeedbackModal({
+        title: 'Serata Caricata',
+        message: `Serata del ${dateText} caricata con successo!`,
+        icon: '📅'
+      });
     }
   }
 }

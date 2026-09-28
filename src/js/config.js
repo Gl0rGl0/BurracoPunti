@@ -8,7 +8,7 @@ const BURRACO_CONFIG = {
   // ==========================================
   // VERSIONAMENTO E RETE
   // ==========================================
-  version: "1.3.2",
+  version: "1.3.3",
   remoteUrl: "https://burracopunti.giust.workers.dev/",
 
   // ==========================================

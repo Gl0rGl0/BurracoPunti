@@ -496,7 +496,7 @@
       <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
         <span class="app-version-badge" style="font-size: 12.5px; color: var(--text-muted); font-weight: 500; display: inline-flex; align-items: center; gap: 6px;">
           <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: #10B981;"></span>
-          Versione <span id="app-version-text">v1.3.2</span>
+          Versione <span id="app-version-text">v1.3.3</span>
         </span>
         <button type="button" class="btn btn-secondary" id="btn-close-settings">Chiudi</button>
       </div>
@@ -682,6 +682,88 @@
       </div>
       <div class="modal-footer" style="display: flex; justify-content: flex-end;">
         <button type="button" class="btn btn-secondary" id="btn-close-evenings-modal">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 11: Conferma Caricamento Serata -->
+  <div class="modal-backdrop" id="modal-confirm-load-evening" style="z-index: 230;">
+    <div class="modal-dialog modal-sm">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">📅</span>
+          <h3 style="margin: 0; font-size: 18px;">Carica Serata</h3>
+        </div>
+        <button class="modal-close" id="close-confirm-load-evening-modal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <p style="font-size: 14.5px; color: var(--text-main); margin-bottom: 8px;">
+          Vuoi passare alla serata del <strong id="confirm-load-evening-date">--/--/--</strong>?
+        </p>
+        <p class="form-hint" style="margin: 0; font-size: 13px;">
+          La serata attualmente aperta verrà archiviata automaticamente.
+        </p>
+      </div>
+      <div class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button type="button" class="btn btn-secondary" id="btn-cancel-load-evening">Annulla</button>
+        <button type="button" class="btn btn-primary" id="btn-confirm-load-evening">
+          <span class="btn-icon">📂</span> Carica
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 12: Salva Copia in Posizione Personalizzata -->
+  <div class="modal-backdrop" id="modal-save-custom-location" style="z-index: 220;">
+    <div class="modal-dialog modal-md">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">💾</span>
+          <h3 style="margin: 0; font-size: 18px;">Salva Copia Torneo</h3>
+        </div>
+        <button class="modal-close" id="close-save-custom-modal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <p class="form-hint" style="margin-bottom: 14px; font-size: 13.5px;">
+          Puoi salvare una copia completa del torneo in una cartella a tua scelta sul tuo sistema (ad es. su Desktop, chiavetta USB o cartella condivisa).
+        </p>
+        <div style="background: #F8FAFC; border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 16px;">
+          <div style="font-size: 12px; color: var(--text-muted); font-weight: 700; margin-bottom: 4px; text-transform: uppercase;">Posizione di salvataggio predefinita</div>
+          <div style="font-size: 13.5px; color: var(--text-main); font-family: monospace;">Documenti/BurracoPunti/statistiche_tornei.json</div>
+        </div>
+        <div>
+          <label for="input-custom-save-filename" style="display: block; font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+            Nome File da Salvare (.json)
+          </label>
+          <input type="text" id="input-custom-save-filename" class="form-control" placeholder="statistiche_tornei_backup.json" style="font-size: 14px; font-weight: 500;">
+          <small class="form-hint" style="margin-top: 6px;">Potrai scegliere la cartella esatta del tuo computer in cui memorizzare il file.</small>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button type="button" class="btn btn-secondary" id="btn-cancel-save-custom">Annulla</button>
+        <button type="button" class="btn btn-primary" id="btn-execute-save-custom">
+          <span class="btn-icon">📁</span> Scegli Posizione e Salva
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 13: Notifica / Feedback (Sostituto Moderno degli Alert) -->
+  <div class="modal-backdrop" id="modal-feedback" style="z-index: 250;">
+    <div class="modal-dialog modal-sm">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span id="feedback-modal-icon" style="font-size: 20px;">✅</span>
+          <h3 id="feedback-modal-title" style="margin: 0; font-size: 18px;">Notifica</h3>
+        </div>
+        <button class="modal-close" id="close-feedback-modal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <p id="feedback-modal-message" style="font-size: 14.5px; color: var(--text-main); margin: 0; line-height: 1.45;"></p>
+        <div id="feedback-modal-detail" style="display: none; background: #F1F5F9; border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 13px; color: var(--text-muted); word-break: break-all; margin-top: 12px;"></div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end;">
+        <button type="button" class="btn btn-primary" id="btn-close-feedback">OK</button>
       </div>
     </div>
   </div>

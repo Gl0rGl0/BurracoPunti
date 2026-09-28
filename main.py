@@ -160,7 +160,7 @@ class BurracoApi:
             window = webview.windows[0] if webview.windows else None
             if window:
                 result = window.create_file_dialog(
-                    webview.SAVE_DIALOG,
+                    webview.FileDialog.SAVE,
                     directory=self.save_dir,
                     save_filename=default_filename,
                     file_types=('File Excel (*.xlsx)', 'Tutti i file (*.*)')
@@ -179,6 +179,32 @@ class BurracoApi:
             return {"success": True, "path": save_path}
         except Exception as e:
             print(f"Error exporting Excel: {e}")
+            return {"success": False, "error": str(e)}
+
+    def save_tournament_data_as(self, default_filename, json_data):
+        """ Save tournament JSON to user-chosen location using native Windows Save File Dialog """
+        try:
+            window = webview.windows[0] if webview.windows else None
+            save_path = None
+            if window:
+                result = window.create_file_dialog(
+                    webview.FileDialog.SAVE,
+                    directory=self.save_dir,
+                    save_filename=default_filename,
+                    file_types=('File JSON (*.json)', 'Tutti i file (*.*)')
+                )
+                if result:
+                    save_path = result[0] if isinstance(result, (list, tuple)) else result
+
+            if not save_path:
+                return {"success": False, "cancelled": True}
+
+            with open(save_path, "w", encoding="utf-8") as f:
+                f.write(json_data)
+
+            return {"success": True, "path": save_path}
+        except Exception as e:
+            print(f"Error saving tournament data as: {e}")
             return {"success": False, "error": str(e)}
 
 def get_app_version():
@@ -203,7 +229,7 @@ def is_remote_available(url, timeout=2.0):
         print(f"Info: Connessione remota non attiva ({e}). Caricamento versione locale.")
         return False
 
-def setup_windows_taskbar_icon(app_id="burracopunti.tournamentmanager.1.3.1"):
+def setup_windows_taskbar_icon(app_id="burracopunti.tournamentmanager.1.3.3"):
     """
     On Windows, explicit AppUserModelID is required so that the taskbar groups
     the window under this application identity rather than the generic python.exe interpreter,
