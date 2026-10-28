@@ -92,6 +92,50 @@ const BurracoEngine = {
   },
 
   /**
+   * Assign random lot numbers to pairs that do not have one assigned yet,
+   * respecting existing manual assignments and choosing uniquely from 1..N.
+   */
+  assignMissingLots(pairs = []) {
+    const totalPairs = pairs.length;
+    const usedLots = new Set();
+    pairs.forEach(p => {
+      if (p.lotNumber !== null && p.lotNumber !== undefined && !isNaN(Number(p.lotNumber)) && Number(p.lotNumber) > 0) {
+        usedLots.add(Number(p.lotNumber));
+        p.lotNumber = Number(p.lotNumber);
+      }
+    });
+
+    const availableLots = [];
+    for (let i = 1; i <= totalPairs; i++) {
+      if (!usedLots.has(i)) {
+        availableLots.push(i);
+      }
+    }
+
+    let nextAvailable = totalPairs + 1;
+    const unassignedCount = pairs.filter(p => p.lotNumber === null || p.lotNumber === undefined || isNaN(Number(p.lotNumber)) || Number(p.lotNumber) <= 0).length;
+    while (availableLots.length < unassignedCount) {
+      if (!usedLots.has(nextAvailable)) {
+        availableLots.push(nextAvailable);
+      }
+      nextAvailable++;
+    }
+
+    for (let i = availableLots.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [availableLots[i], availableLots[j]] = [availableLots[j], availableLots[i]];
+    }
+
+    pairs.forEach(p => {
+      if (p.lotNumber === null || p.lotNumber === undefined || isNaN(Number(p.lotNumber)) || Number(p.lotNumber) <= 0) {
+        p.lotNumber = availableLots.pop();
+      }
+    });
+
+    return pairs;
+  },
+
+  /**
    * Arrotonda un importo ai 0.5 Euro più vicini.
    * Es: 4.2 -> 4; 4.3 -> 4.5; 4.7 -> 4.5; 4.8 -> 5
    * @param {number} amount
@@ -384,6 +428,65 @@ const BurracoEngine = {
       restingPair,
       orderedPairs
     };
+  },
+
+  /**
+   * Verifica se un turno specifico è stato interamente completato e validato dal checksum VP.
+   *
+   * @param {Array} pairs - Elenco coppie
+   * @param {number} roundIdx - Indice turno (0-based)
+   * @param {number} byePoints - Punti attribuiti al riposo
+   * @returns {boolean}
+   */
+  isRoundComplete(pairs = [], roundIdx = 0, byePoints = 12) {
+    const validPairs = pairs.filter(p => p && p.name && p.name.trim() !== '');
+    if (validPairs.length === 0) return false;
+    const vpScores = [];
+    for (const pair of validPairs) {
+      const sc = pair.scores && pair.scores[roundIdx];
+      if (!sc || sc.vp === null || sc.vp === undefined || sc.vp === '') return false;
+      const num = Number(sc.vp);
+      if (isNaN(num) || num < 0 || num > 20) return false;
+      vpScores.push(num);
+    }
+    const res = this.validateRoundVpSum(vpScores, validPairs.length, byePoints);
+    return Boolean(res && res.valid && !res.hasOutOfRange);
+  },
+
+  /**
+   * Verifica se tutti i turni del torneo sono stati completati con successo.
+   *
+   * @param {Array} pairs - Elenco coppie
+   * @param {number} roundsCount - Numero totale di turni
+   * @param {number} byePoints - Punti attribuiti al riposo
+   * @returns {boolean}
+   */
+  areAllRoundsComplete(pairs = [], roundsCount = 4, byePoints = 12) {
+    const count = Math.max(1, parseInt(roundsCount, 10) || 1);
+    for (let r = 0; r < count; r++) {
+      if (!this.isRoundComplete(pairs, r, byePoints)) return false;
+    }
+    return true;
+  },
+
+  /**
+   * Verifica se un turno specifico è accessibile (iscrizioni confermate e tutti i turni precedenti completati).
+   *
+   * @param {Array} pairs - Elenco coppie
+   * @param {number} roundIdx - Indice turno (0-based)
+   * @param {number} byePoints - Punti attribuiti al riposo
+   * @param {boolean} registrationConfirmed - Flag conferma iscrizioni
+   * @returns {boolean}
+   */
+  isRoundAccessible(pairs = [], roundIdx = 0, byePoints = 12, registrationConfirmed = true) {
+    if (!registrationConfirmed) return false;
+    if (roundIdx === 0) return true;
+    for (let k = 0; k < roundIdx; k++) {
+      if (!this.isRoundComplete(pairs, k, byePoints)) {
+        return false;
+      }
+    }
+    return true;
   }
 };
 

@@ -77,8 +77,8 @@ class BurracoApp {
   // FONT ZOOM & ACCESSIBILITY CONTROLS
   // ==========================================
   initFontZoom() {
-    this.zoomLevels = [0.9, 1.0, 1.12, 1.25, 1.4];
-    this.currentZoomIndex = 1; // Default 1.0 (100%)
+    this.zoomLevels = [0.9, 1.0, 1.12, 1.25];
+    this.currentZoomIndex = 2; // Default 1.12 (A+)
     try {
       const saved = localStorage.getItem('burraco_zoom_index');
       if (saved !== null) {
@@ -106,14 +106,14 @@ class BurracoApp {
     });
 
     this.fontZoomDisplay?.addEventListener('click', () => {
-      this.currentZoomIndex = 1; // Ripristina al 100%
+      this.currentZoomIndex = 2; // Ripristina al default A+ (112%)
       this.applyFontZoom();
     });
   }
 
   applyFontZoom() {
-    if (!this.zoomLevels) this.zoomLevels = [0.9, 1.0, 1.12, 1.25, 1.4];
-    const scale = this.zoomLevels[this.currentZoomIndex] || 1.0;
+    if (!this.zoomLevels) this.zoomLevels = [0.9, 1.0, 1.12, 1.25];
+    const scale = this.zoomLevels[this.currentZoomIndex] || 1.12;
     document.documentElement.style.setProperty('--app-zoom', scale);
     const main = document.querySelector('.app-main');
     if (main) main.style.zoom = scale;
@@ -125,18 +125,22 @@ class BurracoApp {
     if (this.btnFontIncrease) this.btnFontIncrease.disabled = (this.currentZoomIndex === this.zoomLevels.length - 1);
 
     if (this.fontZoomDisplay) {
-      if (scale === 1.0) {
+      if (scale === 1.12) {
+        this.fontZoomDisplay.textContent = 'A+';
+        this.fontZoomDisplay.style.color = '#60A5FA';
+        this.fontZoomDisplay.title = 'Dimensione A+ (112% - Predefinita)';
+      } else if (scale === 1.0) {
         this.fontZoomDisplay.textContent = 'A';
         this.fontZoomDisplay.style.color = '#94A3B8';
-        this.fontZoomDisplay.title = 'Dimensione 100% (Normale)';
-      } else if (scale > 1.0) {
-        this.fontZoomDisplay.textContent = (scale >= 1.25) ? 'A++' : 'A+';
-        this.fontZoomDisplay.style.color = '#60A5FA';
-        this.fontZoomDisplay.title = `Dimensione ${Math.round(scale * 100)}% (clicca per ripristinare 100%)`;
+        this.fontZoomDisplay.title = 'Dimensione 100% (clicca per ripristinare A+)';
+      } else if (scale >= 1.25) {
+        this.fontZoomDisplay.textContent = 'A++';
+        this.fontZoomDisplay.style.color = '#3B82F6';
+        this.fontZoomDisplay.title = `Dimensione ${Math.round(scale * 100)}% (clicca per ripristinare A+)`;
       } else {
         this.fontZoomDisplay.textContent = 'A−';
         this.fontZoomDisplay.style.color = '#F59E0B';
-        this.fontZoomDisplay.title = `Dimensione ${Math.round(scale * 100)}% (clicca per ripristinare 100%)`;
+        this.fontZoomDisplay.title = `Dimensione ${Math.round(scale * 100)}% (clicca per ripristinare A+)`;
       }
     }
 
@@ -219,6 +223,10 @@ class BurracoApp {
     this.currentRoundBadge = document.getElementById('current-round-badge');
     this.btnPrevRound = document.getElementById('btn-prev-round');
     this.btnNextRound = document.getElementById('btn-next-round');
+    this.btnToggleRegistrationLock = document.getElementById('btn-toggle-registration-lock');
+    this.roundProtectiveOverlay = document.getElementById('round-protective-overlay');
+    this.btnUnlockRoundScores = document.getElementById('btn-unlock-round-scores');
+    this.btnAddPairRow = document.getElementById('btn-add-pair-row') || document.getElementById('btn-add-pair');
 
     // Toolbar / Stats
     this.initialSearchInput = document.getElementById('initial-search-input');
@@ -435,7 +443,8 @@ class BurracoApp {
 
   applySettingsVisibility() {
     if (this.btnLotteryToolbar) {
-      this.btnLotteryToolbar.style.display = this.state.settings.showLottery ? 'inline-flex' : 'none';
+      const showLottery = Boolean(this.state.settings && this.state.settings.showLottery) && !this.state.registrationConfirmed;
+      this.btnLotteryToolbar.style.display = showLottery ? 'inline-flex' : 'none';
     }
     if (this.tabBtnPodium) {
       this.tabBtnPodium.style.display = this.state.settings.showPodium ? 'flex' : 'none';
@@ -547,6 +556,7 @@ class BurracoApp {
     this.btnPrevRound?.addEventListener('click', () => {
       if (this.state.activeRoundIndex > 0) {
         this.state.activeRoundIndex--;
+        this.state.unlockedRounds = {};
         this.saveState();
         this.renderTabs();
         this.renderRoundView();
@@ -555,7 +565,18 @@ class BurracoApp {
 
     this.btnNextRound?.addEventListener('click', () => {
       if (this.state.activeRoundIndex < this.state.roundsCount - 1) {
+        const nextIdx = this.state.activeRoundIndex + 1;
+        if (!this.isRoundAccessible(nextIdx)) {
+          this.showFeedbackModal({
+            title: 'Turno Successivo Bloccato',
+            message: `Completa e valida i punteggi del Turno ${this.state.activeRoundIndex + 1} prima di passare al turno successivo.`,
+            icon: '🔒'
+          });
+          return;
+        }
         this.state.activeRoundIndex++;
+        this.state.highestRoundReached = Math.max(this.getHighestRoundReached(), this.state.activeRoundIndex);
+        this.state.unlockedRounds = {};
         this.saveState();
         this.renderTabs();
         this.renderRoundView();
@@ -589,6 +610,8 @@ class BurracoApp {
     // Toolbar and Quick Action Buttons
     const btnAddPair = document.getElementById('btn-add-pair-row') || document.getElementById('btn-add-pair');
     btnAddPair?.addEventListener('click', () => this.addNewPairRow());
+    this.btnToggleRegistrationLock?.addEventListener('click', () => this.toggleRegistrationLock());
+    this.btnUnlockRoundScores?.addEventListener('click', () => this.unlockCurrentRoundScores());
     this.btnLotteryToolbar?.addEventListener('click', () => this.openModal('modalLottery'));
 
     // Export Buttons (Toolbar & Settings Modal)
@@ -950,14 +973,49 @@ class BurracoApp {
   // TAB NAVIGATION CONTROLLER
   // ==========================================
   switchTab(tabKey) {
+    if (!this.state.registrationConfirmed && (tabKey.startsWith('round-') || tabKey === 'master' || tabKey === 'podium')) {
+      this.showFeedbackModal({
+        title: 'Iscrizioni Non Confermate',
+        message: 'Conferma le iscrizioni nel Tabellone Iniziale prima di accedere ai turni di gioco.',
+        icon: '🔒'
+      });
+      return;
+    }
+
     if (tabKey.startsWith('round-')) {
       const rIdx = parseInt(tabKey.replace('round-', ''), 10);
+      if (!this.isRoundAccessible(rIdx)) {
+        this.showFeedbackModal({
+          title: 'Turno Bloccato',
+          message: `Completa e valida i punteggi del turno precedente prima di accedere al Turno ${rIdx + 1}.`,
+          icon: '🔒'
+        });
+        return;
+      }
       this.state.activeRoundIndex = rIdx;
+      this.state.highestRoundReached = Math.max(this.getHighestRoundReached(), rIdx);
       this.state.currentTab = 'round';
+    } else if (tabKey === 'master' || tabKey === 'podium') {
+      const cfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (window.BURRACO_CONFIG || {});
+      const byePoints = (this.state.settings && this.state.settings.byePoints !== undefined)
+        ? Number(this.state.settings.byePoints)
+        : (cfg.defaultByePoints !== undefined ? cfg.defaultByePoints : 12);
+      const areAllComplete = BurracoEngine.areAllRoundsComplete(this.state.pairs, this.state.roundsCount, byePoints);
+
+      if (!areAllComplete) {
+        this.showFeedbackModal({
+          title: 'Classifica Non Disponibile',
+          message: `Completa e valida tutti i ${this.state.roundsCount} turni di gioco prima di accedere alla classifica finale.`,
+          icon: '🔒'
+        });
+        return;
+      }
+      this.state.currentTab = tabKey;
     } else {
       this.state.currentTab = tabKey;
     }
 
+    this.state.unlockedRounds = {};
     this.saveState();
 
     // Toggle button active classes
@@ -1007,6 +1065,7 @@ class BurracoApp {
   // ==========================================
   render() {
     this.renderTabs();
+    this.updatePrintButtonState();
     this.renderInitialTable();
     this.renderMasterTable();
     this.renderRoundView();
@@ -1042,13 +1101,36 @@ class BurracoApp {
     }
   }
 
+  isRoundAccessible(rIdx) {
+    const cfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (window.BURRACO_CONFIG || {});
+    const byePoints = (this.state.settings && this.state.settings.byePoints !== undefined)
+      ? Number(this.state.settings.byePoints)
+      : (cfg.defaultByePoints !== undefined ? cfg.defaultByePoints : 12);
+
+    return BurracoEngine.isRoundAccessible(
+      this.state.pairs,
+      rIdx,
+      byePoints,
+      Boolean(this.state.registrationConfirmed)
+    );
+  }
+
   renderTabs() {
     if (!this.roundTabsContainer) return;
     this.roundTabsContainer.innerHTML = '';
 
+    const isRegistrationLocked = !this.state.registrationConfirmed;
+
     for (let i = 0; i < this.state.roundsCount; i++) {
+      const isAccessible = this.isRoundAccessible(i);
+      const isLocked = !isAccessible;
       const tabBtn = document.createElement('button');
-      tabBtn.className = 'tab-btn';
+      tabBtn.className = 'tab-btn' + (isLocked ? ' tab-locked' : '');
+      if (isRegistrationLocked) {
+        tabBtn.title = 'Conferma le iscrizioni nel Tabellone Iniziale prima di aprire i turni';
+      } else if (isLocked) {
+        tabBtn.title = `Completa e valida il Turno ${i} prima di aprire il Turno ${i + 1}`;
+      }
       tabBtn.dataset.tab = `round-${i}`;
       if (this.state.currentTab === 'round' && this.state.activeRoundIndex === i) {
         tabBtn.classList.add('active');
@@ -1056,12 +1138,181 @@ class BurracoApp {
       tabBtn.innerHTML = `<span class="tab-icon">🎯</span> Turno ${i + 1}`;
       this.roundTabsContainer.appendChild(tabBtn);
     }
+
+    const cfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (window.BURRACO_CONFIG || {});
+    const byePoints = (this.state.settings && this.state.settings.byePoints !== undefined)
+      ? Number(this.state.settings.byePoints)
+      : (cfg.defaultByePoints !== undefined ? cfg.defaultByePoints : 12);
+    const areAllComplete = BurracoEngine.areAllRoundsComplete(this.state.pairs, this.state.roundsCount, byePoints);
+
+    const tabMaster = document.getElementById('tab-btn-master');
+    if (tabMaster) {
+      if (isRegistrationLocked) {
+        tabMaster.classList.add('tab-locked');
+        tabMaster.title = 'Conferma le iscrizioni nel Tabellone Iniziale prima di visualizzare la classifica';
+      } else if (!areAllComplete) {
+        tabMaster.classList.add('tab-locked');
+        tabMaster.title = `Completa e valida tutti i ${this.state.roundsCount} turni per sbloccare la classifica`;
+      } else {
+        tabMaster.classList.remove('tab-locked');
+        tabMaster.title = 'Visualizza la classifica finale';
+      }
+    }
+
+    const tabPodium = document.getElementById('tab-btn-podium');
+    if (tabPodium) {
+      if (isRegistrationLocked || !areAllComplete) {
+        tabPodium.classList.add('tab-locked');
+        tabPodium.title = `Completa e valida tutti i ${this.state.roundsCount} turni per sbloccare il podio`;
+      } else {
+        tabPodium.classList.remove('tab-locked');
+        tabPodium.title = 'Visualizza il podio';
+      }
+    }
+  }
+
+  hasAnyScores() {
+    return this.state.pairs.some(p => p && Array.isArray(p.scores) && p.scores.some(s => s && (s.vp !== null && s.vp !== undefined && s.vp !== '' || s.mp !== null && s.mp !== undefined && s.mp !== '')));
+  }
+
+  toggleRegistrationLock() {
+    if (!this.state.registrationConfirmed) {
+      // 1. Elimina righe con nome vuoto
+      this.state.pairs = this.state.pairs.filter(p => p && p.name && p.name.trim() !== '');
+
+      // 2. Controllo minimo 2 coppie
+      if (this.state.pairs.length < 2) {
+        this.showFeedbackModal({
+          title: 'Coppie Insufficienti',
+          message: 'Inserisci almeno 2 coppie con nome compilato prima di confermare le iscrizioni.',
+          icon: '⚠️'
+        });
+        this.renderInitialTable();
+        return;
+      }
+
+      // 3. Assegna numeri identificativi mancanti in modo casuale preservando inserimenti manuali
+      BurracoEngine.assignMissingLots(this.state.pairs);
+
+      // Ordina per numero identificativo crescente
+      this.state.pairs.sort((a, b) => a.lotNumber - b.lotNumber);
+
+      this.state.registrationConfirmed = true;
+      this.saveState();
+      this.render();
+
+      // Rimani sulla schermata iniziale per permettere la consultazione dei numeri sorteggiati
+    } else {
+      // Sblocco iscrizioni
+      const resetScoresAndUnlock = () => {
+        this.state.pairs.forEach(p => {
+          if (p) {
+            p.scores = Array.from({ length: this.state.roundsCount }, () => ({ mp: null, vp: null }));
+          }
+        });
+        this.state.registrationConfirmed = false;
+        this.state.highestRoundReached = 0;
+        this.state.unlockedRounds = {};
+        this.saveState();
+        this.render();
+      };
+
+      if (!this.hasAnyScores()) {
+        resetScoresAndUnlock();
+      } else {
+        this.showConfirmModal({
+          title: 'Riapertura Iscrizioni',
+          message: 'Il torneo è già iniziato e contiene punteggi registrati.',
+          detail: 'Riaprendo le iscrizioni per modificare le squadre, tutti i punteggi inseriti nei turni verranno azzerati per consentire la corretta ripartizione dei tavoli.',
+          confirmText: 'Azzera Punti e Riapri',
+          confirmClass: 'btn-danger',
+          onConfirm: () => {
+            resetScoresAndUnlock();
+          }
+        });
+      }
+    }
+  }
+
+  unlockCurrentRoundScores() {
+    const roundIdx = this.state.activeRoundIndex;
+    if (!this.state.unlockedRounds) this.state.unlockedRounds = {};
+    this.state.unlockedRounds[roundIdx] = true;
+    this.saveState();
+    this.updateRoundProtectiveOverlay();
+    const firstInp = this.roundTableBody?.querySelector('.round-score-input');
+    if (firstInp) {
+      firstInp.focus();
+      firstInp.select();
+    }
+  }
+
+  getHighestRoundReached() {
+    let max = (this.state.highestRoundReached !== undefined) ? Number(this.state.highestRoundReached) : 0;
+    if (Array.isArray(this.state.pairs)) {
+      this.state.pairs.forEach(p => {
+        if (Array.isArray(p.scores)) {
+          p.scores.forEach((s, idx) => {
+            if (s && ((s.vp !== null && s.vp !== undefined && s.vp !== '') || (s.mp !== null && s.mp !== undefined && s.mp !== ''))) {
+              if (idx > max) max = idx;
+            }
+          });
+        }
+      });
+    }
+    return max;
+  }
+
+  updateRoundProtectiveOverlay() {
+    if (!this.roundProtectiveOverlay) return;
+    const roundIdx = this.state.activeRoundIndex;
+    const cfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (window.BURRACO_CONFIG || {});
+    const byePoints = (this.state.settings && this.state.settings.byePoints !== undefined)
+      ? Number(this.state.settings.byePoints)
+      : (cfg.defaultByePoints !== undefined ? cfg.defaultByePoints : 12);
+
+    const isCurrentComplete = BurracoEngine.isRoundComplete(this.state.pairs, roundIdx, byePoints);
+    const areAllComplete = BurracoEngine.areAllRoundsComplete(this.state.pairs, this.state.roundsCount, byePoints);
+    const isUnlocked = Boolean(this.state.unlockedRounds && this.state.unlockedRounds[roundIdx]);
+    const maxReached = this.getHighestRoundReached();
+    const hasAdvancedPastRound = maxReached > roundIdx;
+
+    // A fine torneo il limite visivo viene rimosso su tutti i turni per consultazione libera.
+    // Durante il torneo il blur compare solo sui turni precedenti già completati a cui si torna indietro.
+    if (areAllComplete) {
+      this.roundProtectiveOverlay.style.display = 'none';
+      this.roundTable?.classList.remove('is-protected');
+      this.setRoundInputsTabindex(0);
+    } else if (hasAdvancedPastRound && isCurrentComplete && !isUnlocked) {
+      this.roundProtectiveOverlay.style.display = 'flex';
+      this.roundTable?.classList.add('is-protected');
+      this.setRoundInputsTabindex(-1);
+    } else {
+      this.roundProtectiveOverlay.style.display = 'none';
+      this.roundTable?.classList.remove('is-protected');
+      this.setRoundInputsTabindex(0);
+    }
+  }
+
+  setRoundInputsTabindex(idx) {
+    if (!this.roundTableBody) return;
+    this.roundTableBody.querySelectorAll('.round-score-input, .btn-round-bye').forEach(el => {
+      el.tabIndex = idx;
+    });
   }
 
   // ==========================================
   // TAB 1: INITIAL PAIR REGISTRATION VIEW
   // ==========================================
   addNewPairRow() {
+    if (this.state.registrationConfirmed) {
+      this.showFeedbackModal({
+        title: 'Iscrizioni Confermate',
+        message: 'Le iscrizioni sono chiuse. Clicca su "Riapri Iscrizioni" per aggiungere o eliminare partecipanti.',
+        icon: '🔒'
+      });
+      return;
+    }
     const newPair = {
       id: 'p_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
       lotNumber: null,
@@ -1075,6 +1326,26 @@ class BurracoApp {
   }
 
   renderInitialTable(focusPairId = null) {
+    if (this.btnToggleRegistrationLock) {
+      if (this.state.registrationConfirmed) {
+        this.btnToggleRegistrationLock.innerHTML = '<span class="btn-icon">🔓</span> Riapri Iscrizioni';
+        this.btnToggleRegistrationLock.className = 'btn btn-secondary btn-sm';
+        this.btnToggleRegistrationLock.title = 'Riapri le iscrizioni per aggiungere o eliminare partecipanti';
+      } else {
+        this.btnToggleRegistrationLock.innerHTML = '<span class="btn-icon">🔒</span> Conferma Iscrizioni';
+        this.btnToggleRegistrationLock.className = 'btn btn-primary btn-sm';
+        this.btnToggleRegistrationLock.title = 'Conferma l\'elenco coppie e avvia il torneo';
+      }
+    }
+
+    if (this.btnAddPairRow) {
+      this.btnAddPairRow.disabled = Boolean(this.state.registrationConfirmed);
+      this.btnAddPairRow.style.opacity = this.state.registrationConfirmed ? '0.45' : '1';
+      this.btnAddPairRow.style.cursor = this.state.registrationConfirmed ? 'not-allowed' : 'pointer';
+    }
+
+    this.applySettingsVisibility();
+
     if (!this.initialTableBody) return;
     this.initialTableBody.innerHTML = '';
 
@@ -1126,6 +1397,17 @@ class BurracoApp {
           <button class="btn-ghost text-danger btn-delete-initial-pair" data-pair-id="${pair.id}" title="Elimina riga" style="font-size:16px;">🗑️</button>
         </td>
       `;
+
+      if (this.state.registrationConfirmed) {
+        const delBtn = tr.querySelector('.btn-delete-initial-pair');
+        if (delBtn) delBtn.style.visibility = 'hidden';
+        const lotInp = tr.querySelector('.initial-lot-input');
+        if (lotInp) {
+          lotInp.disabled = true;
+          lotInp.style.backgroundColor = '#F8FAFC';
+        }
+      }
+
       this.initialTableBody.appendChild(tr);
     });
 
@@ -1144,8 +1426,26 @@ class BurracoApp {
         const pairId = e.target.dataset.pairId;
         const pair = this.state.pairs.find(p => p.id === pairId);
         if (pair) {
-          pair.name = e.target.value.trim();
+          const val = e.target.value.trim();
+          pair.name = val;
           this.saveState();
+
+          if (val) {
+            const hasDuplicate = this.state.pairs.some(other => other.id !== pair.id && other.name && other.name.trim().toLowerCase() === val.toLowerCase());
+            if (hasDuplicate) {
+              e.target.style.borderColor = '#F59E0B';
+              e.target.style.boxShadow = '0 0 0 2px rgba(245, 158, 11, 0.2)';
+              e.target.title = 'Attenzione: nome coppia già presente in elenco!';
+            } else {
+              e.target.style.borderColor = '';
+              e.target.style.boxShadow = '';
+              e.target.title = '';
+            }
+          } else {
+            e.target.style.borderColor = '';
+            e.target.style.boxShadow = '';
+            e.target.title = '';
+          }
         }
       });
 
@@ -1382,6 +1682,11 @@ class BurracoApp {
     }
     if (this.btnNextRound) {
       this.btnNextRound.style.display = roundIdx >= this.state.roundsCount - 1 ? 'none' : 'inline-flex';
+      const nextAccessible = this.isRoundAccessible(roundIdx + 1);
+      this.btnNextRound.disabled = !nextAccessible;
+      this.btnNextRound.style.opacity = nextAccessible ? '1' : '0.45';
+      this.btnNextRound.style.cursor = nextAccessible ? 'pointer' : 'not-allowed';
+      this.btnNextRound.title = nextAccessible ? 'Vai al turno successivo' : `Completa e valida il Turno ${roundIdx + 1} prima di procedere`;
     }
 
     if (!this.roundTableBody) return;
@@ -1672,6 +1977,7 @@ class BurracoApp {
     });
 
     this.checkRoundScoreConsistency();
+    this.updateRoundProtectiveOverlay();
   }
 
   /**
@@ -1716,6 +2022,8 @@ class BurracoApp {
     // Il check si attiva solamente dopo che tutti i punti sono stati inseriti
     if (!allVpFilled) {
       if (this.roundVpCheckBanner) this.roundVpCheckBanner.style.display = 'none';
+      this.updateRoundProtectiveOverlay();
+      this.updateTabsAndNextButton();
       return;
     }
 
@@ -1748,6 +2056,8 @@ class BurracoApp {
           this.roundVpCheckBanner.style.display = 'none';
         }
       }
+      this.updateRoundProtectiveOverlay();
+      this.updateTabsAndNextButton();
       return;
     }
 
@@ -1782,6 +2092,21 @@ class BurracoApp {
           this.roundVpCheckBanner.style.display = 'none';
         }
       }
+    }
+
+    this.updateRoundProtectiveOverlay();
+    this.updateTabsAndNextButton();
+  }
+
+  updateTabsAndNextButton() {
+    this.renderTabs();
+    this.updatePrintButtonState();
+    if (this.btnNextRound && this.state.currentTab === 'round') {
+      const nextAccessible = this.isRoundAccessible(this.state.activeRoundIndex + 1);
+      this.btnNextRound.disabled = !nextAccessible;
+      this.btnNextRound.style.opacity = nextAccessible ? '1' : '0.45';
+      this.btnNextRound.style.cursor = nextAccessible ? 'pointer' : 'not-allowed';
+      this.btnNextRound.title = nextAccessible ? 'Vai al turno successivo' : `Completa e valida il Turno ${this.state.activeRoundIndex + 1} prima di procedere`;
     }
   }
 
@@ -1949,6 +2274,14 @@ class BurracoApp {
   // LOTTERY & DRAW SYSTEM
   // ==========================================
   runRandomLottery() {
+    if (this.state.registrationConfirmed) {
+      this.showFeedbackModal({
+        title: 'Iscrizioni Confermate',
+        message: 'Le iscrizioni sono confermate. Riapri le iscrizioni prima di effettuare un nuovo sorteggio.',
+        icon: '🔒'
+      });
+      return;
+    }
     const count = this.state.pairs.length;
     if (count === 0) {
       this.showFeedbackModal({
@@ -1975,6 +2308,14 @@ class BurracoApp {
   }
 
   runSequentialLottery() {
+    if (this.state.registrationConfirmed) {
+      this.showFeedbackModal({
+        title: 'Iscrizioni Confermate',
+        message: 'Le iscrizioni sono confermate. Riapri le iscrizioni prima di assegnare numeri sequenziali.',
+        icon: '🔒'
+      });
+      return;
+    }
     BurracoEngine.assignSequentialLots(this.state.pairs);
     this.saveState();
     this.render();
@@ -2013,7 +2354,36 @@ class BurracoApp {
     });
   }
 
+  updatePrintButtonState() {
+    if (!this.btnPrint) return;
+    const cfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (window.BURRACO_CONFIG || {});
+    const byePoints = (this.state.settings && this.state.settings.byePoints !== undefined)
+      ? Number(this.state.settings.byePoints)
+      : (cfg.defaultByePoints !== undefined ? cfg.defaultByePoints : 12);
+    const areAllComplete = BurracoEngine.areAllRoundsComplete(this.state.pairs, this.state.roundsCount, byePoints);
+
+    this.btnPrint.disabled = !areAllComplete;
+    this.btnPrint.style.opacity = areAllComplete ? '1' : '0.42';
+    this.btnPrint.style.cursor = areAllComplete ? 'pointer' : 'not-allowed';
+    this.btnPrint.title = areAllComplete
+      ? 'Salva e copia immagine della classifica per WhatsApp'
+      : 'Disponibile al termine di tutti i turni del torneo';
+  }
+
   exportLeaderboardImage() {
+    const cfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (window.BURRACO_CONFIG || {});
+    const byePoints = (this.state.settings && this.state.settings.byePoints !== undefined)
+      ? Number(this.state.settings.byePoints)
+      : (cfg.defaultByePoints !== undefined ? cfg.defaultByePoints : 12);
+    if (!BurracoEngine.areAllRoundsComplete(this.state.pairs, this.state.roundsCount, byePoints)) {
+      this.showFeedbackModal({
+        title: 'Classifica Non Conclusa',
+        message: 'L\'immagine della classifica può essere salvata solo al termine di tutti i turni del torneo.',
+        icon: '🔒'
+      });
+      return;
+    }
+
     BurracoExcel.exportLeaderboardImage(this.state, this.getRankedPairs(), (res) => {
       if (res && res.success) {
         this.showExportImageModal(res);
@@ -2093,6 +2463,14 @@ class BurracoApp {
       this.syncSettingsUI();
     }
     if (modalKey === 'modalLottery') {
+      if (this.state.registrationConfirmed) {
+        this.showFeedbackModal({
+          title: 'Iscrizioni Confermate',
+          message: 'Le iscrizioni sono confermate. Clicca su "Riapri Iscrizioni" per modificare o estrarre nuovi numeri.',
+          icon: '🔒'
+        });
+        return;
+      }
       const countEl = document.getElementById('lottery-total-count');
       if (countEl) {
         const activeCount = this.state.pairs.filter(p => p.name && p.name.trim() !== '').length;

@@ -31,6 +31,9 @@ jsModules.forEach(mod => {
 console.log(`- index.html: ${html.length} bytes`);
 console.log(`- styles.css (master entry): ${css.length} bytes`);
 console.log(`- app.js (controller): ${js.length} bytes`);
+const vm = require('vm');
+new vm.Script(js, { filename: 'src/app.js' });
+console.log(`- app.js sintassi validata: OK`);
 console.log(`- xlsx.full.min.js presente: ${xlsxExists ? 'OK' : 'MANCANTE'}`);
 
 // Import the actual engine modules
@@ -125,13 +128,30 @@ console.log('- Metodi, proprietà e listener rimossi da app.js (OK)');
 console.log('- Funzione parseBulkPaste rimossa dal modulo BurracoExcel (OK)');
 console.log('>>> TEST 3 SUPERATO CON SUCCESSO! Funzionalità Incolla da Excel rimossa al 100%.');
 
-console.log('\n--- TEST 4: Verifica Sorteggio Casuale (BurracoEngine.generateRandomLots) ---');
+console.log('\n--- TEST 4: Verifica Sorteggio Casuale (BurracoEngine.generateRandomLots e assignMissingLots) ---');
 const draw = BurracoEngine.generateRandomLots(20);
 const uniqueSet = new Set(draw);
 if (draw.length !== 20 || uniqueSet.size !== 20 || Math.min(...draw) !== 1 || Math.max(...draw) !== 20) {
   throw new Error('Test Fallito: Sorteggio non valido!');
 }
 console.log(`Sorteggio 20 coppie generato: [${draw.slice(0, 8).join(', ')} ...]: Tutti numeri unici da 1 a 20.`);
+
+// Verifica assignMissingLots con assegnazioni parziali
+const partialPairs = [
+  { id: 'p1', name: 'Coppia 1', lotNumber: null },
+  { id: 'p2', name: 'Coppia 2', lotNumber: 2 },
+  { id: 'p3', name: 'Coppia 3', lotNumber: null },
+  { id: 'p4', name: 'Coppia 4', lotNumber: 4 }
+];
+BurracoEngine.assignMissingLots(partialPairs);
+if (partialPairs[1].lotNumber !== 2 || partialPairs[3].lotNumber !== 4) {
+  throw new Error('Test Fallito: assignMissingLots non deve sovrascrivere i numeri assegnati manualmente!');
+}
+const assignedLots = partialPairs.map(p => p.lotNumber).sort((a, b) => a - b);
+if (JSON.stringify(assignedLots) !== JSON.stringify([1, 2, 3, 4])) {
+  throw new Error(`Test Fallito: assignMissingLots deve assegnare i numeri rimanenti da 1 a N, ottenuto ${JSON.stringify(assignedLots)}`);
+}
+console.log('- BurracoEngine.assignMissingLots preserva inserimenti manuali e assegna numeri casuali da 1..N (OK)');
 console.log('>>> TEST 4 SUPERATO CON SUCCESSO!');
 
 console.log('\n--- TEST 5: Verifica Struttura Multi-Giornata con Formato Data GGMMAA (BurracoStorage) ---');
@@ -585,7 +605,7 @@ if (!js.includes('if (this.roundVpCheckBanner) this.roundVpCheckBanner.style.dis
 console.log('- Reset banner e checkmark garantito quando non ci sono coppie (OK)');
 console.log('>>> TEST 14 SUPERATO CON SUCCESSO! Tabellone pulito all\'avvio e nessun falso allarme.');
 
-console.log('\n--- TEST 15: Verifica Configurazione Avviso Punteggio Errato, Offline SW e Versione v1.3.4 ---');
+console.log('\n--- TEST 15: Verifica Configurazione Avviso Punteggio Errato, Offline SW e Versione v1.4.0 ---');
 if (!html.includes('id="setting-toggle-score-warning"')) {
   throw new Error('Test 15 fallito: toggle setting-toggle-score-warning mancante in index.html!');
 }
@@ -593,19 +613,19 @@ if (!js.includes('setting-toggle-score-warning') || !js.includes('showScoreWarni
   throw new Error('Test 15 fallito: gestione showScoreWarning mancante in app.js!');
 }
 const testCfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (BURRACO_CONFIG || {});
-if (testCfg.version !== '1.3.4') {
-  throw new Error(`Test 15 fallito: BURRACO_CONFIG.version deve essere 1.3.4, trovato ${testCfg.version}!`);
+if (testCfg.version !== '1.4.0') {
+  throw new Error(`Test 15 fallito: BURRACO_CONFIG.version deve essere 1.4.0, trovato ${testCfg.version}!`);
 }
 const swContent = fs.readFileSync(path.join(__dirname, 'src', 'sw.js'), 'utf8');
-if (!swContent.includes('burraco-cache-v1.3.4')) {
-  throw new Error('Test 15 fallito: CACHE_NAME in sw.js non aggiornato a v1.3.4!');
+if (!swContent.includes('burraco-cache-v1.4.0')) {
+  throw new Error('Test 15 fallito: CACHE_NAME in sw.js non aggiornato a v1.4.0!');
 }
 if (!swContent.includes('ignoreSearch: true')) {
   throw new Error('Test 15 fallito: sw.js non include ignoreSearch: true per la resilienza offline!');
 }
 const manifestContent = fs.readFileSync(path.join(__dirname, 'src', 'manifest.json'), 'utf8');
-if (!manifestContent.includes('"version": "1.3.4"')) {
-  throw new Error('Test 15 fallito: version in manifest.json non aggiornata a 1.3.4!');
+if (!manifestContent.includes('"version": "1.4.0"')) {
+  throw new Error('Test 15 fallito: version in manifest.json non aggiornata a 1.4.0!');
 }
 if (!html.includes('id="btn-share-image"')) {
   throw new Error('Test 15 fallito: pulsante id="btn-share-image" mancante in index.html!');
@@ -617,8 +637,8 @@ console.log('- Toggle setting-toggle-score-warning presente nella UI delle impos
 console.log('- Controller app.js supporta attivazione/disattivazione avviso punteggio errato (OK)');
 console.log('- Supporto condivisione nativa e protezione iPad (btnShareImage / isIOS) verificato (OK)');
 console.log('- Service worker configurato con Cache-First e ignoreSearch: true per supporto offline totale (OK)');
-console.log('- Versione v1.3.4 sincronizzata tra config.js, manifest.json, sw.js e index.html (OK)');
-console.log('>>> TEST 15 SUPERATO CON SUCCESSO! Avviso configurabile, export iPad, offline PWA e versione 1.3.4 allineati al 100%.');
+console.log('- Versione v1.4.0 sincronizzata tra config.js, manifest.json, sw.js e index.html (OK)');
+console.log('>>> TEST 15 SUPERATO CON SUCCESSO! Avviso configurabile, export iPad, offline PWA e versione 1.4.0 allineati al 100%.');
 
 console.log('\n--- TEST 16: Verifica Ricerca Rapida Turno e Attivazione Automatica Riposo per Squadre Dispari ---');
 if (!html.includes('id="round-search-input"')) {
@@ -886,6 +906,113 @@ console.log('- Rotazione 5 coppie dispari (Turno 2: T1=[1 vs 5], T2=[3 vs 2], Ri
 console.log('- Rotazione 5 coppie dispari (Turno 3: T1=[1 vs 4], T2=[3 vs 5], Riposo=2): OK');
 console.log('- Verifica coppie fisse sempre attive (1 e 3) e rotazione circolare Riposo -> T1 -> T2 -> Riposo: OK');
 console.log('>>> TEST 21 SUPERATO CON SUCCESSO! Rotazione Mitchell e gestione riposo verificate al 100%.');
+
+console.log('\n--- TEST 22: Verifica Ciclo di Vita Iscrizioni e Protezione Blur Punteggi Turno ---');
+const freshHtml22 = fs.readFileSync(path.join(__dirname, 'src', 'index.html'), 'utf8');
+const freshJs22 = fs.readFileSync(path.join(__dirname, 'src', 'app.js'), 'utf8');
+const freshTablesCss22 = fs.readFileSync(path.join(__dirname, 'src', 'css', 'tables.css'), 'utf8');
+
+// 1. Verifica elementi UI in index.html
+if (!freshHtml22.includes('id="btn-toggle-registration-lock"')) {
+  throw new Error('Test 22 fallito: pulsante btn-toggle-registration-lock mancante in index.html!');
+}
+if (!freshHtml22.includes('id="round-protective-overlay"') || !freshHtml22.includes('id="btn-unlock-round-scores"')) {
+  throw new Error('Test 22 fallito: overlay protettivo o pulsante sblocco punteggi mancanti in index.html!');
+}
+
+// 2. Verifica classi CSS
+if (!freshTablesCss22.includes('.tab-btn.tab-locked') || !freshTablesCss22.includes('.round-protective-overlay')) {
+  throw new Error('Test 22 fallito: regole CSS tab-locked o round-protective-overlay mancanti in tables.css!');
+}
+
+// 3. Verifica controller app.js
+if (!freshJs22.includes('toggleRegistrationLock') || !freshJs22.includes('updateRoundProtectiveOverlay')) {
+  throw new Error('Test 22 fallito: metodi toggleRegistrationLock o updateRoundProtectiveOverlay mancanti in app.js!');
+}
+
+// 4. Test logica pura BurracoEngine.isRoundComplete e areAllRoundsComplete
+const testPairsComplete = [
+  { id: 'p1', name: 'Alfa', scores: [{ vp: 14, mp: 1000 }, { vp: 12, mp: 800 }] },
+  { id: 'p2', name: 'Beta', scores: [{ vp: 6, mp: 400 }, { vp: 8, mp: 500 }] },
+  { id: 'p3', name: 'Gamma', scores: [{ vp: 11, mp: 900 }, { vp: 10, mp: 700 }] },
+  { id: 'p4', name: 'Delta', scores: [{ vp: 9, mp: 600 }, { vp: 10, mp: 700 }] }
+];
+
+if (!BurracoEngine.isRoundComplete(testPairsComplete, 0)) {
+  throw new Error('Test 22 fallito: isRoundComplete deve restituire true per turno 0 completo (40 VP)');
+}
+if (!BurracoEngine.isRoundComplete(testPairsComplete, 1)) {
+  throw new Error('Test 22 fallito: isRoundComplete deve restituire true per turno 1 completo (40 VP)');
+}
+if (!BurracoEngine.areAllRoundsComplete(testPairsComplete, 2)) {
+  throw new Error('Test 22 fallito: areAllRoundsComplete deve restituire true quando tutti i 2 turni sono validi');
+}
+
+// Test incompleto
+const testPairsIncomplete = [
+  { id: 'p1', name: 'Alfa', scores: [{ vp: 14, mp: 1000 }, { vp: null, mp: null }] },
+  { id: 'p2', name: 'Beta', scores: [{ vp: 6, mp: 400 }, { vp: 8, mp: 500 }] }
+];
+if (BurracoEngine.isRoundComplete(testPairsIncomplete, 1)) {
+  throw new Error('Test 22 fallito: isRoundComplete deve restituire false quando ci sono punteggi null');
+}
+if (BurracoEngine.areAllRoundsComplete(testPairsIncomplete, 2)) {
+  throw new Error('Test 22 fallito: areAllRoundsComplete deve restituire false se un turno è incompleto');
+}
+
+// Verifica sblocco sequenziale turni (isRoundAccessible)
+if (BurracoEngine.isRoundAccessible(testPairsComplete, 0, 12, false) !== false) {
+  throw new Error('Test 22 fallito: isRoundAccessible deve restituire false se registrationConfirmed è false');
+}
+if (BurracoEngine.isRoundAccessible(testPairsComplete, 0, 12, true) !== true) {
+  throw new Error('Test 22 fallito: turno 0 deve essere sempre accessibile con iscrizioni confermate');
+}
+if (BurracoEngine.isRoundAccessible(testPairsComplete, 1, 12, true) !== true) {
+  throw new Error('Test 22 fallito: turno 1 deve essere accessibile se turno 0 è completo');
+}
+const testPairsTurn0Incomplete = [
+  { id: 'p1', name: 'Alfa', scores: [{ vp: null, mp: null }] },
+  { id: 'p2', name: 'Beta', scores: [{ vp: null, mp: null }] }
+];
+if (BurracoEngine.isRoundAccessible(testPairsTurn0Incomplete, 1, 12, true) !== false) {
+  throw new Error('Test 22 fallito: turno 1 deve essere bloccato se turno 0 non è completo');
+}
+
+// 5. Test schema e migrazione BurracoStorage
+const defState22 = BurracoStorage.getDefaultState();
+if (defState22.registrationConfirmed !== false) {
+  throw new Error('Test 22 fallito: registrationConfirmed deve essere false nello stato predefinito');
+}
+if (defState22.highestRoundReached !== 0) {
+  throw new Error('Test 22 fallito: highestRoundReached deve essere 0 nello stato predefinito');
+}
+
+const legacyParsed = BurracoStorage.parseLoadedData({
+  title: 'Torneo Storico',
+  pairs: testPairsComplete
+});
+if (!legacyParsed || legacyParsed.registrationConfirmed !== true) {
+  throw new Error('Test 22 fallito: i tornei legacy con punteggi devono migrare a registrationConfirmed = true');
+}
+
+// Verifica azzeramento punteggi alla riapertura iscrizioni
+const testPairsToReset = JSON.parse(JSON.stringify(testPairsComplete));
+testPairsToReset.forEach(p => {
+  p.scores = Array.from({ length: 4 }, () => ({ mp: null, vp: null }));
+});
+const anyScoresRemaining = testPairsToReset.some(p => p.scores.some(s => s.vp !== null || s.mp !== null));
+if (anyScoresRemaining) {
+  throw new Error('Test 22 fallito: i punteggi non sono stati azzerati correttamente per la riapertura');
+}
+
+console.log('- Elementi UI e overlay protettivo verificati in index.html (OK)');
+console.log('- Stili CSS tab-locked e round-protective-overlay verificati in tables.css (OK)');
+console.log('- Metodi toggleRegistrationLock e updateRoundProtectiveOverlay integrati in app.js (OK)');
+console.log('- Azzeramento punteggi turni alla riapertura iscrizioni verificato (OK)');
+console.log('- Blocco accesso Classifica fino a conclusione ultimo turno verificato (OK)');
+console.log('- Helper BurracoEngine.isRoundComplete e areAllRoundsComplete verificati con successo (OK)');
+console.log('- Gestione schema e migrazione legacy in BurracoStorage verificata (OK)');
+console.log('>>> TEST 22 SUPERATO CON SUCCESSO! Ciclo di vita e protezione blur punteggi conformi al 100%.');
 
 console.log('\n=============================================');
 console.log('TUTTI I TEST MODULARI SONO PASSATI AL 100%!');

@@ -38,6 +38,9 @@ const BurracoStorage = {
       settings: { ...defaultSettings },
       currentTab: 'initial', // 'initial' | 'round' | 'master' | 'podium'
       activeRoundIndex: 0,
+      registrationConfirmed: false,
+      highestRoundReached: 0,
+      unlockedRounds: {},
       searchFilter: '',
       initialSearchFilter: '',
       pairs: [...demoPairs]
@@ -143,6 +146,18 @@ const BurracoStorage = {
       if (!activeG.roundsCount) activeG.roundsCount = roundsCount;
       allGiornate[activeKey] = activeG;
 
+      const hasAnyScores = pairs.some(p => p && Array.isArray(p.scores) && p.scores.some(s => s && (s.vp !== null && s.vp !== undefined && s.vp !== '' || s.mp !== null && s.mp !== undefined && s.mp !== '')));
+      const registrationConfirmed = (data.registrationConfirmed !== undefined)
+        ? Boolean(data.registrationConfirmed)
+        : (activeG.registrationConfirmed !== undefined ? Boolean(activeG.registrationConfirmed) : hasAnyScores);
+      const unlockedRounds = (data.unlockedRounds && typeof data.unlockedRounds === 'object')
+        ? data.unlockedRounds
+        : (activeG.unlockedRounds && typeof activeG.unlockedRounds === 'object' ? activeG.unlockedRounds : {});
+
+      const highestRoundReached = (data.highestRoundReached !== undefined)
+        ? Number(data.highestRoundReached)
+        : (activeG.highestRoundReached !== undefined ? Number(activeG.highestRoundReached) : 0);
+
       return {
         title,
         settings,
@@ -151,6 +166,9 @@ const BurracoStorage = {
         allGiornate,
         roundsCount,
         pairs,
+        registrationConfirmed,
+        highestRoundReached,
+        unlockedRounds,
         currentTab: data.currentTab || 'initial',
         activeRoundIndex: data.activeRoundIndex || 0,
         searchFilter: '',
@@ -160,9 +178,12 @@ const BurracoStorage = {
       // Legacy format migration: preserve data.currentGiornataKey if already set
       const todayKey = data.currentGiornataKey || `serata_${utils.getDateGGMMAA()}`;
       const roundsCount = data.roundsCount || utils.DEFAULT_ROUNDS;
+      const hasAnyScores = data.pairs.some(p => p && Array.isArray(p.scores) && p.scores.some(s => s && (s.vp !== null && s.vp !== undefined && s.vp !== '' || s.mp !== null && s.mp !== undefined && s.mp !== '')));
+      const registrationConfirmed = (data.registrationConfirmed !== undefined) ? Boolean(data.registrationConfirmed) : hasAnyScores;
       allGiornate[todayKey] = {
         roundsCount,
-        pairs: data.pairs
+        pairs: data.pairs,
+        registrationConfirmed
       };
       return {
         title,
@@ -172,6 +193,8 @@ const BurracoStorage = {
         allGiornate,
         roundsCount,
         pairs: data.pairs,
+        registrationConfirmed,
+        unlockedRounds: data.unlockedRounds || {},
         currentTab: data.currentTab || 'initial',
         activeRoundIndex: data.activeRoundIndex || 0,
         searchFilter: '',
@@ -381,9 +404,14 @@ const BurracoStorage = {
     // 3. Nuova serata per oggi
     state.currentGiornataKey = todayKey;
     state.pairs = [];
+    state.registrationConfirmed = false;
+    state.highestRoundReached = 0;
+    state.unlockedRounds = {};
     state.allGiornate[todayKey] = {
       roundsCount: state.roundsCount,
-      pairs: []
+      pairs: [],
+      registrationConfirmed: false,
+      highestRoundReached: 0
     };
 
     this.saveState(state);
@@ -490,6 +518,10 @@ const BurracoStorage = {
     state.currentGiornataKey = targetKey;
     state.roundsCount = target.roundsCount || state.roundsCount || 4;
     state.pairs = JSON.parse(JSON.stringify(target.pairs || []));
+    state.registrationConfirmed = (target.registrationConfirmed !== undefined)
+      ? Boolean(target.registrationConfirmed)
+      : Boolean(target.pairs && target.pairs.some(p => p.scores && p.scores.some(s => s && (s.vp !== null || s.mp !== null))));
+    state.unlockedRounds = target.unlockedRounds || {};
 
     this.saveState(state);
     return state;

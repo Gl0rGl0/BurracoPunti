@@ -59,8 +59,8 @@
             <span
               id="font-zoom-display"
               class="font-zoom-display"
-              title="Dimensione attuale (clicca per ripristinare 100%)"
-              >A</span
+              title="Dimensione attuale (clicca per ripristinare A+)"
+              >A+</span
             >
             <button
               type="button"
@@ -196,10 +196,21 @@
               padding: 12px 16px;
               border-top: 1px solid var(--border-light);
               background: #fafbfd;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              gap: 12px;
             "
           >
             <button id="btn-add-pair-row" class="btn btn-primary btn-sm">
               <span class="btn-icon">➕</span> Aggiungi Coppia
+            </button>
+            <button
+              id="btn-toggle-registration-lock"
+              class="btn btn-primary btn-sm"
+              title="Conferma l'elenco coppie e avvia il torneo"
+            >
+              <span class="btn-icon">🔒</span> Conferma Iscrizioni
             </button>
           </div>
         </div>
@@ -317,7 +328,19 @@
             <span id="round-vp-check-message"></span>
           </div>
 
-          <div class="table-container">
+          <div class="table-container round-protection-wrapper" id="round-table-container">
+            <div id="round-protective-overlay" class="round-protective-overlay" style="display: none;">
+              <div class="round-overlay-card">
+                <span style="font-size: 26px;">🔒</span>
+                <div style="text-align: left;">
+                  <strong style="display: block; font-size: 15.5px; color: var(--text-main);">Turno Concluso e Verificato</strong>
+                  <span style="font-size: 13.5px; color: var(--text-muted);">I punteggi sono protetti contro modifiche accidentali.</span>
+                </div>
+                <button type="button" id="btn-unlock-round-scores" class="btn btn-secondary btn-sm" style="margin-left: 12px;">
+                  <span class="btn-icon">✏️</span> Modifica Punteggi
+                </button>
+              </div>
+            </div>
             <table class="data-table round-table" id="round-table">
               <thead>
                 <tr>
@@ -1029,7 +1052,7 @@
               "
               title="Online (connesso)"
             ></span>
-            Versione <span id="app-version-text">v1.3.4</span>
+            Versione <span id="app-version-text">v1.4.0</span>
             <span id="settings-network-status" style="font-size: 11.5px; margin-left: 2px;"></span>
           </span>
           <button
