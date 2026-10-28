@@ -13,17 +13,7 @@
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent"
     />
-    <script>
-      if (
-        window.location.protocol === "http:" ||
-        window.location.protocol === "https:"
-      ) {
-        const manifestLink = document.createElement("link");
-        manifestLink.rel = "manifest";
-        manifestLink.href = "manifest.json";
-        document.head.appendChild(manifestLink);
-      }
-    </script>
+    <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="img/pwa-192x192.png" />
 
     <link rel="icon" type="image/png" href="img/icon.png" />
@@ -328,15 +318,37 @@
             <span id="round-vp-check-message"></span>
           </div>
 
-          <div class="table-container round-protection-wrapper" id="round-table-container">
-            <div id="round-protective-overlay" class="round-protective-overlay" style="display: none;">
+          <div
+            class="table-container round-protection-wrapper"
+            id="round-table-container"
+          >
+            <div
+              id="round-protective-overlay"
+              class="round-protective-overlay"
+              style="display: none"
+            >
               <div class="round-overlay-card">
-                <span style="font-size: 26px;">🔒</span>
-                <div style="text-align: left;">
-                  <strong style="display: block; font-size: 15.5px; color: var(--text-main);">Turno Concluso e Verificato</strong>
-                  <span style="font-size: 13.5px; color: var(--text-muted);">I punteggi sono protetti contro modifiche accidentali.</span>
+                <span style="font-size: 26px">🔒</span>
+                <div style="text-align: left">
+                  <strong
+                    style="
+                      display: block;
+                      font-size: 15.5px;
+                      color: var(--text-main);
+                    "
+                    >Turno Concluso e Verificato</strong
+                  >
+                  <span style="font-size: 13.5px; color: var(--text-muted)"
+                    >I punteggi sono protetti contro modifiche
+                    accidentali.</span
+                  >
                 </div>
-                <button type="button" id="btn-unlock-round-scores" class="btn btn-secondary btn-sm" style="margin-left: 12px;">
+                <button
+                  type="button"
+                  id="btn-unlock-round-scores"
+                  class="btn btn-secondary btn-sm"
+                  style="margin-left: 12px"
+                >
                   <span class="btn-icon">✏️</span> Modifica Punteggi
                 </button>
               </div>
@@ -1052,8 +1064,11 @@
               "
               title="Online (connesso)"
             ></span>
-            Versione <span id="app-version-text">v1.4.0</span>
-            <span id="settings-network-status" style="font-size: 11.5px; margin-left: 2px;"></span>
+            Versione <span id="app-version-text">v1.4.1</span>
+            <span
+              id="settings-network-status"
+              style="font-size: 11.5px; margin-left: 2px"
+            ></span>
           </span>
           <button
             type="button"
@@ -1270,19 +1285,32 @@
         <div class="modal-body">
           <p
             id="confirm-action-message"
-            style="font-size: 14.5px; color: var(--text-main); margin-bottom: 8px"
+            style="
+              font-size: 14.5px;
+              color: var(--text-main);
+              margin-bottom: 8px;
+            "
           ></p>
           <p
             id="confirm-action-detail"
             class="form-hint"
-            style="color: var(--danger, #ef4444); font-weight: 500; margin: 0; display: none;"
+            style="
+              color: var(--danger, #ef4444);
+              font-weight: 500;
+              margin: 0;
+              display: none;
+            "
           ></p>
         </div>
         <div
           class="modal-footer"
           style="display: flex; gap: 8px; justify-content: flex-end"
         >
-          <button type="button" class="btn btn-secondary" id="btn-cancel-action">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            id="btn-cancel-action"
+          >
             Annulla
           </button>
           <button type="button" class="btn btn-primary" id="btn-confirm-action">

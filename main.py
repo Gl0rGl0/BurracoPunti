@@ -229,7 +229,7 @@ def is_remote_available(url, timeout=2.0):
         print(f"Info: Connessione remota non attiva ({e}). Caricamento versione locale.")
         return False
 
-def setup_windows_taskbar_icon(app_id="burracopunti.tournamentmanager.1.4.0"):
+def setup_windows_taskbar_icon(app_id="burracopunti.tournamentmanager.1.4.1"):
     """
     On Windows, explicit AppUserModelID is required so that the taskbar groups
     the window under this application identity rather than the generic python.exe interpreter,

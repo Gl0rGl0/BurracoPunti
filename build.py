@@ -70,9 +70,11 @@ def build():
         "--icon", ico_path,
         "--add-data", f"{src_dir};src",
         "--add-data", f"{ico_path};img",
+        "--collect-all", "pywebview",
         "--hidden-import", "clr",
         "--hidden-import", "webview",
         "--hidden-import", "webview.platforms.winforms",
+        "--hidden-import", "webview.platforms.edgechromium",
     ]
 
     for mod in excluded_modules:
