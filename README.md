@@ -64,7 +64,7 @@ flowchart TD
     - `showConfirmModal({ title, message, detail, confirmText, confirmClass, onConfirm, onCancel })`: Non-blocking confirmation modal replacement.
 
 - **[`src/sw.js`](file:///home/giorgio/Desktop/apps/BurracoPunti/src/sw.js)**:
-  - Service Worker implementation caching all static assets (`burraco-cache-v1.4.1`).
+  - Service Worker implementation caching all static assets (`burraco-cache-v1.4.2`).
   - Cache-First strategy for static assets and offline navigation fallback to cached `index.html`.
 
 - **[`src/manifest.json`](file:///home/giorgio/Desktop/apps/BurracoPunti/src/manifest.json)**:
@@ -81,7 +81,7 @@ flowchart TD
 ### `src/js/` — Core Pure Logic Modules
 
 - **[`src/js/config.js`](file:///home/giorgio/Desktop/apps/BurracoPunti/src/js/config.js) (`BURRACO_CONFIG`)**:
-  - Single source of truth for version (`v1.4.1`), default tournament rounds (4), default bye points (12), prizepool settings, and disk folder names.
+  - Single source of truth for version (`v1.4.2`), default tournament rounds (4), default bye points (12), prizepool settings, and disk folder names.
 - **[`src/js/utils.js`](file:///home/giorgio/Desktop/apps/BurracoPunti/src/js/utils.js) (`BurracoUtils`)**:
   - Date formatting (`getDateGGMMAA`), HTML escaping (`escapeHtml`), and sort key parsing (`parseSortKey`).
 - **[`src/js/engine.js`](file:///home/giorgio/Desktop/apps/BurracoPunti/src/js/engine.js) (`BurracoEngine`)**:

@@ -59,12 +59,14 @@ def build():
         "tkinter"
     ]
 
-    # PyInstaller command for single standalone .exe
+    dist_dir = os.path.join(base_dir, "dist")
+
+    # PyInstaller command for directory bundle (--onedir) for instant startup
     cmd = [
         sys.executable, "-m", "PyInstaller",
-        "--distpath", base_dir,
+        "--distpath", dist_dir,
         "--noconfirm",
-        "--onefile",
+        "--onedir",
         "--windowed",
         "--name", "BurracoPunti",
         "--icon", ico_path,
@@ -88,22 +90,16 @@ def build():
         print("Errore durante la compilazione con PyInstaller!")
         sys.exit(res.returncode)
 
-    exe_path = os.path.join(base_dir, "BurracoPunti.exe")
+    app_dir = os.path.join(dist_dir, "BurracoPunti")
+    exe_path = os.path.join(app_dir, "BurracoPunti.exe")
     if os.path.exists(exe_path):
-        size_mb = os.path.getsize(exe_path) / (1024 * 1024)
         print("\n==================================================")
-        print(f"SUCCESS! Eseguibile generato con successo:")
-        print(f"Percorso: {exe_path}")
-        print(f"Dimensione: {size_mb:.2f} MB")
+        print("SUCCESS! Bundle standalone generato con successo:")
+        print(f"Cartella: {app_dir}")
+        print(f"Eseguibile: {exe_path}")
+        print("Avvio istantaneo abilitato (--onedir).")
+        print("Ora compila installer.iss con Inno Setup per generare il Setup finale.")
         print("==================================================")
-        
-        # # Move copy BurracoPunti.exe to root of workspace for immediate ease of use
-        # root_exe = os.path.join(base_dir, "BurracoPunti.exe")
-        # try:
-        #     shutil.move(exe_path, root_exe)
-        #     print(f"Spostato nella cartella principale: {root_exe}")
-        # except Exception as e:
-        #     print(f"Avviso spostamento: {e}")
 
 if __name__ == "__main__":
     build()

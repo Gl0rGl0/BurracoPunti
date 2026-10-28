@@ -4,7 +4,7 @@
 ; =======================================================
 
 #define MyAppName "BurracoPunti"
-#define MyAppVersion "1.4.1"
+#define MyAppVersion "1.4.2"
 #define MyAppPublisher "Giust"
 #define MyAppURL "https://burracopunti.giust.workers.dev/"
 #define MyAppExeName "BurracoPunti.exe"
@@ -35,7 +35,7 @@ Name: "italian"; MessagesFile: "compiler:Languages\Italian.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
-Source: "BurracoPunti.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\BurracoPunti\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "img\icon.ico"; DestDir: "{app}\img"; Flags: ignoreversion
 
 [Icons]
