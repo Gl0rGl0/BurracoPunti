@@ -397,7 +397,7 @@ class BurracoApp {
 
   syncSettingsUI() {
     if (this.titleInput) this.titleInput.value = this.state.title;
-    if (this.toggleLottery) this.toggleLottery.checked = !!this.state.settings.showLottery;
+    if (this.toggleLottery) this.toggleLottery.checked = !!this.state.settings.showExtraction;
     if (this.togglePodium) this.togglePodium.checked = !!this.state.settings.showPodium;
 
     const cfgPrize = (typeof BURRACO_CONFIG !== 'undefined' && BURRACO_CONFIG.prizepool) || {};
@@ -443,8 +443,8 @@ class BurracoApp {
 
   applySettingsVisibility() {
     if (this.btnLotteryToolbar) {
-      const showLottery = Boolean(this.state.settings && this.state.settings.showLottery) && !this.state.registrationConfirmed;
-      this.btnLotteryToolbar.style.display = showLottery ? 'inline-flex' : 'none';
+      const showExtraction = Boolean(this.state.settings && this.state.settings.showExtraction) && !this.state.registrationConfirmed;
+      this.btnLotteryToolbar.style.display = showExtraction ? 'inline-flex' : 'none';
     }
     if (this.tabBtnPodium) {
       this.tabBtnPodium.style.display = this.state.settings.showPodium ? 'flex' : 'none';
@@ -770,7 +770,7 @@ class BurracoApp {
     btnDrawSeq?.addEventListener('click', () => this.runSequentialLottery());
 
     this.toggleLottery?.addEventListener('change', (e) => {
-      this.state.settings.showLottery = e.target.checked;
+      this.state.settings.showExtraction = e.target.checked;
       this.applySettingsVisibility();
       this.saveState();
     });

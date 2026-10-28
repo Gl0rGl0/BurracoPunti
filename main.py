@@ -211,7 +211,7 @@ class BurracoApi:
             return {"success": False, "error": str(e)}
 
 def get_app_version():
-    return get_config_value("version", "1.4.2")
+    return get_config_value("version", "1.4.3")
 
 def get_remote_url():
     return get_config_value("remoteUrl", "https://burracopunti.giust.workers.dev/")
@@ -365,14 +365,14 @@ def is_remote_available(url, timeout=2.0):
         import urllib.request
         req = urllib.request.Request(
             url,
-            headers={'User-Agent': 'BurracoDesktop/1.4.2'}
+            headers={'User-Agent': 'BurracoDesktop/1.4.3'}
         )
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status == 200
     except Exception:
         return False
 
-def setup_windows_taskbar_icon(app_id="burracopunti.tournamentmanager.1.4.2"):
+def setup_windows_taskbar_icon(app_id="burracopunti.tournamentmanager.1.4.3"):
     """
     On Windows, explicit AppUserModelID is required so that the taskbar groups
     the window under this application identity rather than the generic python.exe interpreter,

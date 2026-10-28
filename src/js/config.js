@@ -8,7 +8,7 @@ const BURRACO_CONFIG = {
   // ==========================================
   // VERSIONAMENTO E RETE
   // ==========================================
-  version: "1.4.2",
+  version: "1.4.3",
   remoteUrl: "https://burracopunti.giust.workers.dev/",
 
   // ==========================================
@@ -29,7 +29,7 @@ const BURRACO_CONFIG = {
   // VISIBILITÀ INIZIALE STRUMENTI (Impostazioni)
   // ==========================================
   defaultSettings: {
-    showLottery: false,
+    showExtraction: true,
     showPodium: false,
     showPrizepool: false,
     showBye: false,

@@ -4,7 +4,7 @@
 ; =======================================================
 
 #define MyAppName "BurracoPunti"
-#define MyAppVersion "1.4.2"
+#define MyAppVersion "1.4.3"
 #define MyAppPublisher "Giust"
 #define MyAppURL "https://burracopunti.giust.workers.dev/"
 #define MyAppExeName "BurracoPunti.exe"
