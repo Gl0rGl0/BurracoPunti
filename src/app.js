@@ -851,6 +851,23 @@ class BurracoApp {
       this.startNewEvening();
     });
 
+    // Desktop Auto-Update Banner
+    window.onAppUpdateAvailable = (newVersion) => {
+      const banner = document.getElementById('desktop-update-banner');
+      const verLabel = document.getElementById('update-banner-version');
+      if (banner && verLabel) {
+        verLabel.textContent = 'v' + newVersion;
+        banner.style.display = 'flex';
+      }
+    };
+    document.getElementById('btn-reload-updated-app')?.addEventListener('click', () => {
+      window.location.reload();
+    });
+    document.getElementById('btn-dismiss-update-banner')?.addEventListener('click', () => {
+      const banner = document.getElementById('desktop-update-banner');
+      if (banner) banner.style.display = 'none';
+    });
+
     // Close buttons on all modals
     document.getElementById('close-settings-modal')?.addEventListener('click', () => this.closeModal('modalSettings'));
     document.getElementById('btn-close-settings')?.addEventListener('click', () => this.closeModal('modalSettings'));

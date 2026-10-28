@@ -3,6 +3,9 @@ import sys
 import re
 import json
 import base64
+import shutil
+import threading
+import time
 import webview
 
 def get_resource_path(relative_path):
@@ -208,25 +211,165 @@ class BurracoApi:
             return {"success": False, "error": str(e)}
 
 def get_app_version():
-    return get_config_value("version", "1.1.0")
+    return get_config_value("version", "1.4.2")
 
 def get_remote_url():
     return get_config_value("remoteUrl", "https://burracopunti.giust.workers.dev/")
 
+def parse_version_tuple(v_str):
+    try:
+        return [int(x) for x in re.findall(r'\d+', str(v_str))]
+    except Exception:
+        return [0]
+
+def is_newer_version(remote_v, local_v):
+    return parse_version_tuple(remote_v) > parse_version_tuple(local_v)
+
+def is_newer_or_equal(v1, v2):
+    return parse_version_tuple(v1) >= parse_version_tuple(v2)
+
+def get_live_app_dir():
+    """ Directory in user LocalAppData where updated web assets are cached """
+    local_app_data = os.environ.get('LOCALAPPDATA')
+    if not local_app_data:
+        local_app_data = os.path.join(os.path.expanduser('~'), 'AppData', 'Local')
+    folder = get_save_folder_name()
+    path = os.path.join(local_app_data, folder, "live_web")
+    os.makedirs(path, exist_ok=True)
+    return path
+
+def get_active_html_path():
+    """ Returns the path to the best available index.html (live cache or bundled fallback) """
+    bundled_html = get_resource_path(os.path.join("src", "index.html"))
+    if not os.path.exists(bundled_html):
+        bundled_html = get_resource_path("index.html")
+
+    bundled_version = get_app_version()
+
+    live_dir = get_live_app_dir()
+    live_html = os.path.join(live_dir, "index.html")
+    live_config = os.path.join(live_dir, "js", "config.js")
+
+    if os.path.exists(live_html) and os.path.exists(live_config):
+        try:
+            with open(live_config, "r", encoding="utf-8") as f:
+                content = f.read()
+            match = re.search(r'version\s*:\s*["\']([^"\']+)["\']', content)
+            live_version = match.group(1) if match else "0.0.0"
+            if is_newer_or_equal(live_version, bundled_version):
+                return live_html, live_version
+        except Exception:
+            pass
+    return bundled_html, bundled_version
+
+ASSETS_TO_DOWNLOAD = [
+    'index.html',
+    'manifest.json',
+    'styles.css',
+    'xlsx.full.min.js',
+    'app.js',
+    'js/config.js',
+    'js/utils.js',
+    'js/engine.js',
+    'js/storage.js',
+    'js/excel.js',
+    'css/base.css',
+    'css/tables.css',
+    'css/podium.css',
+    'css/modals.css',
+    'css/print.css',
+    'img/icon.png',
+    'img/pwa-192x192.png',
+    'img/pwa-512x512.png',
+    'img/pwa-maskable-512x512.png'
+]
+
+def check_for_background_updates(window, current_version):
+    """
+    Runs in background thread:
+    1. Checks if Cloudflare has a newer version without blocking app startup.
+    2. Downloads assets into staging folder.
+    3. Atomically promotes staging to live_web.
+    4. Notifies frontend UI so user can reload when ready.
+    """
+    time.sleep(2.5)  # Let startup finish completely first
+    remote_url = get_remote_url()
+    if not remote_url:
+        return
+
+    try:
+        import urllib.request
+        base_url = remote_url.rstrip('/')
+        manifest_url = f"{base_url}/manifest.json"
+        
+        req = urllib.request.Request(manifest_url, headers={'User-Agent': f'BurracoDesktop/{current_version}'})
+        with urllib.request.urlopen(req, timeout=3.5) as resp:
+            if resp.status != 200:
+                return
+            manifest_data = json.loads(resp.read().decode('utf-8'))
+            remote_version = manifest_data.get('version')
+
+        if not remote_version or not is_newer_version(remote_version, current_version):
+            return
+
+        print(f"Info: Rilevata nuova versione v{remote_version} su Cloudflare (attuale: v{current_version}). Download in background...")
+
+        live_dir = get_live_app_dir()
+        staging_dir = os.path.join(os.path.dirname(live_dir), "staging_web")
+        if os.path.exists(staging_dir):
+            shutil.rmtree(staging_dir, ignore_errors=True)
+        os.makedirs(staging_dir, exist_ok=True)
+
+        for rel_path in ASSETS_TO_DOWNLOAD:
+            asset_url = f"{base_url}/{rel_path}"
+            target_path = os.path.join(staging_dir, rel_path.replace('/', os.sep))
+            os.makedirs(os.path.dirname(target_path), exist_ok=True)
+            
+            try:
+                asset_req = urllib.request.Request(asset_url, headers={'User-Agent': f'BurracoDesktop/{current_version}'})
+                with urllib.request.urlopen(asset_req, timeout=4.0) as a_resp:
+                    if a_resp.status == 200:
+                        with open(target_path, "wb") as out_f:
+                            out_f.write(a_resp.read())
+            except Exception as e:
+                print(f"Avviso download {rel_path}: {e}")
+
+        staging_index = os.path.join(staging_dir, "index.html")
+        if os.path.exists(staging_index) and os.path.getsize(staging_index) > 500:
+            for root, dirs, files in os.walk(staging_dir):
+                rel_root = os.path.relpath(root, staging_dir)
+                dest_root = os.path.join(live_dir, rel_root)
+                os.makedirs(dest_root, exist_ok=True)
+                for f in files:
+                    src_f = os.path.join(root, f)
+                    dest_f = os.path.join(dest_root, f)
+                    shutil.copy2(src_f, dest_f)
+
+            shutil.rmtree(staging_dir, ignore_errors=True)
+            print(f"SUCCESS: Aggiornamento v{remote_version} pronto nella cache locale.")
+
+            # Inform UI
+            js_call = f"if (window.onAppUpdateAvailable) {{ window.onAppUpdateAvailable('{remote_version}'); }}"
+            try:
+                window.evaluate_js(js_call)
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"Info: Controllo aggiornamenti background completato ({e})")
+
 def is_remote_available(url, timeout=2.0):
-    """ Verifica se Cloudflare Workers è raggiungibile per auto-aggiornamento da remoto """
+    """ Verifica se Cloudflare Workers è raggiungibile """
     if not url:
         return False
     try:
         import urllib.request
         req = urllib.request.Request(
             url,
-            headers={'User-Agent': 'BurracoDesktop/1.1'}
+            headers={'User-Agent': 'BurracoDesktop/1.4.2'}
         )
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status == 200
-    except Exception as e:
-        print(f"Info: Connessione remota non attiva ({e}). Caricamento versione locale.")
+    except Exception:
         return False
 
 def setup_windows_taskbar_icon(app_id="burracopunti.tournamentmanager.1.4.2"):
@@ -242,33 +385,24 @@ def setup_windows_taskbar_icon(app_id="burracopunti.tournamentmanager.1.4.2"):
         pass
 
 def main():
-    version = get_app_version()
-    setup_windows_taskbar_icon(f"burracopunti.tournamentmanager.{version}")
+    html_path, active_version = get_active_html_path()
+    setup_windows_taskbar_icon(f"burracopunti.tournamentmanager.{active_version}")
     api = BurracoApi()
-    
-    html_path = get_resource_path(os.path.join("src", "index.html"))
-    if not os.path.exists(html_path):
-        # Fallback if src is flat in the bundled dir
-        html_path = get_resource_path("index.html")
-
     app_title = get_app_title()
-    remote_url = get_remote_url()
-
-    is_dev = "--dev" in sys.argv or "--local" in sys.argv
 
     from pathlib import Path
     file_uri = Path(html_path).resolve().as_uri()
 
-    # Se viene specificata la flag --dev o --local, carica direttamente i file locali del computer.
-    # Altrimenti, se c'è connessione internet, carica da Cloudflare per ricevere gli aggiornamenti live.
-    if is_dev:
-        print(f"Burraco Desktop v{version}: Avvio DEV da file locali ({file_uri}).")
-        app_url = file_uri
-    elif remote_url and is_remote_available(remote_url, timeout=2.0):
-        print(f"Burraco Desktop v{version}: Avvio da Cloudflare ({remote_url}) con persistenza locale attiva.")
-        app_url = remote_url
+    # Se esplicitamente richiesta la modalità remota con --remote
+    if "--remote" in sys.argv:
+        remote_url = get_remote_url()
+        if remote_url and is_remote_available(remote_url, timeout=2.0):
+            print(f"Burraco Desktop v{active_version}: Avvio da Cloudflare ({remote_url}).")
+            app_url = remote_url
+        else:
+            print(f"Burraco Desktop v{active_version}: Connessione remota non disponibile. Avvio da file locali.")
+            app_url = file_uri
     else:
-        print(f"Burraco Desktop v{version}: Avvio offline da file locali ({file_uri}).")
         app_url = file_uri
 
     window = webview.create_window(
@@ -282,8 +416,15 @@ def main():
         text_select=True
     )
 
+    # Avvia controllo e download aggiornamenti in background senza bloccare la UI
+    threading.Thread(
+        target=check_for_background_updates,
+        args=(window, active_version),
+        daemon=True
+    ).start()
+
     app_icon = get_app_icon()
-    webview.start(debug=False, icon=app_icon, private_mode=False) #Imposta True per Debug webview
+    webview.start(debug=False, icon=app_icon, private_mode=False)
 
 if __name__ == "__main__":
     main()
