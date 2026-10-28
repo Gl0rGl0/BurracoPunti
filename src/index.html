@@ -1,805 +1,1666 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Burraco - Gestione e Conteggio Torneo</title>
-  
-  <!-- PWA & Mobile Web App Meta -->
-  <meta name="theme-color" content="#0F172A">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <script>
-    if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
-      const manifestLink = document.createElement('link');
-      manifestLink.rel = 'manifest';
-      manifestLink.href = 'manifest.json';
-      document.head.appendChild(manifestLink);
-    }
-  </script>
-  <link rel="apple-touch-icon" href="img/pwa-192x192.png">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Burraco - Gestione e Conteggio Torneo</title>
 
-  <link rel="icon" type="image/png" href="img/icon.png">
-  <link rel="stylesheet" href="styles.css">
-  <script src="xlsx.full.min.js"></script>
-</head>
-<body>
-  <!-- Header Bar -->
-  <header class="app-header">
-    <div class="header-left">
-      <div class="brand">
-        <div class="brand-text">
-          <h1 id="brand-title">Burraco</h1>
-        </div>
-      </div>
-    </div>
+    <!-- PWA & Mobile Web App Meta -->
+    <meta name="theme-color" content="#0F172A" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <script>
+      if (
+        window.location.protocol === "http:" ||
+        window.location.protocol === "https:"
+      ) {
+        const manifestLink = document.createElement("link");
+        manifestLink.rel = "manifest";
+        manifestLink.href = "manifest.json";
+        document.head.appendChild(manifestLink);
+      }
+    </script>
+    <link rel="apple-touch-icon" href="img/pwa-192x192.png" />
 
-    <div class="header-right">
-      <div class="header-actions">
-        <div class="font-zoom-group" title="Regola dimensione caratteri per una migliore leggibilità">
-          <button type="button" id="btn-font-decrease" class="btn-font-zoom" title="Riduci dimensione caratteri (−)" aria-label="Riduci testo">
-            <span class="zoom-symbol">−</span>
-          </button>
-          <span id="font-zoom-display" class="font-zoom-display" title="Dimensione attuale (clicca per ripristinare 100%)">A</span>
-          <button type="button" id="btn-font-increase" class="btn-font-zoom" title="Ingrandisci dimensione caratteri (+)" aria-label="Ingrandisci testo">
-            <span class="zoom-symbol">+</span>
-          </button>
-        </div>
-        <span class="header-divider" aria-hidden="true"></span>
-        <button id="btn-print" class="btn btn-secondary" title="Salva e copia immagine della classifica per WhatsApp">
-          <span class="btn-icon">🖼️</span> Salva Immagine
-        </button>
-        <span class="header-divider" aria-hidden="true"></span>
-        <button id="btn-open-settings" class="btn btn-secondary" title="Impostazioni e Gestione Dati">
-          <span class="btn-icon">⚙️</span> Impostazioni
-        </button>
-      </div>
-    </div>
-  </header>
-
-  <!-- Main Navigation Tabs -->
-  <nav class="tabs-nav" id="tabs-nav">
-    <div class="tabs-list">
-      <button class="tab-btn active" data-tab="initial" id="tab-btn-initial">
-        <span class="tab-icon">📋</span> Tabellone Iniziale
-      </button>
-      <div id="round-tabs-container" class="round-tabs-container">
-        <!-- Rendered dynamically: Round 1, 2, 3, 4... -->
-      </div>
-      <button class="tab-btn" data-tab="master" id="tab-btn-master">
-        <span class="tab-icon">🏆</span> Classifica
-      </button>
-      <button class="tab-btn" data-tab="podium" id="tab-btn-podium">
-        <span class="tab-icon">🥇</span> Podio
-      </button>
-    </div>
-
-    <!-- Action on the far right, visible only in Tabellone Iniziale -->
-    <div class="tabs-nav-right" id="tabs-nav-right">
-      <button id="btn-open-new-tournament" class="btn btn-secondary btn-sm" title="Avvia una Nuova Serata o un nuovo torneo">
-        <span class="btn-icon">✨</span> Nuova Serata
-      </button>
-    </div>
-  </nav>
-
-  <!-- Main Content Container -->
-  <main class="app-main">
-
-    <!-- Tab View 0: TABELLONE INIZIALE (Gestione e Inserimento Coppie) -->
-    <section id="view-initial" class="view-panel active">
-      <div class="table-card">
-        <div class="card-header">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <h2>Giocatori</h2>
-            <span class="badge" id="badge-giornata" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); padding: 2px 8px; border-radius: 6px; font-size: 13px; font-weight: 600;">04/09/26</span>
+    <link rel="icon" type="image/png" href="img/icon.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="xlsx.full.min.js"></script>
+  </head>
+  <body>
+    <!-- Header Bar -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="brand">
+          <div class="brand-text">
+            <h1 id="brand-title">Burraco</h1>
           </div>
-          <div class="card-header-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <input type="text" id="initial-search-input" class="search-input" placeholder="🔍 Cerca coppia per nome o n°...">
-            <button id="btn-open-lottery" class="btn btn-secondary btn-sm" style="display: none;">
-              <span class="btn-icon">🎲</span> Sorteggio
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="header-actions">
+          <div
+            class="font-zoom-group"
+            title="Regola dimensione caratteri per una migliore leggibilità"
+          >
+            <button
+              type="button"
+              id="btn-font-decrease"
+              class="btn-font-zoom"
+              title="Riduci dimensione caratteri (−)"
+              aria-label="Riduci testo"
+            >
+              <span class="zoom-symbol">−</span>
+            </button>
+            <span
+              id="font-zoom-display"
+              class="font-zoom-display"
+              title="Dimensione attuale (clicca per ripristinare 100%)"
+              >A</span
+            >
+            <button
+              type="button"
+              id="btn-font-increase"
+              class="btn-font-zoom"
+              title="Ingrandisci dimensione caratteri (+)"
+              aria-label="Ingrandisci testo"
+            >
+              <span class="zoom-symbol">+</span>
+            </button>
+          </div>
+          <span class="header-divider" aria-hidden="true"></span>
+          <button
+            id="btn-print"
+            class="btn btn-secondary"
+            title="Salva e copia immagine della classifica per WhatsApp"
+          >
+            <span class="btn-icon">🖼️</span> Salva Immagine
+          </button>
+          <span class="header-divider" aria-hidden="true"></span>
+          <button
+            id="btn-open-settings"
+            class="btn btn-secondary"
+            title="Impostazioni e Gestione Dati"
+          >
+            <span class="btn-icon">⚙️</span> Impostazioni
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Navigation Tabs -->
+    <nav class="tabs-nav" id="tabs-nav">
+      <div class="tabs-list">
+        <button class="tab-btn active" data-tab="initial" id="tab-btn-initial">
+          <span class="tab-icon">📋</span> Tabellone Iniziale
+        </button>
+        <div id="round-tabs-container" class="round-tabs-container">
+          <!-- Rendered dynamically: Round 1, 2, 3, 4... -->
+        </div>
+        <button class="tab-btn" data-tab="master" id="tab-btn-master">
+          <span class="tab-icon">🏆</span> Classifica
+        </button>
+        <button class="tab-btn" data-tab="podium" id="tab-btn-podium">
+          <span class="tab-icon">🥇</span> Podio
+        </button>
+      </div>
+
+      <!-- Action on the far right, visible only in Tabellone Iniziale -->
+      <div class="tabs-nav-right" id="tabs-nav-right">
+        <button
+          id="btn-open-new-tournament"
+          class="btn btn-secondary btn-sm"
+          title="Avvia una Nuova Serata o un nuovo torneo"
+        >
+          <span class="btn-icon">✨</span> Nuova Serata
+        </button>
+      </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main class="app-main">
+      <!-- Tab View 0: TABELLONE INIZIALE (Gestione e Inserimento Coppie) -->
+      <section id="view-initial" class="view-panel active">
+        <div class="table-card">
+          <div class="card-header">
+            <div style="display: flex; align-items: center; gap: 10px">
+              <h2>Giocatori</h2>
+              <span
+                class="badge"
+                id="badge-giornata"
+                style="
+                  background: rgba(59, 130, 246, 0.15);
+                  color: #60a5fa;
+                  border: 1px solid rgba(59, 130, 246, 0.3);
+                  padding: 2px 8px;
+                  border-radius: 6px;
+                  font-size: 13px;
+                  font-weight: 600;
+                "
+                >04/09/26</span
+              >
+            </div>
+            <div
+              class="card-header-actions"
+              style="
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-wrap: wrap;
+              "
+            >
+              <input
+                type="text"
+                id="initial-search-input"
+                class="search-input"
+                placeholder="🔍 Cerca coppia per nome o n°..."
+              />
+              <button
+                id="btn-open-lottery"
+                class="btn btn-secondary btn-sm"
+                style="display: none"
+              >
+                <span class="btn-icon">🎲</span> Sorteggio
+              </button>
+            </div>
+          </div>
+
+          <div class="table-container" id="initial-table-container">
+            <table class="data-table initial-table" id="initial-table">
+              <thead>
+                <tr>
+                  <th style="width: 50px; text-align: center">#</th>
+                  <th class="col-name">Giocatori</th>
+                  <th style="width: 150px; text-align: center">
+                    Numero Squadra
+                  </th>
+                  <th
+                    class="col-actions"
+                    style="width: 60px; text-align: center"
+                  ></th>
+                </tr>
+              </thead>
+              <tbody id="initial-table-body">
+                <!-- Rendered via JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <div
+            class="table-card-footer"
+            style="
+              padding: 12px 16px;
+              border-top: 1px solid var(--border-light);
+              background: #fafbfd;
+            "
+          >
+            <button id="btn-add-pair-row" class="btn btn-primary btn-sm">
+              <span class="btn-icon">➕</span> Aggiungi Coppia
             </button>
           </div>
         </div>
+      </section>
 
-        <div class="table-container" id="initial-table-container">
-          <table class="data-table initial-table" id="initial-table">
-            <thead>
-              <tr>
-                <th style="width:50px; text-align:center;">#</th>
-                <th class="col-name">Giocatori</th>
-                <th style="width:150px; text-align:center;">Numero Squadra</th>
-                <th class="col-actions" style="width:60px; text-align:center;"></th>
-              </tr>
-            </thead>
-            <tbody id="initial-table-body">
-              <!-- Rendered via JS -->
-            </tbody>
-          </table>
-        </div>
-
-        <div class="table-card-footer" style="padding: 12px 16px; border-top: 1px solid var(--border-light); background: #FAFBFD;">
-          <button id="btn-add-pair-row" class="btn btn-primary btn-sm">
-            <span class="btn-icon">➕</span> Aggiungi Coppia
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Tab View 1: CLASSIFICA GENERALE (Tabellone Completo View-Only) -->
-    <section id="view-master" class="view-panel">
-      <div class="table-card">
-        <div class="card-header">
-          <div>
-            <h2>Classifica</h2>
+      <!-- Tab View 1: CLASSIFICA GENERALE (Tabellone Completo View-Only) -->
+      <section id="view-master" class="view-panel">
+        <div class="table-card">
+          <div class="card-header">
+            <div>
+              <h2>Classifica</h2>
+            </div>
+            <div
+              class="card-header-actions"
+              style="
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-wrap: wrap;
+              "
+            >
+              <input
+                type="text"
+                id="master-search-input"
+                class="search-input"
+                placeholder="🔍 Cerca coppia per nome o n°..."
+              />
+            </div>
           </div>
-          <div class="card-header-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <input type="text" id="master-search-input" class="search-input" placeholder="🔍 Cerca coppia per nome o n°...">
+
+          <div class="table-container" id="master-table-container">
+            <table class="data-table master-table" id="master-table">
+              <thead>
+                <tr id="master-table-head-row">
+                  <!-- Dinamico per ogni turno: Turno 1 (MP, VP), etc. -->
+                </tr>
+              </thead>
+              <tbody id="master-table-body">
+                <!-- Rendered via JS -->
+              </tbody>
+            </table>
           </div>
         </div>
+      </section>
 
-        <div class="table-container" id="master-table-container">
-          <table class="data-table master-table" id="master-table">
-            <thead>
-              <tr id="master-table-head-row">
-                <!-- Dinamico per ogni turno: Turno 1 (MP, VP), etc. -->
-              </tr>
-            </thead>
-            <tbody id="master-table-body">
-              <!-- Rendered via JS -->
-            </tbody>
-          </table>
+      <!-- Tab View 2: DEDICATED ROUND VIEW (Turno Singolo) -->
+      <section id="view-round" class="view-panel">
+        <div class="table-card">
+          <div class="card-header">
+            <div>
+              <h2 style="display: inline-flex; align-items: center; gap: 8px">
+                <span id="round-view-title"
+                  >Inserimento Punteggi - Turno 1</span
+                >
+                <span
+                  id="round-title-check"
+                  style="
+                    display: none;
+                    font-size: 19px;
+                    line-height: 1;
+                    vertical-align: middle;
+                    cursor: default;
+                  "
+                  title="Punteggi del turno verificati e corretti"
+                  >✅</span
+                >
+              </h2>
+              <!-- <p class="subtitle">Inserisci Match Point (MP) e Ventesimi (VP) per ciascuna coppia.</p> -->
+            </div>
+            <div
+              class="card-header-actions"
+              style="
+                display: flex;
+                gap: 10px;
+                align-items: center;
+                flex-wrap: wrap;
+              "
+            >
+              <input
+                type="text"
+                id="round-search-input"
+                class="search-input"
+                placeholder="🔍 Cerca coppia"
+                size="13"
+              />
+              <div class="round-header-actions">
+                <button id="btn-prev-round" class="btn btn-secondary btn-sm">
+                  ◀
+                </button>
+                <span class="round-indicator-badge" id="current-round-badge"
+                  >Turno 1 di 4</span
+                >
+                <button id="btn-next-round" class="btn btn-secondary btn-sm">
+                  ▶
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div
+            id="round-vp-check-banner"
+            style="
+              display: none;
+              padding: 10px 16px;
+              margin: 0 16px 12px 16px;
+              border-radius: 8px;
+              font-size: 14.5px;
+              font-weight: 600;
+              align-items: center;
+              gap: 10px;
+              transition: all 0.2s ease;
+            "
+          >
+            <span id="round-vp-check-icon" style="font-size: 18px"></span>
+            <span id="round-vp-check-message"></span>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table round-table" id="round-table">
+              <thead>
+                <tr>
+                  <th
+                    class="col-table-num"
+                    style="width: 65px; text-align: center"
+                  >
+                    Tavolo
+                  </th>
+                  <th class="col-lot">N°</th>
+                  <th class="col-name">Coppia</th>
+                  <th
+                    class="col-bye"
+                    id="th-round-bye"
+                    style="width: 105px; text-align: center"
+                  >
+                    Riposo
+                  </th>
+                  <th class="col-input">Match Points (MP)</th>
+                  <th class="col-input">Victory Points (VP)</th>
+                </tr>
+              </thead>
+              <tbody id="round-table-body">
+                <!-- Rendered via JS -->
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- Tab View 2: DEDICATED ROUND VIEW (Turno Singolo) -->
-    <section id="view-round" class="view-panel">
-      <div class="table-card">
-        <div class="card-header">
-          <div>
-            <h2 style="display: inline-flex; align-items: center; gap: 8px;">
-              <span id="round-view-title">Inserimento Punteggi - Turno 1</span>
-              <span id="round-title-check" style="display: none; font-size: 19px; line-height: 1; vertical-align: middle; cursor: default;" title="Punteggi del turno verificati e corretti">✅</span>
+      <!-- Tab View 3: PODIUM & CEREMONY (Podio e Premiazioni) -->
+      <section id="view-podium" class="view-panel">
+        <div class="podium-card">
+          <div class="podium-header">
+            <!-- <span class="podium-eyebrow">Cerimonia di Premiazione</span> -->
+            <h2 class="podium-title" id="podium-tournament-title">
+              Torneo di Burraco
             </h2>
-            <!-- <p class="subtitle">Inserisci Match Point (MP) e Ventesimi (VP) per ciascuna coppia.</p> -->
+            <!-- <p class="subtitle">I vincitori e i primi classificati del torneo</p> -->
           </div>
-          <div class="card-header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-            <input type="text" id="round-search-input" class="search-input" placeholder="🔍 Cerca coppia" size="13">
-            <div class="round-header-actions">
-              <button id="btn-prev-round" class="btn btn-secondary btn-sm">◀</button>
-              <span class="round-indicator-badge" id="current-round-badge">Turno 1 di 4</span>
-              <button id="btn-next-round" class="btn btn-secondary btn-sm">▶</button>
+
+          <!-- 3-tier podium visualization -->
+          <div class="podium-stage" id="podium-stage">
+            <!-- 2nd place (Silver) -->
+            <div class="podium-pillar pillar-2" id="pillar-silver">
+              <div class="medal medal-silver">🥈 2° Posto</div>
+              <div class="pillar-team" id="pillar-team-2">—</div>
+              <div class="pillar-score" id="pillar-score-2">0 VP (0 MP)</div>
+              <div class="pillar-block block-2">2</div>
+            </div>
+
+            <!-- 1st place (Gold) -->
+            <div class="podium-pillar pillar-1" id="pillar-gold">
+              <div class="crown">👑</div>
+              <div class="medal medal-gold">🥇 1° Posto - Vincitori</div>
+              <div class="pillar-team team-winner" id="pillar-team-1">—</div>
+              <div class="pillar-score" id="pillar-score-1">0 VP (0 MP)</div>
+              <div class="pillar-block block-1">1</div>
+            </div>
+
+            <!-- 3rd place (Bronze) -->
+            <div class="podium-pillar pillar-3" id="pillar-bronze">
+              <div class="medal medal-bronze">🥉 3° Posto</div>
+              <div class="pillar-team" id="pillar-team-3">—</div>
+              <div class="pillar-score" id="pillar-score-3">0 VP (0 MP)</div>
+              <div class="pillar-block block-3">3</div>
+            </div>
+          </div>
+
+          <!-- Honorable mentions (4th and 5th place) -->
+          <div class="honorable-section" id="honorable-section">
+            <h3>Altri premiati e piazzati</h3>
+            <div class="honorable-grid" id="honorable-grid">
+              <!-- 4° e 5° posto -->
             </div>
           </div>
         </div>
+      </section>
+    </main>
 
-        <div id="round-vp-check-banner" style="display: none; padding: 10px 16px; margin: 0 16px 12px 16px; border-radius: 8px; font-size: 14.5px; font-weight: 600; align-items: center; gap: 10px; transition: all 0.2s ease;">
-          <span id="round-vp-check-icon" style="font-size: 18px;"></span>
-          <span id="round-vp-check-message"></span>
-        </div>
+    <!-- MODALS -->
 
-        <div class="table-container">
-          <table class="data-table round-table" id="round-table">
-            <thead>
-              <tr>
-                <th class="col-lot">N°</th>
-                <th class="col-name">Coppia</th>
-                <th class="col-bye" id="th-round-bye" style="width:105px; text-align:center;">Riposo</th>
-                <th class="col-input">Match Points (MP)</th>
-                <th class="col-input">Victory Points (VP)</th>
-              </tr>
-            </thead>
-            <tbody id="round-table-body">
-              <!-- Rendered via JS -->
-            </tbody>
-          </table>
+    <!-- Modal 1: Add Single Pair -->
+    <div class="modal-backdrop" id="modal-add-pair">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3>Aggiungi Nuova Coppia</h3>
+          <button class="modal-close" id="close-add-pair-modal">&times;</button>
         </div>
+        <form id="form-add-pair">
+          <div class="modal-body">
+            <div class="form-group">
+              <label for="input-pair-name">Nome Giocatori</label>
+              <input
+                type="text"
+                id="input-pair-name"
+                class="form-control"
+                placeholder="es. Pietro - Paolo"
+                required
+                autofocus
+              />
+              <small class="form-hint"
+                >Puoi indicare i due nomi separati da '+' o '-'</small
+              >
+            </div>
+            <div class="form-group">
+              <label for="input-lot-number">Numero Assegnato</label>
+              <input
+                type="number"
+                inputmode="numeric"
+                id="input-lot-number"
+                class="form-control"
+                placeholder="es. 1"
+                min="1"
+                max="999"
+              />
+              <small class="form-hint"
+                >Se lasciato vuoto verrà assegnato il numero progressivo</small
+              >
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              id="btn-cancel-add-pair"
+            >
+              Annulla
+            </button>
+            <button type="submit" class="btn btn-primary">
+              Inserisci Coppia
+            </button>
+          </div>
+        </form>
       </div>
-    </section>
+    </div>
 
-    <!-- Tab View 3: PODIUM & CEREMONY (Podio e Premiazioni) -->
-    <section id="view-podium" class="view-panel">
-      <div class="podium-card">
-        <div class="podium-header">
-          <!-- <span class="podium-eyebrow">Cerimonia di Premiazione</span> -->
-          <h2 class="podium-title" id="podium-tournament-title">Torneo di Burraco</h2>
-          <!-- <p class="subtitle">I vincitori e i primi classificati del torneo</p> -->
+    <!-- Modal 1b: Edit Pair -->
+    <div class="modal-backdrop" id="modal-edit-pair">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3>Modifica Coppia</h3>
+          <button class="modal-close" id="close-edit-pair-modal">
+            &times;
+          </button>
         </div>
-
-        <!-- 3-tier podium visualization -->
-        <div class="podium-stage" id="podium-stage">
-          <!-- 2nd place (Silver) -->
-          <div class="podium-pillar pillar-2" id="pillar-silver">
-            <div class="medal medal-silver">🥈 2° Posto</div>
-            <div class="pillar-team" id="pillar-team-2">—</div>
-            <div class="pillar-score" id="pillar-score-2">0 VP (0 MP)</div>
-            <div class="pillar-block block-2">2</div>
+        <form id="form-edit-pair">
+          <input type="hidden" id="edit-pair-id" />
+          <div class="modal-body">
+            <div class="form-group">
+              <label for="input-edit-pair-name">Nome Giocatori</label>
+              <input
+                type="text"
+                id="input-edit-pair-name"
+                class="form-control"
+                required
+              />
+              <small class="form-hint"
+                >Puoi modificare i nomi dei componenti</small
+              >
+            </div>
+            <div class="form-group">
+              <label for="input-edit-lot-number">Numero Assegnato (N°)</label>
+              <input
+                type="number"
+                inputmode="numeric"
+                id="input-edit-lot-number"
+                class="form-control"
+                min="1"
+                max="999"
+              />
+              <small class="form-hint"
+                >Numero identificativo per i tavoli</small
+              >
+            </div>
           </div>
-
-          <!-- 1st place (Gold) -->
-          <div class="podium-pillar pillar-1" id="pillar-gold">
-            <div class="crown">👑</div>
-            <div class="medal medal-gold">🥇 1° Posto - Vincitori</div>
-            <div class="pillar-team team-winner" id="pillar-team-1">—</div>
-            <div class="pillar-score" id="pillar-score-1">0 VP (0 MP)</div>
-            <div class="pillar-block block-1">1</div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              id="btn-cancel-edit-pair"
+            >
+              Annulla
+            </button>
+            <button type="submit" class="btn btn-primary">
+              Salva Modifiche
+            </button>
           </div>
-
-          <!-- 3rd place (Bronze) -->
-          <div class="podium-pillar pillar-3" id="pillar-bronze">
-            <div class="medal medal-bronze">🥉 3° Posto</div>
-            <div class="pillar-team" id="pillar-team-3">—</div>
-            <div class="pillar-score" id="pillar-score-3">0 VP (0 MP)</div>
-            <div class="pillar-block block-3">3</div>
-          </div>
-        </div>
-
-        <!-- Honorable mentions (4th and 5th place) -->
-        <div class="honorable-section" id="honorable-section">
-          <h3>Altri premiati e piazzati</h3>
-          <div class="honorable-grid" id="honorable-grid">
-            <!-- 4° e 5° posto -->
-          </div>
-        </div>
+        </form>
       </div>
-    </section>
+    </div>
 
-  </main>
-
-  <!-- MODALS -->
-
-  <!-- Modal 1: Add Single Pair -->
-  <div class="modal-backdrop" id="modal-add-pair">
-    <div class="modal-dialog">
-      <div class="modal-header">
-        <h3>Aggiungi Nuova Coppia</h3>
-        <button class="modal-close" id="close-add-pair-modal">&times;</button>
-      </div>
-      <form id="form-add-pair">
+    <!-- Modal 3: Lottery & Number Assignment -->
+    <div class="modal-backdrop" id="modal-lottery">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3>Gestione Numeri e Sorteggio</h3>
+          <button class="modal-close" id="close-lottery-modal">&times;</button>
+        </div>
         <div class="modal-body">
-          <div class="form-group">
-            <label for="input-pair-name">Nome Giocatori</label>
-            <input type="text" id="input-pair-name" class="form-control" placeholder="es. Pietro - Paolo" required autofocus>
-            <small class="form-hint">Puoi indicare i due nomi separati da '+' o '-'</small>
-          </div>
-          <div class="form-group">
-            <label for="input-lot-number">Numero Assegnato</label>
-            <input type="number" id="input-lot-number" class="form-control" placeholder="es. 1" min="1" max="999">
-            <small class="form-hint">Se lasciato vuoto verrà assegnato il numero progressivo</small>
+          <p class="subtitle">
+            Puoi estrarre a sorte i numeri identificativi per tutte le coppie
+            registrate (da 1 a N, senza duplicati) o azzerarli.
+          </p>
+          <div class="lottery-actions-grid">
+            <div class="lottery-action-card">
+              <h4>🎲 Estrazione Casuale Totale</h4>
+              <p>
+                Genera numeri casuali da 1 a
+                <span id="lottery-total-count">0</span> e li assegna a ciascuna
+                coppia.
+              </p>
+              <button
+                id="btn-run-random-lottery"
+                class="btn btn-primary btn-block"
+              >
+                Estrai a Sorte Ora
+              </button>
+            </div>
+            <div class="lottery-action-card">
+              <h4>🔢 Numerazione Progressiva (1..N)</h4>
+              <p>Assegna i numeri in base all'ordine attuale di inserimento.</p>
+              <button
+                id="btn-run-sequential-lottery"
+                class="btn btn-secondary btn-block"
+              >
+                Numera in Ordine
+              </button>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" id="btn-cancel-add-pair">Annulla</button>
-          <button type="submit" class="btn btn-primary">Inserisci Coppia</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Modal 1b: Edit Pair -->
-  <div class="modal-backdrop" id="modal-edit-pair">
-    <div class="modal-dialog">
-      <div class="modal-header">
-        <h3>Modifica Coppia</h3>
-        <button class="modal-close" id="close-edit-pair-modal">&times;</button>
-      </div>
-      <form id="form-edit-pair">
-        <input type="hidden" id="edit-pair-id">
-        <div class="modal-body">
-          <div class="form-group">
-            <label for="input-edit-pair-name">Nome Giocatori</label>
-            <input type="text" id="input-edit-pair-name" class="form-control" required>
-            <small class="form-hint">Puoi modificare i nomi dei componenti</small>
-          </div>
-          <div class="form-group">
-            <label for="input-edit-lot-number">Numero Assegnato (N°)</label>
-            <input type="number" id="input-edit-lot-number" class="form-control" min="1" max="999">
-            <small class="form-hint">Numero identificativo per i tavoli</small>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" id="btn-cancel-edit-pair">Annulla</button>
-          <button type="submit" class="btn btn-primary">Salva Modifiche</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Modal 3: Lottery & Number Assignment -->
-  <div class="modal-backdrop" id="modal-lottery">
-    <div class="modal-dialog">
-      <div class="modal-header">
-        <h3>Gestione Numeri e Sorteggio</h3>
-        <button class="modal-close" id="close-lottery-modal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <p class="subtitle">Puoi estrarre a sorte i numeri identificativi per tutte le coppie registrate (da 1 a N, senza duplicati) o azzerarli.</p>
-        <div class="lottery-actions-grid">
-          <div class="lottery-action-card">
-            <h4>🎲 Estrazione Casuale Totale</h4>
-            <p>Genera numeri casuali da 1 a <span id="lottery-total-count">0</span> e li assegna a ciascuna coppia.</p>
-            <button id="btn-run-random-lottery" class="btn btn-primary btn-block">Estrai a Sorte Ora</button>
-          </div>
-          <div class="lottery-action-card">
-            <h4>🔢 Numerazione Progressiva (1..N)</h4>
-            <p>Assegna i numeri in base all'ordine attuale di inserimento.</p>
-            <button id="btn-run-sequential-lottery" class="btn btn-secondary btn-block">Numera in Ordine</button>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" id="btn-close-lottery">Chiudi</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal 4: Settings & Options -->
-  <div class="modal-backdrop" id="modal-settings">
-    <div class="modal-dialog modal-settings">
-      <div class="modal-header">
-        <h3>⚙️ Impostazioni Torneo</h3>
-        <button class="modal-close" id="close-settings-modal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="settings-grid">
-          <!-- Colonna 1: Visibilità Strumenti & Struttura Torneo -->
-          <div class="settings-col">
-            <div class="settings-group">
-              <h4 class="settings-group-title">Visibilità Strumenti Barra</h4>
-              <p class="form-hint" style="margin-bottom: 12px;">Scegli quali pulsanti visualizzare nella barra degli strumenti:</p>
-              
-
-              <div class="setting-toggle-item">
-                <label for="setting-toggle-lottery" class="toggle-text" style="cursor: pointer;">Pulsante "Sorteggio"</label>
-                <label class="toggle-switch">
-                  <input type="checkbox" id="setting-toggle-lottery">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-
-              <div class="setting-toggle-item">
-                <label for="setting-toggle-podium" class="toggle-text" style="cursor: pointer;">Scheda "Podio"</label>
-                <label class="toggle-switch">
-                  <input type="checkbox" id="setting-toggle-podium">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-
-              <div class="setting-toggle-item">
-                <label for="setting-toggle-prizepool" class="toggle-text" style="cursor: pointer;">Colonna "Premio (€)" in Classifica</label>
-                <label class="toggle-switch">
-                  <input type="checkbox" id="setting-toggle-prizepool">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-
-              <div class="setting-toggle-item">
-                <div>
-                  <label for="setting-toggle-bye" class="toggle-text" style="cursor: pointer;">Colonna "Riposo" nei Turni</label>
-                </div>
-                <label class="toggle-switch">
-                  <input type="checkbox" id="setting-toggle-bye">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-
-              <div class="setting-toggle-item">
-                <label for="setting-toggle-score-warning" class="toggle-text" style="cursor: pointer;">Avviso Punteggio Errato nei Turni</label>
-                <label class="toggle-switch">
-                  <input type="checkbox" id="setting-toggle-score-warning">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-            </div>
-
-            <div class="settings-group" style="margin-top: 20px; border-top: 1px solid var(--border-light); padding-top: 16px;">
-              <h4 class="settings-group-title">Struttura Torneo</h4>
-              <div class="setting-toggle-item">
-                <div>
-                  <span class="toggle-text">Numero di Turni</span>
-                  <small class="form-hint">Imposta i turni di gioco</small>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <input type="number" id="setting-rounds-count" class="form-control tabular-nums" style="width: 70px; text-align: center; font-weight: bold; font-size: 15px;" min="1" max="12" value="4">
-                </div>
-              </div>
-
-              <div class="setting-toggle-item">
-                <div>
-                  <span class="toggle-text">Punti Riposo (VP)</span>
-                  <small class="form-hint">Punti assegnati se una coppia non gioca</small>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <input type="number" id="setting-bye-points" class="form-control tabular-nums" style="width: 70px; text-align: center; font-weight: bold; font-size: 15px;" min="0" max="20" step="1" value="12">
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Colonna 2: Montepremi & Dati / Esportazione -->
-          <div class="settings-col">
-            <div class="settings-group">
-              <h4 class="settings-group-title">Montepremi & Quote</h4>
-              <div class="setting-toggle-item" style="padding-bottom: 8px;">
-                <div>
-                  <span class="toggle-text">Quota a Persona (€)</span>
-                  <small class="form-hint">Costo ingresso per singolo giocatore</small>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <input type="number" id="setting-entry-fee" class="form-control tabular-nums" style="width: 75px; text-align: center; font-weight: bold; font-size: 15px;" min="0" step="0.5" value="2">
-                </div>
-              </div>
-
-              <div style="margin-top: 10px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
-                  <span class="toggle-text" style="font-size: 14.5px;">Ripartizione Percentuale Premi (%):</span>
-                  <span id="prize-pct-total-badge" style="font-size: 12.5px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: #ECFDF5; color: #059669; border: 1px solid #A7F3D0; transition: all 0.2s;">Totale: 100% ✓</span>
-                </div>
-                <div class="prizepool-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 8px;">
-                  <div style="text-align: center;">
-                    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">1° Posto</label>
-                    <input type="number" id="setting-prize-pct-1" class="form-control tabular-nums" style="text-align: center; font-weight: bold; padding: 6px 2px;" min="0" max="100" value="50">
-                  </div>
-                  <div style="text-align: center;">
-                    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">2° Posto</label>
-                    <input type="number" id="setting-prize-pct-2" class="form-control tabular-nums" style="text-align: center; font-weight: bold; padding: 6px 2px;" min="0" max="100" value="30">
-                  </div>
-                  <div style="text-align: center;">
-                    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">3° Posto</label>
-                    <input type="number" id="setting-prize-pct-3" class="form-control tabular-nums" style="text-align: center; font-weight: bold; padding: 6px 2px;" min="0" max="100" value="20">
-                  </div>
-                  <div style="text-align: center;">
-                    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">4° Posto</label>
-                    <input type="number" id="setting-prize-pct-4" class="form-control tabular-nums" style="text-align: center; font-weight: bold; padding: 6px 2px;" min="0" max="100" placeholder="0" value="0">
-                  </div>
-                  <div style="text-align: center;">
-                    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">5° Posto</label>
-                    <input type="number" id="setting-prize-pct-5" class="form-control tabular-nums" style="text-align: center; font-weight: bold; padding: 6px 2px;" min="0" max="100" placeholder="0" value="0">
-                  </div>
-                </div>
-                <div id="prize-pct-hint" style="font-size: 12px; color: #D97706; margin-top: 6px; min-height: 18px; font-weight: 500;"></div>
-              </div>
-            </div>
-
-            <div class="settings-group" style="margin-top: 20px; border-top: 1px solid var(--border-light); padding-top: 16px;">
-              <h4 class="settings-group-title">Dati ed Esportazione</h4>
-              <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">
-                <button id="btn-modal-export-excel" class="btn btn-secondary btn-block">
-                  <span class="btn-icon">📊</span> Esporta Tabellone in Excel (.xlsx)
-                </button>
-                <div style="display: flex; gap: 8px;">
-                  <button id="btn-modal-open-config" class="btn btn-secondary" style="flex: 1;">
-                    <span class="btn-icon">⚙️</span> Personalizza Configurazione
-                  </button>
-                  <button id="btn-modal-open-evenings" class="btn btn-secondary" style="flex: 1;">
-                    <span class="btn-icon">📅</span> Seleziona Serata
-                  </button>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                  <button id="btn-modal-export-json" class="btn btn-secondary" style="flex: 1;">
-                    <span class="btn-icon">💾</span> Salva Backup
-                  </button>
-                  <button id="btn-modal-import-json" class="btn btn-secondary" style="flex: 1;">
-                    <span class="btn-icon">📂</span> Carica Backup
-                  </button>
-                  <input type="file" id="input-import-json" accept=".json,application/json" style="display: none;">
-                </div>
-                <button id="btn-modal-clear-data" class="btn btn-outline-danger btn-block" style="margin-top: 4px;">
-                  <span class="btn-icon">🗑️</span> Pulisci Tutti i Dati del Torneo
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
-        <span class="app-version-badge" style="font-size: 12.5px; color: var(--text-muted); font-weight: 500; display: inline-flex; align-items: center; gap: 6px;">
-          <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: #10B981;"></span>
-          Versione <span id="app-version-text">v1.3.3</span>
-        </span>
-        <button type="button" class="btn btn-secondary" id="btn-close-settings">Chiudi</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal 5: Confirm Delete Pair (Mini Modale) -->
-  <div class="modal-backdrop" id="modal-confirm-delete">
-    <div class="modal-dialog modal-sm">
-      <div class="modal-header">
-        <h3>🗑️ Conferma Eliminazione</h3>
-        <button class="modal-close" id="close-confirm-delete-modal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <p style="font-size: 14px; color: var(--text-main); margin-bottom: 10px;">
-          Sei sicuro di voler eliminare questa coppia dal torneo?
-        </p>
-        <div id="confirm-delete-detail" style="font-size: 13px; color: var(--text-muted); background: var(--bg-app); border: 1px solid var(--border-color); padding: 10px 14px; border-radius: var(--radius-sm); font-weight: 600;">
-          <!-- Nome coppia -->
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" id="btn-cancel-delete">Annulla</button>
-        <button type="button" class="btn btn-danger" id="btn-confirm-delete">Elimina</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal 6: Nuova Serata -->
-  <div class="modal-backdrop" id="modal-new-tournament">
-    <div class="modal-dialog modal-sm">
-      <div class="modal-header">
-        <h3>✨ Nuova Serata</h3>
-        <button class="modal-close" id="close-new-tournament-modal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <p style="font-size: 15px; color: var(--text-main); margin-bottom: 8px;">
-          Vuoi iniziare una nuova serata di gioco (<strong id="modal-new-date-label">04/09/26</strong>)?
-        </p>
-        <p class="form-hint">
-          Il tabellone verrà azzerato per inserire le coppie della nuova serata.
-        </p>
-      </div>
-      <div class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
-        <button type="button" class="btn btn-secondary" id="btn-cancel-new-tournament">Annulla</button>
-        <button type="button" class="btn btn-primary" id="btn-confirm-new-evening">
-          <span class="btn-icon">✨</span> Inizia Serata
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal 7: Esportazione Immagine Classifica per WhatsApp -->
-  <div class="modal-backdrop" id="modal-export-image">
-    <div class="modal-dialog modal-export-dialog">
-      <div class="modal-header">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 20px;">🖼️</span>
-          <h3 style="margin: 0; font-size: 18px;">Classifica Pronta per la Condivisione</h3>
-        </div>
-        <button class="modal-close" id="close-export-image-modal">&times;</button>
-      </div>
-      <div class="modal-body" style="padding: 20px;">
-        <div class="export-status-banner" id="export-status-banner">
-          <div class="export-status-icon">💬</div>
-          <div class="export-status-text">
-            <p id="export-status-desc">L'immagine è stata copiata negli appunti e scaricata sul tuo computer.</p>
-          </div>
-        </div>
-
-        <div class="export-instructions">
-          <div class="instruction-row" id="instruction-clipboard">
-            <span class="instruction-badge">📋 Appunti</span>
-            <span>Apri la chat e premi <kbd class="kbd-shortcut">Ctrl + V</kbd> per incollarla.</span>
-          </div>
-          <div class="instruction-row" id="instruction-download">
-            <span class="instruction-badge">💾 Download</span>
-            <span>File salvato: <code id="export-modal-filename" class="export-code-badge">Classifica.png</code></span>
-          </div>
-          <div class="instruction-row" id="instruction-ios" style="display: none;">
-            <span class="instruction-badge">📲 iPad</span>
-            <span>Tocca <strong>Condividi / Salva</strong> per inviarla su WhatsApp o salvarla nelle Foto (oppure tieni premuto sull'anteprima).</span>
-          </div>
-        </div>
-
-        <div class="export-preview-container">
-          <div class="export-preview-header">
-            <span>Anteprima immagine</span>
-          </div>
-          <div class="export-preview-scroll">
-            <img id="export-preview-img" src="" alt="Anteprima Classifica" />
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer" style="display: flex; justify-content: flex-end; align-items: center;">
-        <div style="display: flex; gap: 10px;">
-          <button type="button" class="btn btn-primary" id="btn-share-image" style="display: none;">
-            <span class="btn-icon">📲</span> Condividi / Salva
-          </button>
-          <button type="button" class="btn btn-secondary" id="btn-copy-image-again" style="display: none;">
-            <span class="btn-icon">📋</span> Ricopia
-          </button>
-          <button type="button" class="btn btn-secondary" id="btn-close-export-modal">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            id="btn-close-lottery"
+          >
             Chiudi
           </button>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Modal 8: Conferma Pulizia Dati Torneo (Mini Modale) -->
-  <div class="modal-backdrop" id="modal-confirm-clear" style="z-index: 220;">
-    <div class="modal-dialog modal-sm">
-      <div class="modal-header">
-        <h3>🗑️ Conferma Azzeramento</h3>
-        <button class="modal-close" id="close-confirm-clear-modal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <p style="font-size: 14px; color: var(--text-main); margin-bottom: 8px;">
-          Sei sicuro di voler azzerare tutti i dati del torneo corrente?
-        </p>
-        <p class="form-hint" style="color: var(--danger, #EF4444); font-weight: 500; margin: 0;">
-          Tutte le coppie e i relativi punteggi inseriti verranno rimossi dal tabellone.
-        </p>
-      </div>
-      <div class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
-        <button type="button" class="btn btn-secondary" id="btn-cancel-clear">Annulla</button>
-        <button type="button" class="btn btn-danger" id="btn-confirm-clear">
-          <span class="btn-icon">🗑️</span> Pulisci Dati
-        </button>
+    <!-- Modal 4: Settings & Options -->
+    <div class="modal-backdrop" id="modal-settings">
+      <div class="modal-dialog modal-settings">
+        <div class="modal-header">
+          <h3>⚙️ Impostazioni Torneo</h3>
+          <button class="modal-close" id="close-settings-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="settings-grid">
+            <!-- Colonna 1: Visibilità Strumenti & Struttura Torneo -->
+            <div class="settings-col">
+              <div class="settings-group">
+                <h4 class="settings-group-title">Visibilità Strumenti Barra</h4>
+                <p class="form-hint" style="margin-bottom: 12px">
+                  Scegli quali pulsanti visualizzare nella barra degli
+                  strumenti:
+                </p>
+
+                <div class="setting-toggle-item">
+                  <label
+                    for="setting-toggle-lottery"
+                    class="toggle-text"
+                    style="cursor: pointer"
+                    >Pulsante "Sorteggio"</label
+                  >
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="setting-toggle-lottery" />
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+
+                <div class="setting-toggle-item">
+                  <label
+                    for="setting-toggle-podium"
+                    class="toggle-text"
+                    style="cursor: pointer"
+                    >Scheda "Podio"</label
+                  >
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="setting-toggle-podium" />
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+
+                <div class="setting-toggle-item">
+                  <label
+                    for="setting-toggle-prizepool"
+                    class="toggle-text"
+                    style="cursor: pointer"
+                    >Colonna "Premio (€)" in Classifica</label
+                  >
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="setting-toggle-prizepool" />
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+
+                <div class="setting-toggle-item">
+                  <div>
+                    <label
+                      for="setting-toggle-bye"
+                      class="toggle-text"
+                      style="cursor: pointer"
+                      >Colonna "Riposo" nei Turni</label
+                    >
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="setting-toggle-bye" />
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+
+                <div class="setting-toggle-item">
+                  <label
+                    for="setting-toggle-score-warning"
+                    class="toggle-text"
+                    style="cursor: pointer"
+                    >Avviso Punteggio Errato nei Turni</label
+                  >
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="setting-toggle-score-warning" />
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div
+                class="settings-group"
+                style="
+                  margin-top: 20px;
+                  border-top: 1px solid var(--border-light);
+                  padding-top: 16px;
+                "
+              >
+                <h4 class="settings-group-title">Struttura Torneo</h4>
+                <div class="setting-toggle-item">
+                  <div>
+                    <span class="toggle-text">Numero di Turni</span>
+                    <small class="form-hint">Imposta i turni di gioco</small>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px">
+                    <input
+                      type="number"
+                      inputmode="numeric"
+                      id="setting-rounds-count"
+                      class="form-control tabular-nums"
+                      style="
+                        width: 70px;
+                        text-align: center;
+                        font-weight: bold;
+                        font-size: 15px;
+                      "
+                      min="1"
+                      max="12"
+                      value="4"
+                    />
+                  </div>
+                </div>
+
+                <div class="setting-toggle-item">
+                  <div>
+                    <span class="toggle-text">Punti Riposo (VP)</span>
+                    <small class="form-hint"
+                      >Punti assegnati se una coppia non gioca</small
+                    >
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px">
+                    <input
+                      type="number"
+                      inputmode="numeric"
+                      id="setting-bye-points"
+                      class="form-control tabular-nums"
+                      style="
+                        width: 70px;
+                        text-align: center;
+                        font-weight: bold;
+                        font-size: 15px;
+                      "
+                      min="0"
+                      max="20"
+                      step="1"
+                      value="12"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Colonna 2: Montepremi & Dati / Esportazione -->
+            <div class="settings-col">
+              <div class="settings-group">
+                <h4 class="settings-group-title">Montepremi & Quote</h4>
+                <div class="setting-toggle-item" style="padding-bottom: 8px">
+                  <div>
+                    <span class="toggle-text">Quota a Persona (€)</span>
+                    <small class="form-hint"
+                      >Costo ingresso per singolo giocatore</small
+                    >
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px">
+                    <input
+                      type="number"
+                      inputmode="numeric"
+                      id="setting-entry-fee"
+                      class="form-control tabular-nums"
+                      style="
+                        width: 75px;
+                        text-align: center;
+                        font-weight: bold;
+                        font-size: 15px;
+                      "
+                      min="0"
+                      step="0.5"
+                      value="2"
+                    />
+                  </div>
+                </div>
+
+                <div style="margin-top: 10px">
+                  <div
+                    style="
+                      display: flex;
+                      justify-content: space-between;
+                      align-items: center;
+                      flex-wrap: wrap;
+                      gap: 6px;
+                    "
+                  >
+                    <span class="toggle-text" style="font-size: 14.5px"
+                      >Ripartizione Percentuale Premi (%):</span
+                    >
+                    <span
+                      id="prize-pct-total-badge"
+                      style="
+                        font-size: 12.5px;
+                        font-weight: 700;
+                        padding: 2px 8px;
+                        border-radius: 6px;
+                        background: #ecfdf5;
+                        color: #059669;
+                        border: 1px solid #a7f3d0;
+                        transition: all 0.2s;
+                      "
+                      >Totale: 100% ✓</span
+                    >
+                  </div>
+                  <div
+                    class="prizepool-grid"
+                    style="
+                      display: grid;
+                      grid-template-columns: repeat(5, 1fr);
+                      gap: 6px;
+                      margin-top: 8px;
+                    "
+                  >
+                    <div style="text-align: center">
+                      <label
+                        style="
+                          font-size: 12px;
+                          font-weight: 700;
+                          color: var(--text-muted);
+                          display: block;
+                          margin-bottom: 4px;
+                        "
+                        >1° Posto</label
+                      >
+                      <input
+                        type="number"
+                        inputmode="numeric"
+                        id="setting-prize-pct-1"
+                        class="form-control tabular-nums"
+                        style="
+                          text-align: center;
+                          font-weight: bold;
+                          padding: 6px 2px;
+                        "
+                        min="0"
+                        max="100"
+                        value="50"
+                      />
+                    </div>
+                    <div style="text-align: center">
+                      <label
+                        style="
+                          font-size: 12px;
+                          font-weight: 700;
+                          color: var(--text-muted);
+                          display: block;
+                          margin-bottom: 4px;
+                        "
+                        >2° Posto</label
+                      >
+                      <input
+                        type="number"
+                        inputmode="numeric"
+                        id="setting-prize-pct-2"
+                        class="form-control tabular-nums"
+                        style="
+                          text-align: center;
+                          font-weight: bold;
+                          padding: 6px 2px;
+                        "
+                        min="0"
+                        max="100"
+                        value="30"
+                      />
+                    </div>
+                    <div style="text-align: center">
+                      <label
+                        style="
+                          font-size: 12px;
+                          font-weight: 700;
+                          color: var(--text-muted);
+                          display: block;
+                          margin-bottom: 4px;
+                        "
+                        >3° Posto</label
+                      >
+                      <input
+                        type="number"
+                        inputmode="numeric"
+                        id="setting-prize-pct-3"
+                        class="form-control tabular-nums"
+                        style="
+                          text-align: center;
+                          font-weight: bold;
+                          padding: 6px 2px;
+                        "
+                        min="0"
+                        max="100"
+                        value="20"
+                      />
+                    </div>
+                    <div style="text-align: center">
+                      <label
+                        style="
+                          font-size: 12px;
+                          font-weight: 700;
+                          color: var(--text-muted);
+                          display: block;
+                          margin-bottom: 4px;
+                        "
+                        >4° Posto</label
+                      >
+                      <input
+                        type="number"
+                        inputmode="numeric"
+                        id="setting-prize-pct-4"
+                        class="form-control tabular-nums"
+                        style="
+                          text-align: center;
+                          font-weight: bold;
+                          padding: 6px 2px;
+                        "
+                        min="0"
+                        max="100"
+                        placeholder="0"
+                        value="0"
+                      />
+                    </div>
+                    <div style="text-align: center">
+                      <label
+                        style="
+                          font-size: 12px;
+                          font-weight: 700;
+                          color: var(--text-muted);
+                          display: block;
+                          margin-bottom: 4px;
+                        "
+                        >5° Posto</label
+                      >
+                      <input
+                        type="number"
+                        inputmode="numeric"
+                        id="setting-prize-pct-5"
+                        class="form-control tabular-nums"
+                        style="
+                          text-align: center;
+                          font-weight: bold;
+                          padding: 6px 2px;
+                        "
+                        min="0"
+                        max="100"
+                        placeholder="0"
+                        value="0"
+                      />
+                    </div>
+                  </div>
+                  <div
+                    id="prize-pct-hint"
+                    style="
+                      font-size: 12px;
+                      color: #d97706;
+                      margin-top: 6px;
+                      min-height: 18px;
+                      font-weight: 500;
+                    "
+                  ></div>
+                </div>
+              </div>
+
+              <div
+                class="settings-group"
+                style="
+                  margin-top: 20px;
+                  border-top: 1px solid var(--border-light);
+                  padding-top: 16px;
+                "
+              >
+                <h4 class="settings-group-title">Dati ed Esportazione</h4>
+                <div
+                  style="
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                    margin-top: 12px;
+                  "
+                >
+                  <button
+                    id="btn-modal-export-excel"
+                    class="btn btn-secondary btn-block"
+                  >
+                    <span class="btn-icon">📊</span> Esporta Tabellone in Excel
+                    (.xlsx)
+                  </button>
+                  <div style="display: flex; gap: 8px">
+                    <button
+                      id="btn-modal-open-config"
+                      class="btn btn-secondary"
+                      style="flex: 1"
+                    >
+                      <span class="btn-icon">⚙️</span> Personalizza
+                      Configurazione
+                    </button>
+                    <button
+                      id="btn-modal-open-evenings"
+                      class="btn btn-secondary"
+                      style="flex: 1"
+                    >
+                      <span class="btn-icon">📅</span> Seleziona Serata
+                    </button>
+                  </div>
+                  <div style="display: flex; gap: 8px">
+                    <button
+                      id="btn-modal-export-json"
+                      class="btn btn-secondary"
+                      style="flex: 1"
+                    >
+                      <span class="btn-icon">💾</span> Salva Backup
+                    </button>
+                    <button
+                      id="btn-modal-import-json"
+                      class="btn btn-secondary"
+                      style="flex: 1"
+                    >
+                      <span class="btn-icon">📂</span> Carica Backup
+                    </button>
+                    <input
+                      type="file"
+                      id="input-import-json"
+                      accept=".json,application/json"
+                      style="display: none"
+                    />
+                  </div>
+                  <button
+                    id="btn-modal-clear-data"
+                    class="btn btn-outline-danger btn-block"
+                    style="margin-top: 4px"
+                  >
+                    <span class="btn-icon">🗑️</span> Pulisci Tutti i Dati del
+                    Torneo
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          class="modal-footer"
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          "
+        >
+          <span
+            class="app-version-badge"
+            style="
+              font-size: 12.5px;
+              color: var(--text-muted);
+              font-weight: 500;
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+            "
+          >
+            <span
+              id="settings-network-dot"
+              style="
+                display: inline-block;
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background-color: #10b981;
+                transition: background-color 0.25s ease;
+              "
+              title="Online (connesso)"
+            ></span>
+            Versione <span id="app-version-text">v1.3.4</span>
+            <span id="settings-network-status" style="font-size: 11.5px; margin-left: 2px;"></span>
+          </span>
+          <button
+            type="button"
+            class="btn btn-secondary"
+            id="btn-close-settings"
+          >
+            Chiudi
+          </button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Modal 9: Personalizza Nome Torneo -->
-  <div class="modal-backdrop" id="modal-custom-config" style="z-index: 220;">
-    <div class="modal-dialog modal-sm">
-      <div class="modal-header">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 20px;">⚙️</span>
-          <h3 style="margin: 0; font-size: 18px;">Personalizza Torneo</h3>
+    <!-- Modal 5: Confirm Delete Pair (Mini Modale) -->
+    <div class="modal-backdrop" id="modal-confirm-delete">
+      <div class="modal-dialog modal-sm">
+        <div class="modal-header">
+          <h3>🗑️ Conferma Eliminazione</h3>
+          <button class="modal-close" id="close-confirm-delete-modal">
+            &times;
+          </button>
         </div>
-        <button class="modal-close" id="close-config-modal">&times;</button>
-      </div>
-      <div class="modal-body" style="padding: 20px;">
-        <p class="form-hint" style="margin-bottom: 14px; font-size: 13.5px;">
-          Inserisci il nome del tuo circolo, paese o torneo per personalizzare l'intestazione e i titoli del tabellone.
-        </p>
-        <div>
-          <label for="config-input-tournament-name" style="display: block; font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
-            Nome Torneo
-          </label>
-          <input type="text" id="config-input-tournament-name" class="form-control" placeholder="es. Burraco Punti" style="font-size: 15px; font-weight: 600;">
-          <small class="form-hint" style="margin-top: 6px;">Verrà utilizzato come nome dell'applicazione e intestazione ufficiale.</small>
+        <div class="modal-body">
+          <p
+            style="
+              font-size: 14px;
+              color: var(--text-main);
+              margin-bottom: 10px;
+            "
+          >
+            Sei sicuro di voler eliminare questa coppia dal torneo?
+          </p>
+          <div
+            id="confirm-delete-detail"
+            style="
+              font-size: 13px;
+              color: var(--text-muted);
+              background: var(--bg-app);
+              border: 1px solid var(--border-color);
+              padding: 10px 14px;
+              border-radius: var(--radius-sm);
+              font-weight: 600;
+            "
+          >
+            <!-- Nome coppia -->
+          </div>
         </div>
-      </div>
-      <div class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
-        <button type="button" class="btn btn-secondary" id="btn-cancel-config">Annulla</button>
-        <button type="button" class="btn btn-primary" id="btn-save-config">
-          <span class="btn-icon">💾</span> Salva Modifiche
-        </button>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            id="btn-cancel-delete"
+          >
+            Annulla
+          </button>
+          <button type="button" class="btn btn-danger" id="btn-confirm-delete">
+            Elimina
+          </button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Modal 10: Seleziona Serata dalla Memoria -->
-  <div class="modal-backdrop" id="modal-select-evening" style="z-index: 220;">
-    <div class="modal-dialog modal-md">
-      <div class="modal-header">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 20px;">📅</span>
-          <h3 style="margin: 0; font-size: 18px;">Seleziona Serata dalla Memoria</h3>
+    <!-- Modal 6: Nuova Serata -->
+    <div class="modal-backdrop" id="modal-new-tournament">
+      <div class="modal-dialog modal-sm">
+        <div class="modal-header">
+          <h3>✨ Nuova Serata</h3>
+          <button class="modal-close" id="close-new-tournament-modal">
+            &times;
+          </button>
         </div>
-        <button class="modal-close" id="close-select-evening-modal">&times;</button>
-      </div>
-      <div class="modal-body" style="padding: 20px;">
-        <p class="form-hint" style="margin-bottom: 14px; font-size: 13.5px;">
-          Scegli una serata archiviata per consultare o modificare i risultati nel tabellone. La serata corrente verrà salvata automaticamente.
-        </p>
-        <div id="evenings-list-container" class="evenings-list-container" style="max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
-          <!-- Generato dinamicamente da app.js -->
+        <div class="modal-body">
+          <p
+            style="font-size: 15px; color: var(--text-main); margin-bottom: 8px"
+          >
+            Vuoi iniziare una nuova serata di gioco (<strong
+              id="modal-new-date-label"
+              >04/09/26</strong
+            >)?
+          </p>
+          <p class="form-hint">
+            Il tabellone verrà azzerato per inserire le coppie della nuova
+            serata.
+          </p>
         </div>
-      </div>
-      <div class="modal-footer" style="display: flex; justify-content: flex-end;">
-        <button type="button" class="btn btn-secondary" id="btn-close-evenings-modal">Chiudi</button>
+        <div
+          class="modal-footer"
+          style="display: flex; gap: 8px; justify-content: flex-end"
+        >
+          <button
+            type="button"
+            class="btn btn-secondary"
+            id="btn-cancel-new-tournament"
+          >
+            Annulla
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            id="btn-confirm-new-evening"
+          >
+            <span class="btn-icon">✨</span> Inizia Serata
+          </button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Modal 11: Conferma Caricamento Serata -->
-  <div class="modal-backdrop" id="modal-confirm-load-evening" style="z-index: 230;">
-    <div class="modal-dialog modal-sm">
-      <div class="modal-header">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 20px;">📅</span>
-          <h3 style="margin: 0; font-size: 18px;">Carica Serata</h3>
+    <!-- Modal 7: Esportazione Immagine Classifica per WhatsApp -->
+    <div class="modal-backdrop" id="modal-export-image">
+      <div class="modal-dialog modal-export-dialog">
+        <div class="modal-header">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-size: 20px">🖼️</span>
+            <h3 style="margin: 0; font-size: 18px">
+              Classifica Pronta per la Condivisione
+            </h3>
+          </div>
+          <button class="modal-close" id="close-export-image-modal">
+            &times;
+          </button>
         </div>
-        <button class="modal-close" id="close-confirm-load-evening-modal">&times;</button>
-      </div>
-      <div class="modal-body" style="padding: 20px;">
-        <p style="font-size: 14.5px; color: var(--text-main); margin-bottom: 8px;">
-          Vuoi passare alla serata del <strong id="confirm-load-evening-date">--/--/--</strong>?
-        </p>
-        <p class="form-hint" style="margin: 0; font-size: 13px;">
-          La serata attualmente aperta verrà archiviata automaticamente.
-        </p>
-      </div>
-      <div class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
-        <button type="button" class="btn btn-secondary" id="btn-cancel-load-evening">Annulla</button>
-        <button type="button" class="btn btn-primary" id="btn-confirm-load-evening">
-          <span class="btn-icon">📂</span> Carica
-        </button>
+        <div class="modal-body" style="padding: 20px">
+          <div class="export-status-banner" id="export-status-banner">
+            <div class="export-status-icon">💬</div>
+            <div class="export-status-text">
+              <p id="export-status-desc">
+                L'immagine è stata copiata negli appunti e scaricata sul tuo
+                computer.
+              </p>
+            </div>
+          </div>
+
+          <div class="export-instructions">
+            <div class="instruction-row" id="instruction-clipboard">
+              <span class="instruction-badge">📋 Appunti</span>
+              <span
+                >Apri la chat e premi
+                <kbd class="kbd-shortcut">Ctrl + V</kbd> per incollarla.</span
+              >
+            </div>
+            <div class="instruction-row" id="instruction-download">
+              <span class="instruction-badge">💾 Download</span>
+              <span
+                >File salvato:
+                <code id="export-modal-filename" class="export-code-badge"
+                  >Classifica.png</code
+                ></span
+              >
+            </div>
+            <div
+              class="instruction-row"
+              id="instruction-ios"
+              style="display: none"
+            >
+              <span class="instruction-badge">📲 iPad</span>
+              <span
+                >Tocca <strong>Condividi / Salva</strong> per inviarla su
+                WhatsApp o salvarla nelle Foto (oppure tieni premuto
+                sull'anteprima).</span
+              >
+            </div>
+          </div>
+
+          <div class="export-preview-container">
+            <div class="export-preview-header">
+              <span>Anteprima immagine</span>
+            </div>
+            <div class="export-preview-scroll">
+              <img id="export-preview-img" src="" alt="Anteprima Classifica" />
+            </div>
+          </div>
+        </div>
+        <div
+          class="modal-footer"
+          style="display: flex; justify-content: flex-end; align-items: center"
+        >
+          <div style="display: flex; gap: 10px">
+            <button
+              type="button"
+              class="btn btn-primary"
+              id="btn-share-image"
+              style="display: none"
+            >
+              <span class="btn-icon">📲</span> Condividi / Salva
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              id="btn-copy-image-again"
+              style="display: none"
+            >
+              <span class="btn-icon">📋</span> Ricopia
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              id="btn-close-export-modal"
+            >
+              Chiudi
+            </button>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Modal 12: Salva Copia in Posizione Personalizzata -->
-  <div class="modal-backdrop" id="modal-save-custom-location" style="z-index: 220;">
-    <div class="modal-dialog modal-md">
-      <div class="modal-header">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 20px;">💾</span>
-          <h3 style="margin: 0; font-size: 18px;">Salva Copia Torneo</h3>
+    <!-- Modal: Conferma Operazione Generica -->
+    <div class="modal-backdrop" id="modal-confirm-action" style="z-index: 240">
+      <div class="modal-dialog modal-sm">
+        <div class="modal-header">
+          <h3 id="confirm-action-title">⚠️ Conferma Operazione</h3>
+          <button class="modal-close" id="close-confirm-action-modal">
+            &times;
+          </button>
         </div>
-        <button class="modal-close" id="close-save-custom-modal">&times;</button>
-      </div>
-      <div class="modal-body" style="padding: 20px;">
-        <p class="form-hint" style="margin-bottom: 14px; font-size: 13.5px;">
-          Puoi salvare una copia completa del torneo in una cartella a tua scelta sul tuo sistema (ad es. su Desktop, chiavetta USB o cartella condivisa).
-        </p>
-        <div style="background: #F8FAFC; border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 16px;">
-          <div style="font-size: 12px; color: var(--text-muted); font-weight: 700; margin-bottom: 4px; text-transform: uppercase;">Posizione di salvataggio predefinita</div>
-          <div style="font-size: 13.5px; color: var(--text-main); font-family: monospace;">Documenti/BurracoPunti/statistiche_tornei.json</div>
+        <div class="modal-body">
+          <p
+            id="confirm-action-message"
+            style="font-size: 14.5px; color: var(--text-main); margin-bottom: 8px"
+          ></p>
+          <p
+            id="confirm-action-detail"
+            class="form-hint"
+            style="color: var(--danger, #ef4444); font-weight: 500; margin: 0; display: none;"
+          ></p>
         </div>
-        <div>
-          <label for="input-custom-save-filename" style="display: block; font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
-            Nome File da Salvare (.json)
-          </label>
-          <input type="text" id="input-custom-save-filename" class="form-control" placeholder="statistiche_tornei_backup.json" style="font-size: 14px; font-weight: 500;">
-          <small class="form-hint" style="margin-top: 6px;">Potrai scegliere la cartella esatta del tuo computer in cui memorizzare il file.</small>
+        <div
+          class="modal-footer"
+          style="display: flex; gap: 8px; justify-content: flex-end"
+        >
+          <button type="button" class="btn btn-secondary" id="btn-cancel-action">
+            Annulla
+          </button>
+          <button type="button" class="btn btn-primary" id="btn-confirm-action">
+            Conferma
+          </button>
         </div>
-      </div>
-      <div class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
-        <button type="button" class="btn btn-secondary" id="btn-cancel-save-custom">Annulla</button>
-        <button type="button" class="btn btn-primary" id="btn-execute-save-custom">
-          <span class="btn-icon">📁</span> Scegli Posizione e Salva
-        </button>
       </div>
     </div>
-  </div>
 
-  <!-- Modal 13: Notifica / Feedback (Sostituto Moderno degli Alert) -->
-  <div class="modal-backdrop" id="modal-feedback" style="z-index: 250;">
-    <div class="modal-dialog modal-sm">
-      <div class="modal-header">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span id="feedback-modal-icon" style="font-size: 20px;">✅</span>
-          <h3 id="feedback-modal-title" style="margin: 0; font-size: 18px;">Notifica</h3>
+    <!-- Modal 8: Conferma Pulizia Dati Torneo (Mini Modale) -->
+    <div class="modal-backdrop" id="modal-confirm-clear" style="z-index: 220">
+      <div class="modal-dialog modal-sm">
+        <div class="modal-header">
+          <h3>🗑️ Conferma Azzeramento</h3>
+          <button class="modal-close" id="close-confirm-clear-modal">
+            &times;
+          </button>
         </div>
-        <button class="modal-close" id="close-feedback-modal">&times;</button>
-      </div>
-      <div class="modal-body" style="padding: 20px;">
-        <p id="feedback-modal-message" style="font-size: 14.5px; color: var(--text-main); margin: 0; line-height: 1.45;"></p>
-        <div id="feedback-modal-detail" style="display: none; background: #F1F5F9; border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 13px; color: var(--text-muted); word-break: break-all; margin-top: 12px;"></div>
-      </div>
-      <div class="modal-footer" style="display: flex; justify-content: flex-end;">
-        <button type="button" class="btn btn-primary" id="btn-close-feedback">OK</button>
+        <div class="modal-body">
+          <p
+            style="font-size: 14px; color: var(--text-main); margin-bottom: 8px"
+          >
+            Sei sicuro di voler azzerare tutti i dati del torneo corrente?
+          </p>
+          <p
+            class="form-hint"
+            style="color: var(--danger, #ef4444); font-weight: 500; margin: 0"
+          >
+            Tutte le coppie e i relativi punteggi inseriti verranno rimossi dal
+            tabellone.
+          </p>
+        </div>
+        <div
+          class="modal-footer"
+          style="display: flex; gap: 8px; justify-content: flex-end"
+        >
+          <button type="button" class="btn btn-secondary" id="btn-cancel-clear">
+            Annulla
+          </button>
+          <button type="button" class="btn btn-danger" id="btn-confirm-clear">
+            <span class="btn-icon">🗑️</span> Pulisci Dati
+          </button>
+        </div>
       </div>
     </div>
-  </div>
 
+    <!-- Modal 9: Personalizza Nome Torneo -->
+    <div class="modal-backdrop" id="modal-custom-config" style="z-index: 220">
+      <div class="modal-dialog modal-sm">
+        <div class="modal-header">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-size: 20px">⚙️</span>
+            <h3 style="margin: 0; font-size: 18px">Personalizza Torneo</h3>
+          </div>
+          <button class="modal-close" id="close-config-modal">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 20px">
+          <p class="form-hint" style="margin-bottom: 14px; font-size: 13.5px">
+            Inserisci il nome del tuo circolo, paese o torneo per personalizzare
+            l'intestazione e i titoli del tabellone.
+          </p>
+          <div>
+            <label
+              for="config-input-tournament-name"
+              style="
+                display: block;
+                font-size: 13px;
+                font-weight: 700;
+                color: var(--text-main);
+                margin-bottom: 6px;
+              "
+            >
+              Nome Torneo
+            </label>
+            <input
+              type="text"
+              id="config-input-tournament-name"
+              class="form-control"
+              placeholder="es. Burraco Punti"
+              style="font-size: 15px; font-weight: 600"
+            />
+            <small class="form-hint" style="margin-top: 6px"
+              >Verrà utilizzato come nome dell'applicazione e intestazione
+              ufficiale.</small
+            >
+          </div>
+        </div>
+        <div
+          class="modal-footer"
+          style="display: flex; gap: 8px; justify-content: flex-end"
+        >
+          <button
+            type="button"
+            class="btn btn-secondary"
+            id="btn-cancel-config"
+          >
+            Annulla
+          </button>
+          <button type="button" class="btn btn-primary" id="btn-save-config">
+            <span class="btn-icon">💾</span> Salva Modifiche
+          </button>
+        </div>
+      </div>
+    </div>
 
-  <!-- Modular JavaScript Engine & Utilities -->
-  <script src="js/config.js"></script>
-  <script src="js/utils.js"></script>
-  <script src="js/engine.js"></script>
-  <script src="js/storage.js"></script>
-  <script src="js/excel.js"></script>
-  <script src="app.js"></script>
+    <!-- Modal 10: Seleziona Serata dalla Memoria -->
+    <div class="modal-backdrop" id="modal-select-evening" style="z-index: 220">
+      <div class="modal-dialog modal-md">
+        <div class="modal-header">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-size: 20px">📅</span>
+            <h3 style="margin: 0; font-size: 18px">
+              Seleziona Serata dalla Memoria
+            </h3>
+          </div>
+          <button class="modal-close" id="close-select-evening-modal">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body" style="padding: 20px">
+          <p class="form-hint" style="margin-bottom: 14px; font-size: 13.5px">
+            Scegli una serata archiviata per consultare o modificare i risultati
+            nel tabellone. La serata corrente verrà salvata automaticamente.
+          </p>
+          <div
+            id="evenings-list-container"
+            class="evenings-list-container"
+            style="
+              max-height: 380px;
+              overflow-y: auto;
+              display: flex;
+              flex-direction: column;
+              gap: 10px;
+            "
+          >
+            <!-- Generato dinamicamente da app.js -->
+          </div>
+        </div>
+        <div
+          class="modal-footer"
+          style="display: flex; justify-content: flex-end"
+        >
+          <button
+            type="button"
+            class="btn btn-secondary"
+            id="btn-close-evenings-modal"
+          >
+            Chiudi
+          </button>
+        </div>
+      </div>
+    </div>
 
-  <!-- Service Worker Registration for PWA & Offline Support -->
-  <script>
-    if ('serviceWorker' in navigator && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-          .then((reg) => {
-            console.log('Burraco PWA: Service Worker registrato con successo', reg.scope);
-            reg.addEventListener('updatefound', () => {
-              const newWorker = reg.installing;
-              if (newWorker) {
-                newWorker.addEventListener('statechange', () => {
-                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    console.log('Burraco PWA: Nuova versione disponibile e sincronizzata.');
-                  }
-                });
-              }
+    <!-- Modal 11: Conferma Caricamento Serata -->
+    <div
+      class="modal-backdrop"
+      id="modal-confirm-load-evening"
+      style="z-index: 230"
+    >
+      <div class="modal-dialog modal-sm">
+        <div class="modal-header">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-size: 20px">📅</span>
+            <h3 style="margin: 0; font-size: 18px">Carica Serata</h3>
+          </div>
+          <button class="modal-close" id="close-confirm-load-evening-modal">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body" style="padding: 20px">
+          <p
+            style="
+              font-size: 14.5px;
+              color: var(--text-main);
+              margin-bottom: 8px;
+            "
+          >
+            Vuoi passare alla serata del
+            <strong id="confirm-load-evening-date">--/--/--</strong>?
+          </p>
+          <p class="form-hint" style="margin: 0; font-size: 13px">
+            La serata attualmente aperta verrà archiviata automaticamente.
+          </p>
+        </div>
+        <div
+          class="modal-footer"
+          style="display: flex; gap: 8px; justify-content: flex-end"
+        >
+          <button
+            type="button"
+            class="btn btn-secondary"
+            id="btn-cancel-load-evening"
+          >
+            Annulla
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            id="btn-confirm-load-evening"
+          >
+            <span class="btn-icon">📂</span> Carica
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal 12: Salva Copia in Posizione Personalizzata -->
+    <div
+      class="modal-backdrop"
+      id="modal-save-custom-location"
+      style="z-index: 220"
+    >
+      <div class="modal-dialog modal-md">
+        <div class="modal-header">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-size: 20px">💾</span>
+            <h3 style="margin: 0; font-size: 18px">Salva Copia Torneo</h3>
+          </div>
+          <button class="modal-close" id="close-save-custom-modal">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body" style="padding: 20px">
+          <p class="form-hint" style="margin-bottom: 14px; font-size: 13.5px">
+            Puoi salvare una copia completa del torneo in una cartella a tua
+            scelta sul tuo sistema (ad es. su Desktop, chiavetta USB o cartella
+            condivisa).
+          </p>
+          <div
+            style="
+              background: #f8fafc;
+              border: 1px solid var(--border-light);
+              border-radius: var(--radius-sm);
+              padding: 12px;
+              margin-bottom: 16px;
+            "
+          >
+            <div
+              style="
+                font-size: 12px;
+                color: var(--text-muted);
+                font-weight: 700;
+                margin-bottom: 4px;
+                text-transform: uppercase;
+              "
+            >
+              Posizione di salvataggio predefinita
+            </div>
+            <div
+              style="
+                font-size: 13.5px;
+                color: var(--text-main);
+                font-family: monospace;
+              "
+            >
+              Documenti/BurracoPunti/statistiche_tornei.json
+            </div>
+          </div>
+          <div>
+            <label
+              for="input-custom-save-filename"
+              style="
+                display: block;
+                font-size: 13px;
+                font-weight: 700;
+                color: var(--text-main);
+                margin-bottom: 6px;
+              "
+            >
+              Nome File da Salvare (.json)
+            </label>
+            <input
+              type="text"
+              id="input-custom-save-filename"
+              class="form-control"
+              placeholder="statistiche_tornei_backup.json"
+              style="font-size: 14px; font-weight: 500"
+            />
+            <small class="form-hint" style="margin-top: 6px"
+              >Potrai scegliere la cartella esatta del tuo computer in cui
+              memorizzare il file.</small
+            >
+          </div>
+        </div>
+        <div
+          class="modal-footer"
+          style="display: flex; gap: 8px; justify-content: flex-end"
+        >
+          <button
+            type="button"
+            class="btn btn-secondary"
+            id="btn-cancel-save-custom"
+          >
+            Annulla
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            id="btn-execute-save-custom"
+          >
+            <span class="btn-icon">📁</span> Scegli Posizione e Salva
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal 13: Notifica / Feedback (Sostituto Moderno degli Alert) -->
+    <div class="modal-backdrop" id="modal-feedback" style="z-index: 250">
+      <div class="modal-dialog modal-sm">
+        <div class="modal-header">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span id="feedback-modal-icon" style="font-size: 20px">✅</span>
+            <h3 id="feedback-modal-title" style="margin: 0; font-size: 18px">
+              Notifica
+            </h3>
+          </div>
+          <button class="modal-close" id="close-feedback-modal">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 20px">
+          <p
+            id="feedback-modal-message"
+            style="
+              font-size: 14.5px;
+              color: var(--text-main);
+              margin: 0;
+              line-height: 1.45;
+            "
+          ></p>
+          <div
+            id="feedback-modal-detail"
+            style="
+              display: none;
+              background: #f1f5f9;
+              border: 1px solid var(--border-light);
+              border-radius: var(--radius-sm);
+              padding: 10px 12px;
+              font-size: 13px;
+              color: var(--text-muted);
+              word-break: break-all;
+              margin-top: 12px;
+            "
+          ></div>
+        </div>
+        <div
+          class="modal-footer"
+          style="display: flex; justify-content: flex-end"
+        >
+          <button type="button" class="btn btn-primary" id="btn-close-feedback">
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modular JavaScript Engine & Utilities -->
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/engine.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/excel.js"></script>
+    <script src="app.js"></script>
+
+    <!-- Service Worker Registration for PWA & Offline Support -->
+    <script>
+      if (
+        "serviceWorker" in navigator &&
+        (window.location.protocol === "http:" ||
+          window.location.protocol === "https:")
+      ) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("sw.js")
+            .then((reg) => {
+              console.log(
+                "Burraco PWA: Service Worker registrato con successo",
+                reg.scope,
+              );
+              reg.addEventListener("updatefound", () => {
+                const newWorker = reg.installing;
+                if (newWorker) {
+                  newWorker.addEventListener("statechange", () => {
+                    if (
+                      newWorker.state === "installed" &&
+                      navigator.serviceWorker.controller
+                    ) {
+                      console.log(
+                        "Burraco PWA: Nuova versione disponibile e sincronizzata.",
+                      );
+                    }
+                  });
+                }
+              });
+            })
+            .catch((err) => {
+              console.warn(
+                "Burraco PWA: Registrazione Service Worker fallita:",
+                err,
+              );
             });
-          })
-          .catch((err) => {
-            console.warn('Burraco PWA: Registrazione Service Worker fallita:', err);
-          });
-      });
-    }
-  </script>
-</body>
+        });
+      }
+    </script>
+  </body>
 </html>

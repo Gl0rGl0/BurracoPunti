@@ -33,6 +33,7 @@
   box-shadow: var(--shadow-lg);
   overflow: hidden;
   animation: modal-appear 0.15s ease-out;
+  zoom: var(--app-zoom, 1);
 }
 
 .modal-dialog.modal-lg {

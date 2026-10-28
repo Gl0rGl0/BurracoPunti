@@ -1,117 +1,125 @@
-# Burraco - Gestionale Tornei di Burraco
+# Burraco Tournament Manager Blueprint
 
-Applicazione gestionale moderna, reattiva e portabile (per Windows, Web, iPad e Tablet) progettata per la gestione completa e il conteggio automatico dei punteggi nei tornei di Burraco, eliminando la necessità dei fogli Excel cartacei e manuali.
+## System Overview
 
----
+**Burraco Tournament Manager (BurracoPunti)** is an offline-first, senior-accessible tournament scoring and leaderboard management application. It automates Victory Point (VP) and Match Point (MP) computations, Mitchell table movement pairings, prizepool distribution, and exports for Burraco tournaments.
 
-## 🚀 Come Avviare l'Applicazione
+The application operates under a dual-runtime model:
+1. **Desktop Native (Windows)**: Wrapped in `main.py` via `pywebview`, providing direct disk persistence to `C:\Users\[USER]\Documents\BurracoPunti\statistiche_tornei.json` and native Windows save file pickers.
+2. **Web / PWA (Offline-Cached)**: Standalone Progressive Web App (`src/sw.js`) with Cache-First strategy, installable on iPad, tablet, and mobile browsers with local scoring capability.
 
-### 1. Applicazione Desktop (.exe portatile per Windows)
+```mermaid
+flowchart TD
+    UI["Frontend Web UI (src/index.html & src/app.js)"]
+    SW["Service Worker (src/sw.js - Cache-First)"]
+    ENG["BurracoEngine (Pairings, FIBUR VP, Prizes)"]
+    STR["BurracoStorage (Multi-day, GGMMAA)"]
+    XLS["BurracoExcel (Canvas Image & SheetJS)"]
+    DISK[("Disk Persistence (statistiche_tornei.json)")]
+    LOC[("Browser LocalStorage")]
 
-- Fai doppio clic su **`BurracoPunti.exe`**.
-- File singolo portatile da ~39 MB senza necessità di installazione o Python sul PC.
-- Salva automaticamente lo stato del torneo in locale su file **`statistiche_tornei.json`** nella cartella `Documenti\BurracoPunti` dell'utente (`C:\Users\[UTENTE]\Documents\BurracoPunti`).
-
-### 2. Versione Web / Mobile / iPad (100% Offline)
-
-- **Online su GitHub Pages**: [https://gl0rgl0.github.io/BurracoPunti/](https://gl0rgl0.github.io/BurracoPunti/)
-- **In locale**: fai doppio clic su `src/index.html` in qualsiasi browser.
-- **Su iPad / iPhone / Android**: apri il link in Safari/Chrome e seleziona **"Aggiungi a schermata Home"** per aprirla a schermo intero come un'app nativa.
-
----
-
-## 🎛️ Flusso di Gioco e Struttura a Schede
-
-```text
-[📋 Tabellone Iniziale] ➔ [🎯 Turno 1] [🎯 Turno 2] ... ➔ [🏆 Classifica] ➔ [🥇 Podio]
+    UI --> ENG
+    UI --> STR
+    UI --> XLS
+    STR --> LOC
+    STR -.->|PyWebView Bridge| DISK
+    UI -.->|Offline Assets| SW
 ```
 
-### 1. 📋 Tabellone Iniziale (Prima dei Round)
+---
 
-- **Compilazione rapida stile Excel**:
-  - **Counter a sinistra (`#`)**: numerazione progressiva delle righe inserite (1, 2, 3...).
-  - **Colonna Giocatori**: campo editabile direttamente sulla riga per scrivere i nomi dei partecipanti.
-  - **Colonna Numero Squadra**: casella numerica dedicata a destra per inserire il numero di tavolo/sorteggio assegnato alla coppia.
-  - **Pulsante `➕ Aggiungi Coppia` sotto la tabella**: aggiunge una nuova riga con focus automatico sul campo nome.
-  - **Inserimento con <kbd>Invio</kbd>**: premi Invio mentre scrivi per creare e passare automaticamente alla riga successiva.
-  - **Pulsante `🗑️` con Mini Modale**: apertura di una modale personalizzata dell'app con richiesta di conferma prima dell'eliminazione.
-  - **Incolla da Excel & Sorteggio**: strumenti opzionali attivabili dalle Impostazioni per importare elenchi massivi o estrarre numeri casuali da 1 a N.
+## Local Interface & Invariants
 
-### 2. 🎯 Viste dedicate per Turno (Turno 1, Turno 2, Turno 3, Turno 4...)
+### 1. Backend & Build Scripts (Root)
 
-- Schede dedicate all'inserimento dei punteggi man mano che arrivano i foglietti di tavolo:
-  - **N°** e **Nome Coppia** (vengono mostrate solo le coppie con nome compilato).
-  - Casella numerica **Match Points (MP)**.
-  - Casella numerica **Ventesimi (VP)**.
-- **Navigazione Dinamica tra Turni**: il pulsante _"◀ Turno Precedente"_ viene nascosto automaticamente al primo turno (Turno 1) e _"Turno Successivo ▶"_ viene nascosto all'ultimo turno.
-- **Navigazione da Tastiera**: premi <kbd>Invio</kbd> o <kbd>Freccia Giù</kbd> per passare automaticamente alla coppia successiva.
-
-### 3. 🏆 Classifica Generale (Tabellone View-Only)
-
-- Tabellone riassuntivo completo con MP e VP turno per turno:
-  - **Ordinamento Automatico**: sempre ordinato per **Totale Ventesimi (VP)** decrescenti (con spareggio su Totale MP).
-  - **Filtro Righe Vuote**: le righe senza nome o incomplete vengono escluse in automatico.
-  - **View-Only e pulita**: senza colonna azioni, con celle a contrasto e badge per le prime 3 posizioni (1°, 2°, 3°).
-  - **Filtro di Ricerca Rapido**: per filtrare la classifica in tempo reale per nome o per numero di squadra.
-
-### 4. 🥇 Podio
-
-- Schermata grafica celebrativa con podio a gradini 3D per le prime 3 coppie classificate e menzioni d'onore per le successive.
+* **`main.py` (`BurracoAPI`)**:
+  - `save_tournament_data(data_json)`: Writes tournament payload to `Documents/BurracoPunti/statistiche_tornei.json`.
+  - `load_tournament_data()`: Reads JSON data from the user Documents folder.
+  - `save_excel_file(filename_default, base64_content)`: Opens native Windows save dialog to persist `.xlsx` binaries.
+  - `save_json_backup(filename_default, json_content)`: Opens native Windows dialog for JSON backup export.
+  - *Invariants*: Window dimensions minimum 1100×750px; flags `--disable-gpu` configured for legacy Windows graphics drivers.
+* **`build.py`**: PyInstaller build automation generating standalone `BurracoPunti.exe` (run manually by operator).
+* **`test_engine.js`**: 21-test automated suite covering parsing, Mitchell movements, FIBUR conversions, accessibility, and offline cache consistency.
 
 ---
 
-## 🎨 Design & Separatori Visivi
+## Subdirectories & System Boundaries
 
-- **Header Actions**: separatore visivo sottile (`|`) tra il pulsante **🖨️ PDF** e **⚙️ Impostazioni**.
-- **Barra di Navigazione**: divisori verticali leggeri (`|`) tra ogni singolo turno e tra le schede principali (`Tabellone Iniziale` | `Turni` | `Classifica` | `Podio`).
+### `src/` — Application Frontend
+
+* **[`src/index.html`](file:///home/giorgio/Desktop/apps/BurracoPunti/src/index.html)**:
+  - Single Page Application DOM structure with tabbed views: Tabellone Iniziale, Round Scoring, Classifica Generale, and Podio.
+  - Custom modal dialogs: Settings, Pair Editing, Lottery Draw, Custom Tournament Name, Backup Loading, Feedback, and Confirmation.
+  - Service Worker registration with online/offline connectivity listeners.
+
+* **[`src/app.js`](file:///home/giorgio/Desktop/apps/BurracoPunti/src/app.js) (`BurracoApp`)**:
+  - Central reactive UI controller coordinating DOM rendering, state updates, and user input events.
+  - **Methods**:
+    - `initNetworkStatus()`: Monitors online/offline events, updates Settings indicator dot, and triggers background `reg.update()`.
+    - `initFontZoom()` / `applyFontZoom()`: Controls zoom scale levels (0.9 to 1.4) across `.app-main` and `.modal-dialog`.
+    - `renderRoundView()`: Generates Mitchell table rows, score fields with `inputmode="numeric"`, and auto-calculates opponent VP.
+    - `checkRoundScoreConsistency()`: Validates that round VP sum equals $20 \times \text{active tables} + \text{bye VP}$.
+    - `showFeedbackModal({ title, message, detail, icon })`: Non-blocking alert modal replacement.
+    - `showConfirmModal({ title, message, detail, confirmText, confirmClass, onConfirm, onCancel })`: Non-blocking confirmation modal replacement.
+
+* **[`src/sw.js`](file:///home/giorgio/Desktop/apps/BurracoPunti/src/sw.js)**:
+  - Service Worker implementation caching all static assets (`burraco-cache-v1.3.4`).
+  - Cache-First strategy for static assets and offline navigation fallback to cached `index.html`.
+
+* **[`src/manifest.json`](file:///home/giorgio/Desktop/apps/BurracoPunti/src/manifest.json)**:
+  - PWA manifest defining standalone display mode, orientation, app shortcuts, and icon assets.
+
+### `src/css/` — Modular Design System
+
+* **[`src/css/base.css`](file:///home/giorgio/Desktop/apps/BurracoPunti/src/css/base.css)**: Slate & Sapphire design tokens, typography, header controls, tabs navigation, responsive media queries (≤ 900px), and scroll locks (`overscroll-behavior: none`).
+* **[`src/css/tables.css`](file:///home/giorgio/Desktop/apps/BurracoPunti/src/css/tables.css)**: Tabular styles, Mitchell pair row grouping with vertical `rowspan="2"` table number cells, and sticky headers.
+* **[`src/css/modals.css`](file:///home/giorgio/Desktop/apps/BurracoPunti/src/css/modals.css)**: Custom modal backdrop animations, dialog layouts, and `--app-zoom` inheritance.
+* **[`src/css/podium.css`](file:///home/giorgio/Desktop/apps/BurracoPunti/src/css/podium.css)**: 3D celebratory podium cards for 1st, 2nd, and 3rd place finishers.
+* **[`src/css/print.css`](file:///home/giorgio/Desktop/apps/BurracoPunti/src/css/print.css)**: Clean A4 print layout rules for physical referee records.
+
+### `src/js/` — Core Pure Logic Modules
+
+* **[`src/js/config.js`](file:///home/giorgio/Desktop/apps/BurracoPunti/src/js/config.js) (`BURRACO_CONFIG`)**:
+  - Single source of truth for version (`v1.3.4`), default tournament rounds (4), default bye points (12), prizepool settings, and disk folder names.
+* **[`src/js/utils.js`](file:///home/giorgio/Desktop/apps/BurracoPunti/src/js/utils.js) (`BurracoUtils`)**:
+  - Date formatting (`getDateGGMMAA`), HTML escaping (`escapeHtml`), and sort key parsing (`parseSortKey`).
+* **[`src/js/engine.js`](file:///home/giorgio/Desktop/apps/BurracoPunti/src/js/engine.js) (`BurracoEngine`)**:
+  - `getMitchellPairings(pairs, roundIndex)`: Computes Mitchell round movement pairings and resting pair designation for odd counts.
+  - `calculateVpFromMp(mpA, mpB)`: Official FIBUR 11-bracket table conversion from Match Point difference to 20 Victory Points.
+  - `calculatePrizepool(pairsCount, feePerPlayer, percentages)`: Computes monetary rewards rounded to 0.50€.
+  - `assignRandomLots(pairs)` / `assignSequentialLots(pairs)`: Lottery assignment logic.
+* **[`src/js/storage.js`](file:///home/giorgio/Desktop/apps/BurracoPunti/src/js/storage.js) (`BurracoStorage`)**:
+  - `loadState()` / `saveState(state)`: Dual-layer persistence across `localStorage` and disk bridge.
+  - `startNewEvening(state)`: Archives current session under `serata_GGMMAA` and resets active board.
+  - `mergeBackupData(currentState, backupData)`: Non-destructive JSON backup importer with duplication protection.
+* **[`src/js/excel.js`](file:///home/giorgio/Desktop/apps/BurracoPunti/src/js/excel.js) (`BurracoExcel`)**:
+  - `exportLeaderboardImage(state, rankedPairs, callback)`: HTML5 Canvas rendering of the leaderboard formatted for WhatsApp sharing.
+  - `exportToExcel(state, rankedPairs, callback)`: SheetJS workbook generator containing Leaderboard and Complete Rounds sheets.
 
 ---
 
-## 💾 Backup, Persistenza & Impostazioni
+## Global Invariants
 
-- **Salvataggio Multi-Giornata Storico (`statistiche_tornei.json`)**:
-  - Il file mantiene un'unica radice `title` e un'indentazione incrementale con i blocchi storici di tutte le serate giocate nominati per data in formato GGMMAA (es. `serata_040926` per il 4 settembre 2026).
-  - All'avvio di una **"✨ Nuova Serata"**, i punteggi e le coppie della serata corrente vengono archiviati nel loro blocco di data, azzerando il tabellone per inserire le nuove coppie e numeri.
-  - Salvataggio automatico continuo sia in `localStorage` che nel file locale su Windows.
-- **Backup e Ripristino JSON**:
-  - **`💾 Salva Backup (.json)`**: scarica un file `.json` formattato con tutte le giornate archiviate.
-  - **`📂 Carica Backup (.json)`**: ricarica un file `.json` per ripristinare o spostare l'intero campionato/torneo da un dispositivo all'altro.
-- **Esportazione Excel (`.xlsx`)**: esportazione con foglio di Classifica Generale e Tabellone Completo di tutti i turni.
-- **Stampa PDF Ufficiale**: impaginazione per stampa A4 con intestazione, date e sezioni firma arbitro/direttore di gara.
-- **Personalizzazione Strumenti**: toggle switch nelle impostazioni per mostrare/nascondere _"Incolla Elenco da Excel"_, _"Sorteggio"_ e scheda _"Podio"_.
+1. **Date Key Schema**: Evening archives must strictly follow `serata_GGMMAA` (e.g. `serata_281026` for October 28, 2026) to preserve session state past midnight.
+2. **Score Range Constraint**: Individual Victory Points are clamped between $0 \le \text{VP} \le 20$.
+3. **Complementary Scores**: For any active pairing $A$ vs $B$, $\text{VP}_A + \text{VP}_B = 20$.
+4. **Modal Hygiene**: Zero native blocking dialogs (`window.alert`, `window.confirm`). All dialogs must use the application modal subsystem.
+5. **Senior Visual Accessibility**: Touch hit areas must adhere to minimum ergonomic bounds (≥ 34–36px); font zoom must scale both tables and modal overlays.
 
 ---
 
-## 🛠️ Struttura del Progetto & Sviluppo
+## Global Side Effects
 
-```text
-Burraco/
-├── src/
-│   ├── index.html         # Struttura semantica, viste e finestre modali
-│   ├── styles.css         # Design system Vanilla CSS (Slate & Sapphire, responsive, print)
-│   ├── app.js             # Engine reattivo, calcolo spareggi VP/MP, persistenza, import/export
-│   └── xlsx.full.min.js   # Libreria SheetJS per generazione Excel 100% offline
-├── main.py                # Wrapper Python PyWebView per finestra desktop nativa Windows
-├── build.py               # Script PyInstaller per compilazione dell'eseguibile portatile
-├── test_engine.js         # Suite di test Node.js per verifica logica calcoli e spareggi
-├── index.html             # Entry point con redirect automatico a src/ per GitHub Pages
-└── README.md              # Documentazione del progetto
-```
+* **Desktop Disk Persistence**: Synchronous / asynchronous writes to `statistiche_tornei.json` in user's Documents folder.
+* **Browser LocalStorage**: Local mutations under key `burraco_master_state` and `burraco_zoom_index`.
+* **PWA Cache Invalidation**: Deletion of previous cache versions during Service Worker `activate` event lifecycle.
 
-### Verifica e Test della Logica
+---
 
-Per eseguire i test unitari della logica di calcolo, spareggi e parser:
+## System Verification
+
+Execute the complete modular verification suite:
 
 ```bash
 node test_engine.js
 ```
-
-### Compilazione dell'Eseguibile Windows
-
-Per generare l'eseguibile standalone `BurracoPunti.exe`:
-
-```bash
-python build.py
-```
-
-_(L'eseguibile viene generato direttamente nella cartella principale del progetto)._

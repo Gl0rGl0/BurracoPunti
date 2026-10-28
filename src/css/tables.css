@@ -288,4 +288,51 @@
   box-shadow: 0 1px 3px rgba(37, 99, 235, 0.35);
 }
 
+/* ==========================================================================
+   ROUND MITCHELL TABLE GROUPING & RESTING ROW
+   ========================================================================== */
+.col-table-num {
+  width: 65px;
+  text-align: center;
+  font-weight: 700;
+  vertical-align: middle;
+}
 
+.round-table-cell-num {
+  width: 65px;
+  text-align: center;
+  vertical-align: middle;
+  font-weight: 800;
+  font-size: 16.5px;
+  color: var(--text-main);
+  background-color: #F8FAFC !important;
+  border-right: 1px solid var(--border-color);
+  border-bottom: 2.5px solid #CBD5E1 !important;
+}
+
+.round-table-cell-num-resting {
+  width: 65px;
+  text-align: center;
+  vertical-align: middle;
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--text-muted);
+  background-color: #FFFBEB !important;
+  border-right: 1px solid var(--border-color);
+}
+
+.round-table-row-divider td {
+  border-bottom: 2.5px solid #CBD5E1 !important;
+}
+
+.round-table-resting-row {
+  background-color: #FFFBEB !important;
+}
+
+.round-table-resting-row:hover {
+  background-color: #FEF3C7 !important;
+}
+
+.round-table-resting-row td {
+  border-top: 2px dashed #F59E0B;
+}

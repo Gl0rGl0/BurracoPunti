@@ -585,7 +585,7 @@ if (!js.includes('if (this.roundVpCheckBanner) this.roundVpCheckBanner.style.dis
 console.log('- Reset banner e checkmark garantito quando non ci sono coppie (OK)');
 console.log('>>> TEST 14 SUPERATO CON SUCCESSO! Tabellone pulito all\'avvio e nessun falso allarme.');
 
-console.log('\n--- TEST 15: Verifica Configurazione Avviso Punteggio Errato, Offline SW e Versione v1.3.3 ---');
+console.log('\n--- TEST 15: Verifica Configurazione Avviso Punteggio Errato, Offline SW e Versione v1.3.4 ---');
 if (!html.includes('id="setting-toggle-score-warning"')) {
   throw new Error('Test 15 fallito: toggle setting-toggle-score-warning mancante in index.html!');
 }
@@ -593,19 +593,19 @@ if (!js.includes('setting-toggle-score-warning') || !js.includes('showScoreWarni
   throw new Error('Test 15 fallito: gestione showScoreWarning mancante in app.js!');
 }
 const testCfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (BURRACO_CONFIG || {});
-if (testCfg.version !== '1.3.3') {
-  throw new Error(`Test 15 fallito: BURRACO_CONFIG.version deve essere 1.3.3, trovato ${testCfg.version}!`);
+if (testCfg.version !== '1.3.4') {
+  throw new Error(`Test 15 fallito: BURRACO_CONFIG.version deve essere 1.3.4, trovato ${testCfg.version}!`);
 }
 const swContent = fs.readFileSync(path.join(__dirname, 'src', 'sw.js'), 'utf8');
-if (!swContent.includes('burraco-cache-v1.3.3')) {
-  throw new Error('Test 15 fallito: CACHE_NAME in sw.js non aggiornato a v1.3.3!');
+if (!swContent.includes('burraco-cache-v1.3.4')) {
+  throw new Error('Test 15 fallito: CACHE_NAME in sw.js non aggiornato a v1.3.4!');
 }
 if (!swContent.includes('ignoreSearch: true')) {
   throw new Error('Test 15 fallito: sw.js non include ignoreSearch: true per la resilienza offline!');
 }
 const manifestContent = fs.readFileSync(path.join(__dirname, 'src', 'manifest.json'), 'utf8');
-if (!manifestContent.includes('"version": "1.3.3"')) {
-  throw new Error('Test 15 fallito: version in manifest.json non aggiornata a 1.3.3!');
+if (!manifestContent.includes('"version": "1.3.4"')) {
+  throw new Error('Test 15 fallito: version in manifest.json non aggiornata a 1.3.4!');
 }
 if (!html.includes('id="btn-share-image"')) {
   throw new Error('Test 15 fallito: pulsante id="btn-share-image" mancante in index.html!');
@@ -617,8 +617,8 @@ console.log('- Toggle setting-toggle-score-warning presente nella UI delle impos
 console.log('- Controller app.js supporta attivazione/disattivazione avviso punteggio errato (OK)');
 console.log('- Supporto condivisione nativa e protezione iPad (btnShareImage / isIOS) verificato (OK)');
 console.log('- Service worker configurato con Cache-First e ignoreSearch: true per supporto offline totale (OK)');
-console.log('- Versione v1.3.3 sincronizzata tra config.js, manifest.json, sw.js e index.html (OK)');
-console.log('>>> TEST 15 SUPERATO CON SUCCESSO! Avviso configurabile, export iPad, offline PWA e versione 1.3.3 allineati al 100%.');
+console.log('- Versione v1.3.4 sincronizzata tra config.js, manifest.json, sw.js e index.html (OK)');
+console.log('>>> TEST 15 SUPERATO CON SUCCESSO! Avviso configurabile, export iPad, offline PWA e versione 1.3.4 allineati al 100%.');
 
 console.log('\n--- TEST 16: Verifica Ricerca Rapida Turno e Attivazione Automatica Riposo per Squadre Dispari ---');
 if (!html.includes('id="round-search-input"')) {
@@ -796,6 +796,98 @@ if (testMultiEveningState.roundsCount !== 3 || testMultiEveningState.pairs.lengt
 console.log('- loadEvening carica correttamente coppie, turni e imposta la data attiva (OK)');
 console.log('>>> TEST 19 SUPERATO CON SUCCESSO! Personalizzazione configurazione e switch serata da memoria verificati al 100%.');
 
+console.log('\n--- TEST 20: Verifica Conversione Ufficiale FIBUR a 4 Smazzate (BurracoEngine.calculateVpFromMp) ---');
+// Verifica scaglioni 4 smazzate
+const testDiffs = [
+  { mpA: 1000, mpB: 950, expectedA: 10, expectedB: 10, label: '0-100 (diff 50)' },
+  { mpA: 1000, mpB: 800, expectedA: 11, expectedB: 9, label: '105-300 (diff 200)' },
+  { mpA: 600, mpB: 1000, expectedA: 8, expectedB: 12, label: '305-500 (diff 400, B vince)' },
+  { mpA: 1700, mpB: 1000, expectedA: 13, expectedB: 7, label: '505-700 (diff 700)' },
+  { mpA: 1000, mpB: 1850, expectedA: 6, expectedB: 14, label: '705-900 (diff 850, B vince)' },
+  { mpA: 2000, mpB: 1000, expectedA: 15, expectedB: 5, label: '905-1100 (diff 1000)' },
+  { mpA: 1000, mpB: 2200, expectedA: 4, expectedB: 16, label: '1105-1300 (diff 1200, B vince)' },
+  { mpA: 2400, mpB: 1000, expectedA: 17, expectedB: 3, label: '1305-1500 (diff 1400)' },
+  { mpA: 1000, mpB: 2600, expectedA: 2, expectedB: 18, label: '1505-1700 (diff 1600, B vince)' },
+  { mpA: 2900, mpB: 1000, expectedA: 19, expectedB: 1, label: '1705-2000 (diff 1900)' },
+  { mpA: 1000, mpB: 3500, expectedA: 0, expectedB: 20, label: '>2000 (diff 2500, B vince)' }
+];
+
+testDiffs.forEach(td => {
+  const res = BurracoEngine.calculateVpFromMp(td.mpA, td.mpB);
+  if (!res || res.vpA !== td.expectedA || res.vpB !== td.expectedB) {
+    throw new Error(`Test 20 fallito su ${td.label}: atteso ${td.expectedA}-${td.expectedB}, ottenuto ${res?.vpA}-${res?.vpB}`);
+  }
+});
+
+// Verifica input incompleto
+if (BurracoEngine.calculateVpFromMp(1000, null) !== null || BurracoEngine.calculateVpFromMp('', 500) !== null) {
+  throw new Error('Test 20 fallito: calculateVpFromMp deve restituire null su input incompleti');
+}
+console.log('- Tutti gli 11 scaglioni della tabella FIBUR a 4 smazzate verificati con successo (OK)');
+console.log('- Gestione vincitore/perdente e complementare a 20 VP conforme (OK)');
+console.log('- Gestione input nulli o vuoti verificata (OK)');
+console.log('>>> TEST 20 SUPERATO CON SUCCESSO! Conversione MP -> VP a 4 smazzate verificata al 100%.');
+
+console.log('\n--- TEST 21: Verifica Rotazione Mitchell dei Tavoli e Gestione Riposo (BurracoEngine.getMitchellPairings) ---');
+const testMitchellPairs4 = [
+  { id: 'p1', name: 'Coppia 1', lotNumber: 1 },
+  { id: 'p2', name: 'Coppia 2', lotNumber: 2 },
+  { id: 'p3', name: 'Coppia 3', lotNumber: 3 },
+  { id: 'p4', name: 'Coppia 4', lotNumber: 4 }
+];
+
+// Turno 1 (roundIndex 0): Tavolo 1 = (1, 2), Tavolo 2 = (3, 4) -> ordine: 1, 2, 3, 4
+const r0 = BurracoEngine.getMitchellPairings(testMitchellPairs4, 0);
+if (r0.tables.length !== 2 || r0.restingPair !== null) throw new Error('Test 21 fallito Turno 1 coppie pari');
+if (r0.tables[0].pairA.id !== 'p1' || r0.tables[0].pairB.id !== 'p2') throw new Error('Test 21: T1 atteso (p1 vs p2)');
+if (r0.tables[1].pairA.id !== 'p3' || r0.tables[1].pairB.id !== 'p4') throw new Error('Test 21: T2 atteso (p3 vs p4)');
+const r0Order = r0.orderedPairs.map(p => p.id).join(',');
+if (r0Order !== 'p1,p2,p3,p4') throw new Error(`Test 21: ordine T1 atteso p1,p2,p3,p4, trovato ${r0Order}`);
+
+// Turno 2 (roundIndex 1): Tavolo 1 = (1, 4), Tavolo 2 = (3, 2) -> ordine: 1, 4, 3, 2
+const r1 = BurracoEngine.getMitchellPairings(testMitchellPairs4, 1);
+if (r1.tables[0].pairA.id !== 'p1' || r1.tables[0].pairB.id !== 'p4') throw new Error('Test 21: T1 turno 2 atteso (p1 vs p4)');
+if (r1.tables[1].pairA.id !== 'p3' || r1.tables[1].pairB.id !== 'p2') throw new Error('Test 21: T2 turno 2 atteso (p3 vs p2)');
+const r1Order = r1.orderedPairs.map(p => p.id).join(',');
+if (r1Order !== 'p1,p4,p3,p2') throw new Error(`Test 21: ordine T2 atteso p1,p4,p3,p2, trovato ${r1Order}`);
+console.log('- Rotazione 4 coppie pari (Turno 1: [1,2,3,4], Turno 2: [1,4,3,2]): OK');
+
+// Test 5 coppie (dispari: 2 fisse F1=p1, F2=p3; 3 mobili M1=p2, M2=p4, M3=p5)
+const testMitchellPairs5 = [
+  { id: 'p1', name: 'Coppia 1', lotNumber: 1 },
+  { id: 'p2', name: 'Coppia 2', lotNumber: 2 },
+  { id: 'p3', name: 'Coppia 3', lotNumber: 3 },
+  { id: 'p4', name: 'Coppia 4', lotNumber: 4 },
+  { id: 'p5', name: 'Coppia 5', lotNumber: 5 }
+];
+
+// Turno 1 dispari: T1=(p1 vs p2), T2=(p3 vs p4), Riposo=p5
+const r0Odd = BurracoEngine.getMitchellPairings(testMitchellPairs5, 0);
+if (r0Odd.tables.length !== 2) throw new Error('Test 21: 5 coppie devono avere 2 tavoli attivi');
+if (r0Odd.tables[0].pairA.id !== 'p1' || r0Odd.tables[0].pairB.id !== 'p2') throw new Error('Test 21: T1 turno 1 dispari atteso (p1 vs p2)');
+if (r0Odd.tables[1].pairA.id !== 'p3' || r0Odd.tables[1].pairB.id !== 'p4') throw new Error('Test 21: T2 turno 1 dispari atteso (p3 vs p4)');
+if (!r0Odd.restingPair || r0Odd.restingPair.id !== 'p5') throw new Error('Test 21: al turno 1 deve riposare p5');
+if (r0Odd.orderedPairs[r0Odd.orderedPairs.length - 1].id !== 'p5') throw new Error('Test 21: la coppia a riposo deve essere ultima nella lista');
+
+// Turno 2 dispari: T1=(p1 vs p5), T2=(p3 vs p2), Riposo=p4
+const r1Odd = BurracoEngine.getMitchellPairings(testMitchellPairs5, 1);
+if (r1Odd.tables[0].pairA.id !== 'p1' || r1Odd.tables[0].pairB.id !== 'p5') throw new Error('Test 21: T1 turno 2 dispari atteso (p1 vs p5)');
+if (r1Odd.tables[1].pairA.id !== 'p3' || r1Odd.tables[1].pairB.id !== 'p2') throw new Error('Test 21: T2 turno 2 dispari atteso (p3 vs p2)');
+if (!r1Odd.restingPair || r1Odd.restingPair.id !== 'p4') throw new Error('Test 21: al turno 2 deve riposare p4');
+
+// Turno 3 dispari: T1=(p1 vs p4), T2=(p3 vs p5), Riposo=p2
+const r2Odd = BurracoEngine.getMitchellPairings(testMitchellPairs5, 2);
+if (r2Odd.tables[0].pairA.id !== 'p1' || r2Odd.tables[0].pairB.id !== 'p4') throw new Error('Test 21: T1 turno 3 dispari atteso (p1 vs p4)');
+if (r2Odd.tables[1].pairA.id !== 'p3' || r2Odd.tables[1].pairB.id !== 'p5') throw new Error('Test 21: T2 turno 3 dispari atteso (p3 vs p5)');
+if (!r2Odd.restingPair || r2Odd.restingPair.id !== 'p2') throw new Error('Test 21: al turno 3 deve riposare p2');
+
+console.log('- Rotazione 5 coppie dispari (Turno 1: T1=[1 vs 2], T2=[3 vs 4], Riposo=5): OK');
+console.log('- Rotazione 5 coppie dispari (Turno 2: T1=[1 vs 5], T2=[3 vs 2], Riposo=4): OK');
+console.log('- Rotazione 5 coppie dispari (Turno 3: T1=[1 vs 4], T2=[3 vs 5], Riposo=2): OK');
+console.log('- Verifica coppie fisse sempre attive (1 e 3) e rotazione circolare Riposo -> T1 -> T2 -> Riposo: OK');
+console.log('>>> TEST 21 SUPERATO CON SUCCESSO! Rotazione Mitchell e gestione riposo verificate al 100%.');
+
 console.log('\n=============================================');
 console.log('TUTTI I TEST MODULARI SONO PASSATI AL 100%!');
 console.log('=============================================');
+

@@ -8,6 +8,7 @@ class BurracoApp {
     this.state = BurracoStorage.loadState();
     this.initDOMElements();
     this.initFontZoom();
+    this.initNetworkStatus();
     this.bindEvents();
     this.render();
 
@@ -116,6 +117,9 @@ class BurracoApp {
     document.documentElement.style.setProperty('--app-zoom', scale);
     const main = document.querySelector('.app-main');
     if (main) main.style.zoom = scale;
+    document.querySelectorAll('.modal-dialog').forEach(modal => {
+      modal.style.zoom = scale;
+    });
 
     if (this.btnFontDecrease) this.btnFontDecrease.disabled = (this.currentZoomIndex === 0);
     if (this.btnFontIncrease) this.btnFontIncrease.disabled = (this.currentZoomIndex === this.zoomLevels.length - 1);
@@ -139,6 +143,43 @@ class BurracoApp {
     try {
       localStorage.setItem('burraco_zoom_index', String(this.currentZoomIndex));
     } catch (e) {}
+  }
+
+  // ==========================================
+  // NETWORK STATUS & AUTO-UPDATE INDICATOR
+  // ==========================================
+  initNetworkStatus() {
+    this.networkDot = document.getElementById('settings-network-dot');
+    this.networkStatus = document.getElementById('settings-network-status');
+
+    const updateStatus = () => {
+      const isOnline = (typeof navigator !== 'undefined' && navigator.onLine !== false);
+      if (this.networkDot) {
+        this.networkDot.style.backgroundColor = isOnline ? '#10b981' : '#ef4444';
+        this.networkDot.title = isOnline ? 'Online (connesso a internet)' : 'Offline (modalità locale attiva)';
+      }
+      if (this.networkStatus) {
+        this.networkStatus.textContent = isOnline ? '' : '(Offline)';
+        this.networkStatus.style.color = isOnline ? '#10b981' : '#ef4444';
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => {
+        updateStatus();
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.ready.then(reg => {
+            if (reg && reg.update) reg.update();
+          }).catch(() => {});
+        }
+      });
+
+      window.addEventListener('offline', () => {
+        updateStatus();
+      });
+    }
+
+    updateStatus();
   }
 
   // ==========================================
@@ -195,6 +236,7 @@ class BurracoApp {
     this.modalLottery = document.getElementById('modal-lottery');
     this.modalConfirmDelete = document.getElementById('modal-confirm-delete');
     this.modalConfirmClear = document.getElementById('modal-confirm-clear');
+    this.modalConfirmAction = document.getElementById('modal-confirm-action');
     this.modalNewTournament = document.getElementById('modal-new-tournament');
     this.modalExportImage = document.getElementById('modal-export-image');
     this.modalCustomConfig = document.getElementById('modal-custom-config');
@@ -1074,7 +1116,7 @@ class BurracoApp {
                  style="width:100%; font-size:16px; font-weight:600; padding:8px 12px;">
         </td>
         <td style="text-align:center; width:150px;">
-          <input type="number" min="1" max="999" class="form-control tabular-nums initial-lot-input" 
+          <input type="number" inputmode="numeric" min="1" max="999" class="form-control tabular-nums initial-lot-input" 
                  data-pair-id="${pair.id}" data-row-idx="${rowIdx}"
                  value="${lotVal}" 
                  placeholder="N°" 
@@ -1345,23 +1387,11 @@ class BurracoApp {
     if (!this.roundTableBody) return;
     this.roundTableBody.innerHTML = '';
 
-    const sortedPairs = this.state.pairs
-      .filter(p => p.name && p.name.trim() !== '')
-      .sort((a, b) => {
-        if (a.lotNumber && b.lotNumber) return a.lotNumber - b.lotNumber;
-        if (a.lotNumber) return -1;
-        if (b.lotNumber) return 1;
-        return a.name.localeCompare(b.name);
-      });
+    const engine = (typeof window !== 'undefined' && window.BurracoEngine)
+      ? window.BurracoEngine
+      : (typeof require !== 'undefined' ? require('./js/engine') : null);
 
-    const filter = (this.roundSearchFilter || '').trim().toLowerCase();
-    const displayPairs = filter
-      ? sortedPairs.filter(p => {
-          const matchesName = (p.name || '').toLowerCase().includes(filter);
-          const matchesLot = String(p.lotNumber || '').includes(filter);
-          return matchesName || matchesLot;
-        })
-      : sortedPairs;
+    const validPairs = this.state.pairs.filter(p => p.name && p.name.trim() !== '');
 
     const showBye = this.isByeActive();
 
@@ -1369,28 +1399,16 @@ class BurracoApp {
       this.thRoundBye.style.display = showBye ? '' : 'none';
     }
 
-    if (sortedPairs.length === 0) {
+    if (validPairs.length === 0) {
       if (this.roundVpCheckBanner) this.roundVpCheckBanner.style.display = 'none';
       if (this.roundTitleCheck) this.roundTitleCheck.style.display = 'none';
       const emptyRow = document.createElement('tr');
       emptyRow.innerHTML = `
-        <td colspan="${showBye ? 5 : 4}" style="text-align:center; padding:32px; color:var(--text-muted); font-size:15px;">
+        <td colspan="${showBye ? 6 : 5}" style="text-align:center; padding:32px; color:var(--text-muted); font-size:15px;">
           Nessuna coppia registrata. Aggiungi prima le coppie dal Tabellone Iniziale.
         </td>
       `;
       this.roundTableBody.appendChild(emptyRow);
-      return;
-    }
-
-    if (displayPairs.length === 0) {
-      const emptyRow = document.createElement('tr');
-      emptyRow.innerHTML = `
-        <td colspan="${showBye ? 5 : 4}" style="text-align:center; padding:32px; color:var(--text-muted); font-size:15px;">
-          Nessuna coppia trovata per "${BurracoUtils.escapeHtml(this.roundSearchFilter)}".
-        </td>
-      `;
-      this.roundTableBody.appendChild(emptyRow);
-      this.checkRoundScoreConsistency();
       return;
     }
 
@@ -1400,13 +1418,125 @@ class BurracoApp {
       ? Number(this.state.settings.byePoints)
       : defaultBye;
 
-    displayPairs.forEach((pair) => {
+    // Genera abbinamenti ai tavoli secondo la rotazione Mitchell
+    const mitchellData = engine && engine.getMitchellPairings
+      ? engine.getMitchellPairings(validPairs, roundIdx)
+      : { tables: [], restingPair: null, orderedPairs: validPairs };
+
+    // Assegna automaticamente i punti di riposo alla coppia designata se non già definiti
+    if (mitchellData.restingPair) {
+      const restPairInState = this.state.pairs.find(p => p.id === mitchellData.restingPair.id);
+      if (restPairInState) {
+        if (!restPairInState.scores[roundIdx]) {
+          restPairInState.scores[roundIdx] = { mp: null, vp: null };
+        }
+        const sc = restPairInState.scores[roundIdx];
+        if (sc.vp === null || sc.vp === undefined || sc.vp === '') {
+          sc.vp = byePoints;
+          if (sc.mp === null || sc.mp === undefined || sc.mp === '') {
+            sc.mp = 0;
+          }
+          this.saveState();
+        }
+      }
+    }
+
+    // Filtro di ricerca per tavolo completo
+    const filter = (this.roundSearchFilter || '').trim().toLowerCase();
+    const matchesFilter = (p) => {
+      if (!p) return false;
+      const matchesName = (p.name || '').toLowerCase().includes(filter);
+      const matchesLot = String(p.lotNumber || '').includes(filter);
+      return matchesName || matchesLot;
+    };
+
+    let displayRows = [];
+
+    if (mitchellData.tables && mitchellData.tables.length > 0) {
+      mitchellData.tables.forEach(table => {
+        const pA = this.state.pairs.find(p => p.id === table.pairA.id) || table.pairA;
+        const pB = this.state.pairs.find(p => p.id === table.pairB.id) || table.pairB;
+
+        const tableMatches = !filter || matchesFilter(pA) || matchesFilter(pB);
+        if (tableMatches) {
+          displayRows.push({
+            pair: pA,
+            opponentId: pB.id,
+            tableNumber: table.tableNumber,
+            isTableEnd: false,
+            isResting: false
+          });
+          displayRows.push({
+            pair: pB,
+            opponentId: pA.id,
+            tableNumber: table.tableNumber,
+            isTableEnd: true,
+            isResting: false
+          });
+        }
+      });
+
+      if (mitchellData.restingPair) {
+        const pRest = this.state.pairs.find(p => p.id === mitchellData.restingPair.id) || mitchellData.restingPair;
+        if (!filter || matchesFilter(pRest)) {
+          displayRows.push({
+            pair: pRest,
+            opponentId: null,
+            tableNumber: null,
+            isTableEnd: true,
+            isResting: true
+          });
+        }
+      }
+    } else {
+      displayRows = validPairs.map(p => ({
+        pair: p,
+        opponentId: null,
+        tableNumber: null,
+        isTableEnd: false,
+        isResting: false
+      }));
+    }
+
+    if (displayRows.length === 0) {
+      const emptyRow = document.createElement('tr');
+      emptyRow.innerHTML = `
+        <td colspan="${showBye ? 6 : 5}" style="text-align:center; padding:32px; color:var(--text-muted); font-size:15px;">
+          Nessuna coppia trovata per "${BurracoUtils.escapeHtml(this.roundSearchFilter)}".
+        </td>
+      `;
+      this.roundTableBody.appendChild(emptyRow);
+      this.checkRoundScoreConsistency();
+      return;
+    }
+
+    displayRows.forEach(({ pair, opponentId, tableNumber, isTableEnd, isResting }) => {
       const sc = pair.scores[roundIdx] || { mp: null, vp: null };
       const mpVal = (sc.mp !== null && sc.mp !== undefined) ? sc.mp : '';
       const vpVal = (sc.vp !== null && sc.vp !== undefined) ? sc.vp : '';
       const isBye = (sc.vp !== null && sc.vp !== undefined && Number(sc.vp) === byePoints);
 
       const tr = document.createElement('tr');
+      if (isTableEnd && !isResting) {
+        tr.classList.add('round-table-row-divider');
+      }
+      if (isResting) {
+        tr.classList.add('round-table-resting-row');
+      }
+      tr.dataset.pairId = pair.id;
+      if (opponentId) tr.dataset.opponentId = opponentId;
+
+      let tableNumCellHtml = '';
+      if (!isResting) {
+        if (!isTableEnd) {
+          // Prima riga del tavolo: cella doppia verticale che copre entrambi gli avversari
+          tableNumCellHtml = `<td rowspan="2" class="round-table-cell-num">${tableNumber || '—'}</td>`;
+        }
+        // Seconda riga del tavolo: non inserisce <td> in quanto la cella è già coperta dal rowspan="2"
+      } else {
+        // Riga del riposo
+        tableNumCellHtml = `<td class="round-table-cell-num-resting">—</td>`;
+      }
 
       const byeCellHtml = showBye ? `
         <td class="col-bye">
@@ -1420,17 +1550,21 @@ class BurracoApp {
       ` : '';
 
       tr.innerHTML = `
+        ${tableNumCellHtml}
         <td class="col-lot" style="font-size:16px; font-weight:600;">${pair.lotNumber || '—'}</td>
-        <td class="col-name" style="font-size:16px; font-weight:600;">${BurracoUtils.escapeHtml(pair.name)}</td>
+        <td class="col-name" style="font-size:16px; font-weight:600;">
+          ${BurracoUtils.escapeHtml(pair.name)}
+          ${isResting ? '<span class="badge" style="margin-left:8px; font-size:12px; background:#FEF3C7; color:#92400E; border:1px solid #F59E0B; padding:2px 6px; border-radius:4px;">In Riposo</span>' : ''}
+        </td>
         ${byeCellHtml}
         <td class="col-input">
-          <input type="number" class="form-control tabular-nums round-score-input" 
-                 data-pair-id="${pair.id}" data-field="mp" value="${mpVal}" 
+          <input type="number" inputmode="numeric" class="form-control tabular-nums round-score-input" 
+                 data-pair-id="${pair.id}" data-opponent-id="${opponentId || ''}" data-field="mp" value="${mpVal}" 
                  placeholder="es. 1540" style="max-width:145px; font-size:15.5px; padding:8px 12px;">
         </td>
         <td class="col-input">
-          <input type="number" step="1" min="0" max="20" class="form-control tabular-nums round-score-input" 
-                 data-pair-id="${pair.id}" data-field="vp" value="${vpVal}" 
+          <input type="number" inputmode="numeric" step="1" min="0" max="20" class="form-control tabular-nums round-score-input" 
+                 data-pair-id="${pair.id}" data-opponent-id="${opponentId || ''}" data-field="vp" value="${vpVal}" 
                  placeholder="es. 14" style="max-width:115px; font-weight:bold; color:var(--primary); font-size:16px; padding:8px 12px;">
         </td>
       `;
@@ -1469,6 +1603,7 @@ class BurracoApp {
     this.roundTableBody.querySelectorAll('.round-score-input').forEach(inp => {
       const handleInputOrChange = (e) => {
         const pairId = e.target.dataset.pairId;
+        const opponentId = e.target.dataset.opponentId;
         const field = e.target.dataset.field;
         const pair = this.state.pairs.find(p => p.id === pairId);
         if (!pair) return;
@@ -1489,6 +1624,42 @@ class BurracoApp {
         }
 
         pair.scores[roundIdx][field] = val;
+
+        // Se è stato inserito un Match Point (MP), controlla se anche l'avversaria ha MP inseriti
+        if (field === 'mp' && opponentId) {
+          const opponent = this.state.pairs.find(p => p.id === opponentId);
+          if (opponent && opponent.scores[roundIdx]) {
+            const oppMp = opponent.scores[roundIdx].mp;
+            if (val !== null && !isNaN(val) && oppMp !== null && oppMp !== undefined && oppMp !== '' && !isNaN(Number(oppMp))) {
+              const resVp = engine && engine.calculateVpFromMp ? engine.calculateVpFromMp(val, oppMp) : null;
+              if (resVp) {
+                pair.scores[roundIdx].vp = resVp.vpA;
+                opponent.scores[roundIdx].vp = resVp.vpB;
+
+                // Aggiorna i campi VP a video
+                const pairVpInp = this.roundTableBody.querySelector(`.round-score-input[data-pair-id="${pair.id}"][data-field="vp"]`);
+                const oppVpInp = this.roundTableBody.querySelector(`.round-score-input[data-pair-id="${opponent.id}"][data-field="vp"]`);
+                if (pairVpInp) pairVpInp.value = resVp.vpA;
+                if (oppVpInp) oppVpInp.value = resVp.vpB;
+                this.saveState();
+              }
+            }
+          }
+        }
+
+        // Se è stato modificato manualmente un Victory Point (VP), autocompleta l'avversaria a (20 - VP)
+        if (field === 'vp' && opponentId && val !== null && !isNaN(val)) {
+          const opponent = this.state.pairs.find(p => p.id === opponentId);
+          if (opponent) {
+            if (!opponent.scores[roundIdx]) opponent.scores[roundIdx] = { mp: null, vp: null };
+            const compVp = Math.max(0, Math.min(20, 20 - val));
+            opponent.scores[roundIdx].vp = compVp;
+
+            const oppVpInp = this.roundTableBody.querySelector(`.round-score-input[data-pair-id="${opponent.id}"][data-field="vp"]`);
+            if (oppVpInp) oppVpInp.value = compVp;
+            this.saveState();
+          }
+        }
 
         if (e.type === 'change') {
           this.saveState();
@@ -1614,7 +1785,7 @@ class BurracoApp {
     }
   }
 
-  // Keyboard navigation inside round table (Excel feel)
+  // Keyboard navigation inside round table (Excel feel with rowspan support)
   handleRoundTableKeyboard(e) {
     if (!e.target.classList.contains('round-score-input')) return;
 
@@ -1623,10 +1794,10 @@ class BurracoApp {
     const currentTr = currentInput.closest('tr');
     if (!currentTd || !currentTr) return;
 
-    const colIndex = Array.from(currentTr.children).indexOf(currentTd);
     const tbody = currentTr.parentElement;
     const rows = Array.from(tbody.querySelectorAll('tr'));
     const rowIndex = rows.indexOf(currentTr);
+    const field = currentInput.dataset.field;
 
     let targetInput = null;
 
@@ -1634,23 +1805,23 @@ class BurracoApp {
       e.preventDefault();
       if (rowIndex < rows.length - 1) {
         const nextTr = rows[rowIndex + 1];
-        targetInput = nextTr.children[colIndex]?.querySelector('.round-score-input');
+        targetInput = nextTr.querySelector(`.round-score-input[data-field="${field}"]`);
       }
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (rowIndex > 0) {
         const prevTr = rows[rowIndex - 1];
-        targetInput = prevTr.children[colIndex]?.querySelector('.round-score-input');
+        targetInput = prevTr.querySelector(`.round-score-input[data-field="${field}"]`);
       }
     } else if (e.key === 'ArrowRight') {
       const isAtEnd = currentInput.selectionStart === currentInput.value.length;
-      if (isAtEnd && colIndex === 2) {
-        targetInput = currentTr.children[3]?.querySelector('.round-score-input');
+      if (isAtEnd && field === 'mp') {
+        targetInput = currentTr.querySelector('.round-score-input[data-field="vp"]');
       }
     } else if (e.key === 'ArrowLeft') {
       const isAtStart = currentInput.selectionStart === 0;
-      if (isAtStart && colIndex === 3) {
-        targetInput = currentTr.children[2]?.querySelector('.round-score-input');
+      if (isAtStart && field === 'vp') {
+        targetInput = currentTr.querySelector('.round-score-input[data-field="mp"]');
       }
     }
 
@@ -1711,7 +1882,11 @@ class BurracoApp {
   setRoundsCount(newCount) {
     if (newCount === this.state.roundsCount || isNaN(newCount)) return;
     if (newCount < 1) {
-      alert('Il torneo deve avere almeno 1 turno.');
+      this.showFeedbackModal({
+        title: 'Turni Non Validi',
+        message: 'Il torneo deve avere almeno 1 turno.',
+        icon: '⚠️'
+      });
       if (this.settingRoundsCount) this.settingRoundsCount.value = this.state.roundsCount;
       return;
     }
@@ -1726,12 +1901,28 @@ class BurracoApp {
       }
 
       if (hasData) {
-        if (!confirm(`Riducendo i turni a ${newCount}, i punteggi dei turni successivi andranno persi. Sei sicuro di voler procedere?`)) {
-          if (this.settingRoundsCount) this.settingRoundsCount.value = this.state.roundsCount;
-          return;
-        }
+        this.showConfirmModal({
+          title: 'Riduzione Turni',
+          message: `Riducendo i turni a ${newCount}, i punteggi dei turni successivi andranno persi.`,
+          detail: 'Sei sicuro di voler procedere con l\'eliminazione dei turni eccedenti?',
+          confirmText: 'Riduci Turni',
+          confirmClass: 'btn-danger',
+          onConfirm: () => {
+            this.applySetRoundsCount(newCount);
+          },
+          onCancel: () => {
+            if (this.settingRoundsCount) this.settingRoundsCount.value = this.state.roundsCount;
+          }
+        });
+        return;
       }
+    }
 
+    this.applySetRoundsCount(newCount);
+  }
+
+  applySetRoundsCount(newCount) {
+    if (newCount < this.state.roundsCount) {
       this.state.pairs.forEach(p => {
         if (p.scores.length > newCount) {
           p.scores = p.scores.slice(0, newCount);
@@ -1760,18 +1951,27 @@ class BurracoApp {
   runRandomLottery() {
     const count = this.state.pairs.length;
     if (count === 0) {
-      alert('Nessuna coppia registrata.');
+      this.showFeedbackModal({
+        title: 'Nessuna Coppia',
+        message: 'Nessuna coppia registrata.',
+        icon: '⚠️'
+      });
       return;
     }
 
-    if (!confirm(`Vuoi estrarre a sorte i numeri identificativi (1..${count}) per tutte le coppie?`)) {
-      return;
-    }
-
-    BurracoEngine.assignRandomLots(this.state.pairs);
-    this.saveState();
-    this.render();
-    this.closeModal('modalLottery');
+    this.showConfirmModal({
+      title: 'Estrazione a Sorte',
+      message: `Vuoi estrarre a sorte i numeri identificativi (1..${count}) per tutte le coppie?`,
+      detail: 'I numeri di sorteggio esistenti verranno rimescolati casualmente.',
+      confirmText: 'Estrai a Sorte',
+      confirmClass: 'btn-primary',
+      onConfirm: () => {
+        BurracoEngine.assignRandomLots(this.state.pairs);
+        this.saveState();
+        this.render();
+        this.closeModal('modalLottery');
+      }
+    });
   }
 
   runSequentialLottery() {
@@ -1952,6 +2152,46 @@ class BurracoApp {
     }
 
     this.openModal('modalFeedback');
+  }
+
+  showConfirmModal({ title = 'Conferma Operazione', message = '', detail = '', confirmText = 'Conferma', confirmClass = 'btn-primary', onConfirm, onCancel } = {}) {
+    const titleEl = document.getElementById('confirm-action-title');
+    const msgEl = document.getElementById('confirm-action-message');
+    const detailEl = document.getElementById('confirm-action-detail');
+    const confirmBtn = document.getElementById('btn-confirm-action');
+    const cancelBtn = document.getElementById('btn-cancel-action');
+    const closeBtn = document.getElementById('close-confirm-action-modal');
+
+    if (titleEl) titleEl.textContent = title;
+    if (msgEl) msgEl.textContent = message;
+    if (detailEl) {
+      if (detail) {
+        detailEl.textContent = detail;
+        detailEl.style.display = 'block';
+      } else {
+        detailEl.textContent = '';
+        detailEl.style.display = 'none';
+      }
+    }
+
+    if (confirmBtn) {
+      confirmBtn.className = `btn ${confirmClass}`;
+      confirmBtn.textContent = confirmText;
+      confirmBtn.onclick = () => {
+        this.closeModal('modalConfirmAction');
+        if (typeof onConfirm === 'function') onConfirm();
+      };
+    }
+
+    const handleCancel = () => {
+      this.closeModal('modalConfirmAction');
+      if (typeof onCancel === 'function') onCancel();
+    };
+
+    if (cancelBtn) cancelBtn.onclick = handleCancel;
+    if (closeBtn) closeBtn.onclick = handleCancel;
+
+    this.openModal('modalConfirmAction');
   }
 
   saveCustomConfig() {

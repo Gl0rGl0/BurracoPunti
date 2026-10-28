@@ -207,6 +207,183 @@ const BurracoEngine = {
       isOdd,
       completeTables
     };
+  },
+
+  /**
+   * Conversione ufficiale FIBUR a 4 smazzate da differenza MP a Victory Points (VP).
+   * 0 - 100: 10 - 10
+   * 105 - 300: 11 - 9
+   * 305 - 500: 12 - 8
+   * 505 - 700: 13 - 7
+   * 705 - 900: 14 - 6
+   * 905 - 1100: 15 - 5
+   * 1105 - 1300: 16 - 4
+   * 1305 - 1500: 17 - 3
+   * 1505 - 1700: 18 - 2
+   * 1705 - 2000: 19 - 1
+   * Oltre 2000: 20 - 0
+   *
+   * @param {number|string} mpA - Match Points coppia A
+   * @param {number|string} mpB - Match Points coppia B
+   * @returns {Object|null} { vpA, vpB, diff } oppure null se input incompleto
+   */
+  calculateVpFromMp(mpA, mpB) {
+    if (mpA === null || mpA === undefined || mpA === '' || isNaN(Number(mpA))) return null;
+    if (mpB === null || mpB === undefined || mpB === '' || isNaN(Number(mpB))) return null;
+
+    const numA = Number(mpA);
+    const numB = Number(mpB);
+    const diff = Math.abs(numA - numB);
+
+    let winnerVp = 10;
+    if (diff <= 100) {
+      winnerVp = 10;
+    } else if (diff <= 300) {
+      winnerVp = 11;
+    } else if (diff <= 500) {
+      winnerVp = 12;
+    } else if (diff <= 700) {
+      winnerVp = 13;
+    } else if (diff <= 900) {
+      winnerVp = 14;
+    } else if (diff <= 1100) {
+      winnerVp = 15;
+    } else if (diff <= 1300) {
+      winnerVp = 16;
+    } else if (diff <= 1500) {
+      winnerVp = 17;
+    } else if (diff <= 1700) {
+      winnerVp = 18;
+    } else if (diff <= 2000) {
+      winnerVp = 19;
+    } else {
+      winnerVp = 20;
+    }
+
+    const loserVp = 20 - winnerVp;
+
+    if (numA >= numB) {
+      return { vpA: winnerVp, vpB: loserVp, diff };
+    } else {
+      return { vpA: loserVp, vpB: winnerVp, diff };
+    }
+  },
+
+  /**
+   * Genera gli abbinamenti ai tavoli per il turno dato secondo la rotazione ufficiale Mitchell.
+   * - Coppie fisse (dispari: 1, 3, 5...): restano al tavolo corrispondente.
+   * - Coppie mobili (pari: 2, 4, 6...): avanzano di 1 tavolo a ogni turno (T1 -> T2 -> ... -> T1).
+   * - Se numero dispari di coppie: viene aggiunta una coppia fantasma mobile per la rotazione automatica del riposo.
+   *
+   * @param {Array} pairs - Elenco coppie
+   * @param {number} roundIndex - Indice turno (0-based)
+   * @returns {Object} { tables: Array<{ tableNumber, pairA, pairB }>, restingPair: Object|null, orderedPairs: Array }
+   */
+  getMitchellPairings(pairs = [], roundIndex = 0) {
+    const validPairs = pairs.filter(p => p && p.name && p.name.trim() !== '');
+    if (validPairs.length === 0) {
+      return { tables: [], restingPair: null, orderedPairs: [] };
+    }
+
+    // Ordina in base al lotNumber se presente, altrimenti preserva l'ordine di inserimento
+    const sorted = [...validPairs].sort((a, b) => {
+      const lotA = (a.lotNumber !== null && a.lotNumber !== undefined) ? Number(a.lotNumber) : null;
+      const lotB = (b.lotNumber !== null && b.lotNumber !== undefined) ? Number(b.lotNumber) : null;
+      if (lotA !== null && lotB !== null) return lotA - lotB;
+      if (lotA !== null) return -1;
+      if (lotB !== null) return 1;
+      return 0;
+    });
+
+    const isOdd = sorted.length % 2 === 1;
+    const numTables = Math.floor(sorted.length / 2);
+    const r = Math.max(0, parseInt(roundIndex, 10) || 0);
+
+    const tables = [];
+    let restingPair = null;
+    const orderedPairs = [];
+
+    if (!isOdd) {
+      // Numero pari di coppie: T tavoli, T coppie fisse (dispari), T mobili (pari)
+      const stationary = [];
+      const moving = [];
+      for (let i = 0; i < sorted.length; i++) {
+        if (i % 2 === 0) stationary.push(sorted[i]);
+        else moving.push(sorted[i]);
+      }
+
+      for (let t = 0; t < numTables; t++) {
+        const pairStationary = stationary[t];
+        const mIdx = ((t - r) % numTables + numTables) % numTables;
+        const pairMoving = moving[mIdx];
+        const tableNumber = t + 1;
+
+        tables.push({ tableNumber, pairA: pairStationary, pairB: pairMoving });
+        orderedPairs.push({
+          ...pairStationary,
+          _tableNumber: tableNumber,
+          _opponentId: pairMoving.id,
+          _isResting: false
+        });
+        orderedPairs.push({
+          ...pairMoving,
+          _tableNumber: tableNumber,
+          _opponentId: pairStationary.id,
+          _isResting: false
+        });
+      }
+    } else {
+      // Numero dispari di coppie: T tavoli fisici, T coppie fisse, T + 1 mobili
+      // Le prime T coppie dispari rimangono fisse ai rispettivi tavoli (giocano tutti i turni)
+      // Le restanti T + 1 coppie ruotano circolarmente: Riposo -> Tavolo 1 -> Tavolo 2 -> ... -> Riposo
+      const stationary = [];
+      const moving = [];
+
+      for (let i = 0; i < numTables; i++) {
+        stationary.push(sorted[i * 2]);
+        moving.push(sorted[i * 2 + 1]);
+      }
+      moving.push(sorted[sorted.length - 1]);
+
+      const numStations = numTables + 1; // T tavoli + 1 postazione riposo
+
+      for (let t = 0; t < numTables; t++) {
+        const pairStationary = stationary[t];
+        const mIdx = ((t - r) % numStations + numStations) % numStations;
+        const pairMoving = moving[mIdx];
+        const tableNumber = t + 1;
+
+        tables.push({ tableNumber, pairA: pairStationary, pairB: pairMoving });
+        orderedPairs.push({
+          ...pairStationary,
+          _tableNumber: tableNumber,
+          _opponentId: pairMoving.id,
+          _isResting: false
+        });
+        orderedPairs.push({
+          ...pairMoving,
+          _tableNumber: tableNumber,
+          _opponentId: pairStationary.id,
+          _isResting: false
+        });
+      }
+
+      // Coppia a riposo: stazione numTables (l'ultima della rotazione ciclica)
+      const restMIdx = ((numTables - r) % numStations + numStations) % numStations;
+      restingPair = moving[restMIdx];
+      orderedPairs.push({
+        ...restingPair,
+        _tableNumber: null,
+        _opponentId: null,
+        _isResting: true
+      });
+    }
+
+    return {
+      tables,
+      restingPair,
+      orderedPairs
+    };
   }
 };
 
