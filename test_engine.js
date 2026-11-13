@@ -472,6 +472,15 @@ const BURRACO_CONFIG = require('./src/js/config');
 if (BURRACO_CONFIG.defaultByePoints !== 12) {
   throw new Error(`Test 11 fallito: defaultByePoints deve essere 12, trovato ${BURRACO_CONFIG.defaultByePoints}`);
 }
+if (BURRACO_CONFIG.defaultByeMatchPoints !== 1200) {
+  throw new Error(`Test 11 fallito: defaultByeMatchPoints deve essere 1200, trovato ${BURRACO_CONFIG.defaultByeMatchPoints}`);
+}
+if (BURRACO_CONFIG.defaultSettings.byeMatchPoints !== 1200) {
+  throw new Error(`Test 11 fallito: defaultSettings.byeMatchPoints deve essere 1200, trovato ${BURRACO_CONFIG.defaultSettings.byeMatchPoints}`);
+}
+if (!html.includes('id="setting-bye-match-points"')) {
+  throw new Error('Test 11 fallito: input setting-bye-match-points mancante in index.html!');
+}
 
 // 1. Tavoli completi con coppie pari (es. 4 coppie -> 2 tavoli -> esattamente 40 VP; 6 coppie -> 60 VP)
 const v40 = BurracoEngine.validateRoundVpSum(40, 4, 12);
@@ -605,7 +614,7 @@ if (!js.includes('if (this.roundVpCheckBanner) this.roundVpCheckBanner.style.dis
 console.log('- Reset banner e checkmark garantito quando non ci sono coppie (OK)');
 console.log('>>> TEST 14 SUPERATO CON SUCCESSO! Tabellone pulito all\'avvio e nessun falso allarme.');
 
-console.log('\n--- TEST 15: Verifica Configurazione Avviso Punteggio Errato, Offline SW e Versione v1.4.3 ---');
+console.log('\n--- TEST 15: Verifica Configurazione Avviso Punteggio Errato, Offline SW e Versione v1.4.4 ---');
 if (!html.includes('id="setting-toggle-score-warning"')) {
   throw new Error('Test 15 fallito: toggle setting-toggle-score-warning mancante in index.html!');
 }
@@ -613,19 +622,19 @@ if (!js.includes('setting-toggle-score-warning') || !js.includes('showScoreWarni
   throw new Error('Test 15 fallito: gestione showScoreWarning mancante in app.js!');
 }
 const testCfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (BURRACO_CONFIG || {});
-if (testCfg.version !== '1.4.3') {
-  throw new Error(`Test 15 fallito: BURRACO_CONFIG.version deve essere 1.4.3, trovato ${testCfg.version}!`);
+if (testCfg.version !== '1.4.4') {
+  throw new Error(`Test 15 fallito: BURRACO_CONFIG.version deve essere 1.4.4, trovato ${testCfg.version}!`);
 }
 const swContent = fs.readFileSync(path.join(__dirname, 'src', 'sw.js'), 'utf8');
-if (!swContent.includes('burraco-cache-v1.4.3')) {
-  throw new Error('Test 15 fallito: CACHE_NAME in sw.js non aggiornato a v1.4.3!');
+if (!swContent.includes('burraco-cache-v1.4.4')) {
+  throw new Error('Test 15 fallito: CACHE_NAME in sw.js non aggiornato a v1.4.4!');
 }
 if (!swContent.includes('ignoreSearch: true')) {
   throw new Error('Test 15 fallito: sw.js non include ignoreSearch: true per la resilienza offline!');
 }
 const manifestContent = fs.readFileSync(path.join(__dirname, 'src', 'manifest.json'), 'utf8');
-if (!manifestContent.includes('"version": "1.4.3"')) {
-  throw new Error('Test 15 fallito: version in manifest.json non aggiornata a 1.4.3!');
+if (!manifestContent.includes('"version": "1.4.4"')) {
+  throw new Error('Test 15 fallito: version in manifest.json non aggiornata a 1.4.4!');
 }
 if (!html.includes('id="btn-share-image"')) {
   throw new Error('Test 15 fallito: pulsante id="btn-share-image" mancante in index.html!');
@@ -637,8 +646,8 @@ console.log('- Toggle setting-toggle-score-warning presente nella UI delle impos
 console.log('- Controller app.js supporta attivazione/disattivazione avviso punteggio errato (OK)');
 console.log('- Supporto condivisione nativa e protezione iPad (btnShareImage / isIOS) verificato (OK)');
 console.log('- Service worker configurato con Cache-First e ignoreSearch: true per supporto offline totale (OK)');
-console.log('- Versione v1.4.3 sincronizzata tra config.js, manifest.json, sw.js e index.html (OK)');
-console.log('>>> TEST 15 SUPERATO CON SUCCESSO! Avviso configurabile, export iPad, offline PWA e versione 1.4.3 allineati al 100%.');
+console.log('- Versione v1.4.4 sincronizzata tra config.js, manifest.json, sw.js e index.html (OK)');
+console.log('>>> TEST 15 SUPERATO CON SUCCESSO! Avviso configurabile, export iPad, offline PWA e versione 1.4.4 allineati al 100%.');
 
 console.log('\n--- TEST 16: Verifica Ricerca Rapida Turno e Attivazione Automatica Riposo per Squadre Dispari ---');
 if (!html.includes('id="round-search-input"')) {

@@ -295,6 +295,7 @@ class BurracoApp {
     this._prizeHintTimer = null;
     this.settingRoundsCount = document.getElementById('setting-rounds-count');
     this.settingByePoints = document.getElementById('setting-bye-points');
+    this.settingByeMatchPoints = document.getElementById('setting-bye-match-points');
     this.roundVpCheckBanner = document.getElementById('round-vp-check-banner');
     this.roundVpCheckIcon = document.getElementById('round-vp-check-icon');
     this.roundVpCheckMessage = document.getElementById('round-vp-check-message');
@@ -437,6 +438,10 @@ class BurracoApp {
     const defaultBye = cfg.defaultByePoints !== undefined ? cfg.defaultByePoints : 12;
     const curBye = (this.state.settings && this.state.settings.byePoints !== undefined) ? this.state.settings.byePoints : defaultBye;
     if (this.settingByePoints) this.settingByePoints.value = curBye;
+
+    const defaultByeMp = cfg.defaultByeMatchPoints !== undefined ? cfg.defaultByeMatchPoints : 1200;
+    const curByeMp = (this.state.settings && this.state.settings.byeMatchPoints !== undefined) ? this.state.settings.byeMatchPoints : defaultByeMp;
+    if (this.settingByeMatchPoints) this.settingByeMatchPoints.value = curByeMp;
 
     this.applySettingsVisibility();
   }
@@ -835,6 +840,26 @@ class BurracoApp {
       if (this.settingByePoints) this.settingByePoints.value = val;
       this.saveState();
       this.checkRoundScoreConsistency();
+    });
+
+    this.settingByeMatchPoints?.addEventListener('input', (e) => {
+      const raw = e.target.value.trim();
+      if (raw === '') return;
+      const parsed = parseInt(raw, 10);
+      if (!isNaN(parsed) && parsed < 0) {
+        e.target.value = 0;
+      }
+    });
+
+    this.settingByeMatchPoints?.addEventListener('change', (e) => {
+      const cfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (window.BURRACO_CONFIG || {});
+      const fallback = cfg.defaultByeMatchPoints !== undefined ? cfg.defaultByeMatchPoints : 1200;
+      const parsed = parseInt(e.target.value, 10);
+      const val = Math.max(0, isNaN(parsed) ? fallback : parsed);
+      this.state.settings.byeMatchPoints = val;
+      if (this.settingByeMatchPoints) this.settingByeMatchPoints.value = val;
+      this.saveState();
+      this.renderRoundView();
     });
 
     // New Tournament Modal
@@ -1739,6 +1764,10 @@ class BurracoApp {
     const byePoints = (this.state.settings && this.state.settings.byePoints !== undefined)
       ? Number(this.state.settings.byePoints)
       : defaultBye;
+    const defaultByeMp = cfg.defaultByeMatchPoints !== undefined ? cfg.defaultByeMatchPoints : 1200;
+    const byeMatchPoints = (this.state.settings && this.state.settings.byeMatchPoints !== undefined)
+      ? Number(this.state.settings.byeMatchPoints)
+      : defaultByeMp;
 
     // Genera abbinamenti ai tavoli secondo la rotazione Mitchell
     const mitchellData = engine && engine.getMitchellPairings
@@ -1865,7 +1894,7 @@ class BurracoApp {
           <button type="button" 
                   class="btn btn-sm ${isBye ? 'btn-primary btn-bye-active' : 'btn-secondary'} btn-round-bye" 
                   data-pair-id="${pair.id}" 
-                  title="${isBye ? 'Riposo attivo (clicca per rimuovere)' : `Assegna riposo (${byePoints} VP)`}">
+                  title="${isBye ? 'Riposo attivo (clicca per rimuovere)' : `Assegna riposo (${byePoints} VP / ${byeMatchPoints} MP)`}">
             ${isBye ? '✓ Riposo' : 'Riposo'}
           </button>
         </td>
@@ -1907,12 +1936,10 @@ class BurracoApp {
 
           if (sc.vp !== null && sc.vp !== undefined && Number(sc.vp) === byePoints) {
             sc.vp = null;
-            if (sc.mp === 0) sc.mp = null;
+            sc.mp = null;
           } else {
             sc.vp = byePoints;
-            if (sc.mp === null || sc.mp === undefined || sc.mp === '') {
-              sc.mp = 0;
-            }
+            sc.mp = byeMatchPoints;
           }
 
           this.saveState();

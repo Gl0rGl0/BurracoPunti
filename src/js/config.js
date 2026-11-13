@@ -8,7 +8,7 @@ const BURRACO_CONFIG = {
   // ==========================================
   // VERSIONAMENTO E RETE
   // ==========================================
-  version: "1.4.3",
+  version: "1.4.4",
   remoteUrl: "https://burracopunti.giust.workers.dev/",
 
   // ==========================================
@@ -23,6 +23,7 @@ const BURRACO_CONFIG = {
   minRounds: 1,
   maxRounds: 12,
   defaultByePoints: 12,
+  defaultByeMatchPoints: 1200,
   loadDemoPairs: false,
 
   // ==========================================
@@ -34,7 +35,8 @@ const BURRACO_CONFIG = {
     showPrizepool: false,
     showBye: false,
     showScoreWarning: false,
-    byePoints: 12
+    byePoints: 12,
+    byeMatchPoints: 1200
   },
 
   // ==========================================
