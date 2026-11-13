@@ -6,6 +6,7 @@
 class BurracoApp {
   constructor() {
     this.state = BurracoStorage.loadState();
+    this._suppressedAutoBye = new Set();
     this.initDOMElements();
     this.initFontZoom();
     this.initNetworkStatus();
@@ -280,7 +281,6 @@ class BurracoApp {
     this.togglePodium = document.getElementById('setting-toggle-podium') || document.getElementById('setting-podium');
     this.togglePrizepool = document.getElementById('setting-toggle-prizepool');
     this.toggleBye = document.getElementById('setting-toggle-bye');
-    this.toggleScoreWarning = document.getElementById('setting-toggle-score-warning');
     this.thRoundBye = document.getElementById('th-round-bye');
     this.settingEntryFee = document.getElementById('setting-entry-fee');
     this.settingPrizePcts = [
@@ -411,13 +411,6 @@ class BurracoApp {
 
     if (this.toggleBye) {
       this.toggleBye.checked = this.isByeActive();
-    }
-
-    if (this.toggleScoreWarning) {
-      const isScoreWarningVisible = (this.state.settings.showScoreWarning !== undefined)
-        ? !!this.state.settings.showScoreWarning
-        : true;
-      this.toggleScoreWarning.checked = isScoreWarningVisible;
     }
 
     const curFee = (this.state.settings.entryFeePerPlayer !== undefined)
@@ -569,23 +562,27 @@ class BurracoApp {
     });
 
     this.btnNextRound?.addEventListener('click', () => {
-      if (this.state.activeRoundIndex < this.state.roundsCount - 1) {
-        const nextIdx = this.state.activeRoundIndex + 1;
-        if (!this.isRoundAccessible(nextIdx)) {
-          this.showFeedbackModal({
-            title: 'Turno Successivo Bloccato',
-            message: `Completa e valida i punteggi del Turno ${this.state.activeRoundIndex + 1} prima di passare al turno successivo.`,
-            icon: '🔒'
-          });
-          return;
-        }
-        this.state.activeRoundIndex++;
+      if (this.state.activeRoundIndex >= this.state.roundsCount - 1) {
+        this.switchTab('master');
+        return;
+      }
+      const nextIdx = this.state.activeRoundIndex + 1;
+      if (!this.isRoundAccessibleOrFilled(nextIdx)) {
+        this.showFeedbackModal({
+          title: 'Turno Successivo Bloccato',
+          message: `Completa i punteggi del Turno ${this.state.activeRoundIndex + 1} prima di passare al turno successivo.`,
+          icon: '🔒'
+        });
+        return;
+      }
+      this.confirmInvalidRoundsAndProceed(nextIdx, () => {
+        this.state.activeRoundIndex = nextIdx;
         this.state.highestRoundReached = Math.max(this.getHighestRoundReached(), this.state.activeRoundIndex);
         this.state.unlockedRounds = {};
         this.saveState();
         this.renderTabs();
         this.renderRoundView();
-      }
+      });
     });
 
     // Global Action Buttons
@@ -797,12 +794,6 @@ class BurracoApp {
       this.state.settings.showByeManual = true;
       this.saveState();
       this.renderRoundView();
-    });
-
-    this.toggleScoreWarning?.addEventListener('change', (e) => {
-      this.state.settings.showScoreWarning = e.target.checked;
-      this.saveState();
-      this.checkRoundScoreConsistency();
     });
 
     this.settingEntryFee?.addEventListener('input', () => this.updatePrizePercentages());
@@ -1026,36 +1017,43 @@ class BurracoApp {
 
     if (tabKey.startsWith('round-')) {
       const rIdx = parseInt(tabKey.replace('round-', ''), 10);
-      if (!this.isRoundAccessible(rIdx)) {
+      if (!this.isRoundAccessibleOrFilled(rIdx)) {
         this.showFeedbackModal({
           title: 'Turno Bloccato',
-          message: `Completa e valida i punteggi del turno precedente prima di accedere al Turno ${rIdx + 1}.`,
+          message: `Completa i punteggi del turno precedente prima di accedere al Turno ${rIdx + 1}.`,
           icon: '🔒'
         });
         return;
       }
-      this.state.activeRoundIndex = rIdx;
-      this.state.highestRoundReached = Math.max(this.getHighestRoundReached(), rIdx);
-      this.state.currentTab = 'round';
+      this.confirmInvalidRoundsAndProceed(rIdx, () => {
+        this.state.activeRoundIndex = rIdx;
+        this.state.highestRoundReached = Math.max(this.getHighestRoundReached(), rIdx);
+        this.state.currentTab = 'round';
+        this.finalizeSwitchTab();
+      });
+      return;
     } else if (tabKey === 'master' || tabKey === 'podium') {
-      const cfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (window.BURRACO_CONFIG || {});
-      const byePoints = (this.state.settings && this.state.settings.byePoints !== undefined)
-        ? Number(this.state.settings.byePoints)
-        : (cfg.defaultByePoints !== undefined ? cfg.defaultByePoints : 12);
-      const areAllComplete = BurracoEngine.areAllRoundsComplete(this.state.pairs, this.state.roundsCount, byePoints);
-
-      if (!areAllComplete) {
+      if (!this.areAllRoundsFilled()) {
         this.showFeedbackModal({
           title: 'Classifica Non Disponibile',
-          message: `Completa e valida tutti i ${this.state.roundsCount} turni di gioco prima di accedere alla classifica finale.`,
+          message: `Completa tutti i ${this.state.roundsCount} turni di gioco prima di accedere alla classifica finale.`,
           icon: '🔒'
         });
         return;
       }
-      this.state.currentTab = tabKey;
+      this.confirmInvalidRoundsAndProceed(this.state.roundsCount, () => {
+        this.state.currentTab = tabKey;
+        this.finalizeSwitchTab();
+      });
+      return;
     } else {
       this.state.currentTab = tabKey;
     }
+
+    this.finalizeSwitchTab();
+  }
+
+  finalizeSwitchTab() {
 
     this.state.unlockedRounds = {};
     this.saveState();
@@ -1143,6 +1141,129 @@ class BurracoApp {
     }
   }
 
+  getRoundValidationStatus(roundIdx) {
+    const validPairs = (this.state.pairs || []).filter(p => p && p.name && p.name.trim() !== '');
+    if (validPairs.length === 0) {
+      return { empty: true, allFilled: false, valid: false, hasOutOfRange: false, message: '' };
+    }
+
+    let allFilled = true;
+    let totalVP = 0;
+    let hasOutOfRangeScore = false;
+    const vpScores = [];
+
+    for (const pair of validPairs) {
+      const sc = pair.scores && pair.scores[roundIdx];
+      if (!sc || sc.vp === null || sc.vp === undefined || sc.vp === '') {
+        allFilled = false;
+        break;
+      }
+      const num = Number(sc.vp);
+      if (isNaN(num)) {
+        allFilled = false;
+        break;
+      }
+      if (num < 0 || num > 20) {
+        hasOutOfRangeScore = true;
+      }
+      totalVP += num;
+      vpScores.push(num);
+    }
+
+    if (!allFilled) {
+      return { empty: false, allFilled: false, valid: false, hasOutOfRange: false, message: '' };
+    }
+
+    const cfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (window.BURRACO_CONFIG || {});
+    const defaultBye = cfg.defaultByePoints !== undefined ? cfg.defaultByePoints : 12;
+    const byePoints = (this.state.settings && this.state.settings.byePoints !== undefined)
+      ? Number(this.state.settings.byePoints)
+      : defaultBye;
+
+    const res = BurracoEngine.validateRoundVpSum(vpScores, validPairs.length, byePoints);
+    const hasOutOfRange = hasOutOfRangeScore || res.hasOutOfRange;
+    const valid = !hasOutOfRange && Boolean(res.valid);
+
+    let message = '';
+    if (hasOutOfRange) {
+      message = `Attenzione Turno ${roundIdx + 1}: I singoli punteggi VP devono essere compresi tra 0 e 20!`;
+    } else if (valid) {
+      const detail = res.isOdd
+        ? `(${res.completeTables} tavoli da 20 VP + ${res.byePoints} VP riposo)`
+        : `(${res.completeTables} tavoli completi da 20 VP)`;
+      message = `Turno ${roundIdx + 1} valido: Totale di ${totalVP} VP corretto per ${res.numPairs} squadre ${detail}`;
+    } else {
+      const detail = res.isOdd
+        ? `(attesi esattamente ${res.expectedVP} VP: ${res.completeTables} tavoli da 20 VP + ${res.byePoints} VP riposo)`
+        : `(attesi esattamente ${res.expectedVP} VP per ${res.completeTables} tavoli da 20 VP)`;
+      message = `Attenzione Turno ${roundIdx + 1}: Totale inserito di ${totalVP} VP non corretto ${detail}. Verifica i punteggi inseriti nei tavoli.`;
+    }
+
+    return {
+      empty: false,
+      allFilled: true,
+      valid,
+      hasOutOfRange,
+      totalVP,
+      ...res,
+      message
+    };
+  }
+
+  isRoundAllFilled(roundIdx) {
+    return this.getRoundValidationStatus(roundIdx).allFilled;
+  }
+
+  areAllRoundsFilled() {
+    const count = Math.max(1, parseInt(this.state.roundsCount, 10) || 1);
+    for (let r = 0; r < count; r++) {
+      if (!this.isRoundAllFilled(r)) return false;
+    }
+    return true;
+  }
+
+  isRoundAccessibleOrFilled(rIdx) {
+    if (!this.state.registrationConfirmed) return false;
+    if (rIdx === 0) return true;
+    for (let k = 0; k < rIdx; k++) {
+      if (!this.isRoundAllFilled(k)) return false;
+    }
+    return true;
+  }
+
+  findFirstUnacknowledgedInvalidRound(upToRoundExclusive) {
+    const ack = this.state.acknowledgedInvalidRounds || {};
+    for (let k = 0; k < upToRoundExclusive; k++) {
+      const status = this.getRoundValidationStatus(k);
+      if (status.allFilled && !status.valid && !ack[k]) {
+        return { roundIdx: k, status };
+      }
+    }
+    return null;
+  }
+
+  confirmInvalidRoundsAndProceed(upToRoundExclusive, onProceed) {
+    const invalid = this.findFirstUnacknowledgedInvalidRound(upToRoundExclusive);
+    if (!invalid) {
+      onProceed();
+      return;
+    }
+    this.showConfirmModal({
+      title: 'Attenzione: Punteggi Non Validi',
+      message: invalid.status.message,
+      detail: 'Vuoi comunque procedere oppure tornare indietro per verificare i punteggi?',
+      confirmText: 'Sono consapevole',
+      cancelText: 'Torna indietro',
+      confirmClass: 'btn-primary',
+      onConfirm: () => {
+        if (!this.state.acknowledgedInvalidRounds) this.state.acknowledgedInvalidRounds = {};
+        this.state.acknowledgedInvalidRounds[invalid.roundIdx] = true;
+        this.saveState();
+        this.confirmInvalidRoundsAndProceed(upToRoundExclusive, onProceed);
+      }
+    });
+  }
+
   isRoundAccessible(rIdx) {
     const cfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (window.BURRACO_CONFIG || {});
     const byePoints = (this.state.settings && this.state.settings.byePoints !== undefined)
@@ -1164,14 +1285,14 @@ class BurracoApp {
     const isRegistrationLocked = !this.state.registrationConfirmed;
 
     for (let i = 0; i < this.state.roundsCount; i++) {
-      const isAccessible = this.isRoundAccessible(i);
+      const isAccessible = this.isRoundAccessibleOrFilled(i);
       const isLocked = !isAccessible;
       const tabBtn = document.createElement('button');
       tabBtn.className = 'tab-btn' + (isLocked ? ' tab-locked' : '');
       if (isRegistrationLocked) {
         tabBtn.title = 'Conferma le iscrizioni nel Tabellone Iniziale prima di aprire i turni';
       } else if (isLocked) {
-        tabBtn.title = `Completa e valida il Turno ${i} prima di aprire il Turno ${i + 1}`;
+        tabBtn.title = `Completa il Turno ${i} prima di aprire il Turno ${i + 1}`;
       }
       tabBtn.dataset.tab = `round-${i}`;
       if (this.state.currentTab === 'round' && this.state.activeRoundIndex === i) {
@@ -1181,20 +1302,16 @@ class BurracoApp {
       this.roundTabsContainer.appendChild(tabBtn);
     }
 
-    const cfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (window.BURRACO_CONFIG || {});
-    const byePoints = (this.state.settings && this.state.settings.byePoints !== undefined)
-      ? Number(this.state.settings.byePoints)
-      : (cfg.defaultByePoints !== undefined ? cfg.defaultByePoints : 12);
-    const areAllComplete = BurracoEngine.areAllRoundsComplete(this.state.pairs, this.state.roundsCount, byePoints);
+    const areAllFilled = this.areAllRoundsFilled();
 
     const tabMaster = document.getElementById('tab-btn-master');
     if (tabMaster) {
       if (isRegistrationLocked) {
         tabMaster.classList.add('tab-locked');
         tabMaster.title = 'Conferma le iscrizioni nel Tabellone Iniziale prima di visualizzare la classifica';
-      } else if (!areAllComplete) {
+      } else if (!areAllFilled) {
         tabMaster.classList.add('tab-locked');
-        tabMaster.title = `Completa e valida tutti i ${this.state.roundsCount} turni per sbloccare la classifica`;
+        tabMaster.title = `Completa tutti i ${this.state.roundsCount} turni per sbloccare la classifica`;
       } else {
         tabMaster.classList.remove('tab-locked');
         tabMaster.title = 'Visualizza la classifica finale';
@@ -1203,9 +1320,9 @@ class BurracoApp {
 
     const tabPodium = document.getElementById('tab-btn-podium');
     if (tabPodium) {
-      if (isRegistrationLocked || !areAllComplete) {
+      if (isRegistrationLocked || !areAllFilled) {
         tabPodium.classList.add('tab-locked');
-        tabPodium.title = `Completa e valida tutti i ${this.state.roundsCount} turni per sbloccare il podio`;
+        tabPodium.title = `Completa tutti i ${this.state.roundsCount} turni per sbloccare il podio`;
       } else {
         tabPodium.classList.remove('tab-locked');
         tabPodium.title = 'Visualizza il podio';
@@ -1217,10 +1334,15 @@ class BurracoApp {
     return this.state.pairs.some(p => p && Array.isArray(p.scores) && p.scores.some(s => s && (s.vp !== null && s.vp !== undefined && s.vp !== '' || s.mp !== null && s.mp !== undefined && s.mp !== '')));
   }
 
+  removeEmptyPairs() {
+    this.state.pairs = (this.state.pairs || []).filter(p => p && p.name && p.name.trim() !== '');
+    return this.state.pairs;
+  }
+
   toggleRegistrationLock() {
     if (!this.state.registrationConfirmed) {
       // 1. Elimina righe con nome vuoto
-      this.state.pairs = this.state.pairs.filter(p => p && p.name && p.name.trim() !== '');
+      this.removeEmptyPairs();
 
       // 2. Controllo minimo 2 coppie
       if (this.state.pairs.length < 2) {
@@ -1255,6 +1377,7 @@ class BurracoApp {
         this.state.registrationConfirmed = false;
         this.state.highestRoundReached = 0;
         this.state.unlockedRounds = {};
+        this.state.acknowledgedInvalidRounds = {};
         this.saveState();
         this.render();
       };
@@ -1313,8 +1436,8 @@ class BurracoApp {
       ? Number(this.state.settings.byePoints)
       : (cfg.defaultByePoints !== undefined ? cfg.defaultByePoints : 12);
 
-    const isCurrentComplete = BurracoEngine.isRoundComplete(this.state.pairs, roundIdx, byePoints);
-    const areAllComplete = BurracoEngine.areAllRoundsComplete(this.state.pairs, this.state.roundsCount, byePoints);
+    const isCurrentComplete = this.isRoundAllFilled(roundIdx);
+    const areAllComplete = this.areAllRoundsFilled();
     const isUnlocked = Boolean(this.state.unlockedRounds && this.state.unlockedRounds[roundIdx]);
     const maxReached = this.getHighestRoundReached();
     const hasAdvancedPastRound = maxReached > roundIdx;
@@ -1722,14 +1845,7 @@ class BurracoApp {
     if (this.btnPrevRound) {
       this.btnPrevRound.style.display = roundIdx === 0 ? 'none' : 'inline-flex';
     }
-    if (this.btnNextRound) {
-      this.btnNextRound.style.display = roundIdx >= this.state.roundsCount - 1 ? 'none' : 'inline-flex';
-      const nextAccessible = this.isRoundAccessible(roundIdx + 1);
-      this.btnNextRound.disabled = !nextAccessible;
-      this.btnNextRound.style.opacity = nextAccessible ? '1' : '0.45';
-      this.btnNextRound.style.cursor = nextAccessible ? 'pointer' : 'not-allowed';
-      this.btnNextRound.title = nextAccessible ? 'Vai al turno successivo' : `Completa e valida il Turno ${roundIdx + 1} prima di procedere`;
-    }
+    this.updateNextRoundButtonState(roundIdx);
 
     if (!this.roundTableBody) return;
     this.roundTableBody.innerHTML = '';
@@ -1782,10 +1898,11 @@ class BurracoApp {
           restPairInState.scores[roundIdx] = { mp: null, vp: null };
         }
         const sc = restPairInState.scores[roundIdx];
-        if (sc.vp === null || sc.vp === undefined || sc.vp === '') {
+        const autoByeKey = `${roundIdx}:${restPairInState.id}`;
+        if (!this._suppressedAutoBye.has(autoByeKey) && (sc.vp === null || sc.vp === undefined || sc.vp === '')) {
           sc.vp = byePoints;
           if (sc.mp === null || sc.mp === undefined || sc.mp === '') {
-            sc.mp = 0;
+            sc.mp = byeMatchPoints;
           }
           this.saveState();
         }
@@ -1934,14 +2051,20 @@ class BurracoApp {
           if (!pair.scores[roundIdx]) pair.scores[roundIdx] = { mp: null, vp: null };
           const sc = pair.scores[roundIdx];
 
+          const autoByeKey = `${roundIdx}:${pair.id}`;
           if (sc.vp !== null && sc.vp !== undefined && Number(sc.vp) === byePoints) {
             sc.vp = null;
             sc.mp = null;
+            this._suppressedAutoBye.add(autoByeKey);
           } else {
             sc.vp = byePoints;
             sc.mp = byeMatchPoints;
+            this._suppressedAutoBye.delete(autoByeKey);
           }
 
+          if (this.state.acknowledgedInvalidRounds) {
+            delete this.state.acknowledgedInvalidRounds[roundIdx];
+          }
           this.saveState();
           this.renderRoundView();
         });
@@ -1973,6 +2096,9 @@ class BurracoApp {
         }
 
         pair.scores[roundIdx][field] = val;
+        if (this.state.acknowledgedInvalidRounds) {
+          delete this.state.acknowledgedInvalidRounds[roundIdx];
+        }
 
         // Se è stato inserito un Match Point (MP), controlla se anche l'avversaria ha MP inseriti
         if (field === 'mp' && opponentId) {
@@ -2030,127 +2156,56 @@ class BurracoApp {
    */
   checkRoundScoreConsistency() {
     const roundIdx = this.state.activeRoundIndex;
-    const validPairs = this.state.pairs.filter(p => p.name && p.name.trim() !== '');
+    const status = this.getRoundValidationStatus(roundIdx);
 
-    if (this.roundTitleCheck) this.roundTitleCheck.style.display = 'none';
     if (this.roundVpCheckBanner) this.roundVpCheckBanner.style.display = 'none';
 
-    if (validPairs.length === 0) {
-      return;
-    }
-
-    // Verifica se TUTTE le coppie hanno il punteggio VP compilato
-    let allVpFilled = true;
-    let totalVP = 0;
-    let hasOutOfRangeScore = false;
-    const vpScores = [];
-
-    for (const pair of validPairs) {
-      const sc = pair.scores && pair.scores[roundIdx];
-      if (!sc || sc.vp === null || sc.vp === undefined || sc.vp === '') {
-        allVpFilled = false;
-        break;
-      }
-      const num = Number(sc.vp);
-      if (isNaN(num)) {
-        allVpFilled = false;
-        break;
-      }
-      if (num < 0 || num > 20) {
-        hasOutOfRangeScore = true;
-      }
-      totalVP += num;
-      vpScores.push(num);
-    }
-
-    // Il check si attiva solamente dopo che tutti i punti sono stati inseriti
-    if (!allVpFilled) {
-      if (this.roundVpCheckBanner) this.roundVpCheckBanner.style.display = 'none';
-      this.updateRoundProtectiveOverlay();
-      this.updateTabsAndNextButton();
-      return;
-    }
-
-    const numPairs = validPairs.length;
-    const cfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (window.BURRACO_CONFIG || {});
-    const defaultBye = cfg.defaultByePoints !== undefined ? cfg.defaultByePoints : 12;
-    const byePoints = (this.state.settings && this.state.settings.byePoints !== undefined)
-      ? Number(this.state.settings.byePoints)
-      : defaultBye;
-
-    const res = BurracoEngine.validateRoundVpSum(vpScores, numPairs, byePoints);
-
-    const showWarning = (this.state.settings && this.state.settings.showScoreWarning !== undefined)
-      ? !!this.state.settings.showScoreWarning
-      : true;
-
-    if (hasOutOfRangeScore || res.hasOutOfRange) {
+    if (status.empty || !status.allFilled) {
       if (this.roundTitleCheck) this.roundTitleCheck.style.display = 'none';
-      if (this.roundVpCheckBanner) {
-        if (showWarning) {
-          this.roundVpCheckBanner.style.display = 'flex';
-          this.roundVpCheckBanner.style.background = '#FEF2F2';
-          this.roundVpCheckBanner.style.border = '1px solid #FECACA';
-          this.roundVpCheckBanner.style.color = '#991B1B';
-          if (this.roundVpCheckIcon) this.roundVpCheckIcon.textContent = '⚠️';
-          if (this.roundVpCheckMessage) {
-            this.roundVpCheckMessage.textContent = `Attenzione Turno ${roundIdx + 1}: I singoli punteggi VP devono essere compresi tra 0 e 20!`;
-          }
-        } else {
-          this.roundVpCheckBanner.style.display = 'none';
-        }
+      if (!status.empty) {
+        this.updateRoundProtectiveOverlay();
+        this.updateTabsAndNextButton();
       }
-      this.updateRoundProtectiveOverlay();
-      this.updateTabsAndNextButton();
       return;
     }
 
-    if (res.valid) {
-      // Quando il turno è valido, non mostriamo il banner verde ingombrante: mostriamo solo la spunta ✅ accanto al titolo
-      if (this.roundVpCheckBanner) {
-        this.roundVpCheckBanner.style.display = 'none';
-      }
-      if (this.roundTitleCheck) {
-        this.roundTitleCheck.style.display = 'inline-block';
-        const detail = res.isOdd
-          ? `(${res.completeTables} tavoli da 20 VP + ${res.byePoints} VP riposo)`
-          : `(${res.completeTables} tavoli completi da 20 VP)`;
-        this.roundTitleCheck.title = `Turno ${roundIdx + 1} valido: Totale di ${totalVP} VP corretto per ${res.numPairs} squadre ${detail}`;
-      }
-    } else {
-      if (this.roundTitleCheck) this.roundTitleCheck.style.display = 'none';
-      if (this.roundVpCheckBanner) {
-        if (showWarning) {
-          this.roundVpCheckBanner.style.display = 'flex';
-          this.roundVpCheckBanner.style.background = '#FEF2F2';
-          this.roundVpCheckBanner.style.border = '1px solid #FECACA';
-          this.roundVpCheckBanner.style.color = '#991B1B';
-          if (this.roundVpCheckIcon) this.roundVpCheckIcon.textContent = '⚠️';
-          if (this.roundVpCheckMessage) {
-            const detail = res.isOdd
-              ? `(attesi esattamente ${res.expectedVP} VP: ${res.completeTables} tavoli da 20 VP + ${res.byePoints} VP riposo)`
-              : `(attesi esattamente ${res.expectedVP} VP per ${res.completeTables} tavoli da 20 VP)`;
-            this.roundVpCheckMessage.textContent = `Attenzione Turno ${roundIdx + 1}: Totale inserito di ${totalVP} VP non corretto ${detail}. Verifica i punteggi inseriti nei tavoli.`;
-          }
-        } else {
-          this.roundVpCheckBanner.style.display = 'none';
-        }
-      }
+    if (this.roundTitleCheck) {
+      this.roundTitleCheck.style.display = 'inline-block';
+      this.roundTitleCheck.textContent = status.valid ? '✅' : '❌';
+      this.roundTitleCheck.title = status.message;
     }
 
     this.updateRoundProtectiveOverlay();
     this.updateTabsAndNextButton();
   }
 
+  updateNextRoundButtonState(roundIdx = this.state.activeRoundIndex) {
+    if (!this.btnNextRound) return;
+    const isLastRound = roundIdx >= this.state.roundsCount - 1;
+    this.btnNextRound.style.display = 'inline-flex';
+    const nextAccessible = isLastRound
+      ? this.areAllRoundsFilled()
+      : this.isRoundAccessibleOrFilled(roundIdx + 1);
+    this.btnNextRound.textContent = isLastRound ? 'Vai alla Classifica →' : 'Turno Successivo →';
+    this.btnNextRound.disabled = !nextAccessible;
+    this.btnNextRound.style.opacity = nextAccessible ? '1' : '0.45';
+    this.btnNextRound.style.cursor = nextAccessible ? 'pointer' : 'not-allowed';
+    if (isLastRound) {
+      this.btnNextRound.title = nextAccessible
+        ? 'Vai alla classifica finale'
+        : `Completa tutti i punteggi del Turno ${roundIdx + 1} per accedere alla classifica`;
+    } else {
+      this.btnNextRound.title = nextAccessible
+        ? 'Vai al turno successivo'
+        : `Completa i punteggi del Turno ${roundIdx + 1} prima di procedere`;
+    }
+  }
+
   updateTabsAndNextButton() {
     this.renderTabs();
     this.updatePrintButtonState();
-    if (this.btnNextRound && this.state.currentTab === 'round') {
-      const nextAccessible = this.isRoundAccessible(this.state.activeRoundIndex + 1);
-      this.btnNextRound.disabled = !nextAccessible;
-      this.btnNextRound.style.opacity = nextAccessible ? '1' : '0.45';
-      this.btnNextRound.style.cursor = nextAccessible ? 'pointer' : 'not-allowed';
-      this.btnNextRound.title = nextAccessible ? 'Vai al turno successivo' : `Completa e valida il Turno ${this.state.activeRoundIndex + 1} prima di procedere`;
+    if (this.state.currentTab === 'round') {
+      this.updateNextRoundButtonState(this.state.activeRoundIndex);
     }
   }
 
@@ -2326,8 +2381,11 @@ class BurracoApp {
       });
       return;
     }
+    this.removeEmptyPairs();
     const count = this.state.pairs.length;
     if (count === 0) {
+      this.saveState();
+      this.render();
       this.showFeedbackModal({
         title: 'Nessuna Coppia',
         message: 'Nessuna coppia registrata.',
@@ -2357,6 +2415,17 @@ class BurracoApp {
         title: 'Iscrizioni Confermate',
         message: 'Le iscrizioni sono confermate. Riapri le iscrizioni prima di assegnare numeri sequenziali.',
         icon: '🔒'
+      });
+      return;
+    }
+    this.removeEmptyPairs();
+    if (this.state.pairs.length === 0) {
+      this.saveState();
+      this.render();
+      this.showFeedbackModal({
+        title: 'Nessuna Coppia',
+        message: 'Nessuna coppia registrata.',
+        icon: '⚠️'
       });
       return;
     }
@@ -2400,11 +2469,7 @@ class BurracoApp {
 
   updatePrintButtonState() {
     if (!this.btnPrint) return;
-    const cfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (window.BURRACO_CONFIG || {});
-    const byePoints = (this.state.settings && this.state.settings.byePoints !== undefined)
-      ? Number(this.state.settings.byePoints)
-      : (cfg.defaultByePoints !== undefined ? cfg.defaultByePoints : 12);
-    const areAllComplete = BurracoEngine.areAllRoundsComplete(this.state.pairs, this.state.roundsCount, byePoints);
+    const areAllComplete = this.areAllRoundsFilled();
 
     this.btnPrint.disabled = !areAllComplete;
     this.btnPrint.style.opacity = areAllComplete ? '1' : '0.42';
@@ -2415,11 +2480,7 @@ class BurracoApp {
   }
 
   exportLeaderboardImage() {
-    const cfg = BurracoExcel._getConfig ? BurracoExcel._getConfig() : (window.BURRACO_CONFIG || {});
-    const byePoints = (this.state.settings && this.state.settings.byePoints !== undefined)
-      ? Number(this.state.settings.byePoints)
-      : (cfg.defaultByePoints !== undefined ? cfg.defaultByePoints : 12);
-    if (!BurracoEngine.areAllRoundsComplete(this.state.pairs, this.state.roundsCount, byePoints)) {
+    if (!this.areAllRoundsFilled()) {
       this.showFeedbackModal({
         title: 'Classifica Non Conclusa',
         message: 'L\'immagine della classifica può essere salvata solo al termine di tutti i turni del torneo.',
@@ -2576,7 +2637,7 @@ class BurracoApp {
     this.openModal('modalFeedback');
   }
 
-  showConfirmModal({ title = 'Conferma Operazione', message = '', detail = '', confirmText = 'Conferma', confirmClass = 'btn-primary', onConfirm, onCancel } = {}) {
+  showConfirmModal({ title = 'Conferma Operazione', message = '', detail = '', confirmText = 'Conferma', cancelText = 'Annulla', confirmClass = 'btn-primary', onConfirm, onCancel } = {}) {
     const titleEl = document.getElementById('confirm-action-title');
     const msgEl = document.getElementById('confirm-action-message');
     const detailEl = document.getElementById('confirm-action-detail');
@@ -2586,6 +2647,7 @@ class BurracoApp {
 
     if (titleEl) titleEl.textContent = title;
     if (msgEl) msgEl.textContent = message;
+    if (cancelBtn) cancelBtn.textContent = cancelText;
     if (detailEl) {
       if (detail) {
         detailEl.textContent = detail;
